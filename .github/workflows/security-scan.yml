@@ -208,7 +208,6 @@ jobs:
           format: 'SARIF'
           args: >
             --enableExperimental
-            --enableNpm
 
       - name: Upload OWASP Dependency-Check results
         uses: github/codeql-action/upload-sarif@v4
