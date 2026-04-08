@@ -138,3 +138,27 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
   - Logs / errors: no TypeScript compile errors after refactor
 - Result:
   - Completed requested security/auth architecture refactor with schema-first migration readiness for Drizzle.
+
+## Task: Repo docs refresh + API implementation guide + agent doc-update enforcement
+
+- Date: 2026-04-08
+- Request: Update `docs/` to reflect actual repo behavior, add API implementation guide, and enforce in `AGENTS.md` + Copilot instructions that new APIs must update docs.
+- Plan:
+  - [x] Scan current docs vs real source code (modules, routes, env, schema).
+  - [x] Rewrite repo-facing docs in `docs/` with current behavior.
+  - [x] Add `docs/implementation-guide.md` for endpoint delivery workflow.
+  - [x] Update `AGENTS.md` and `.github/copilot-instructions.md` with mandatory API-doc update rules.
+  - [x] Summarize outcomes.
+- Progress:
+  - Rewrote `docs/api.md` with real endpoints, auth flow, RBAC/abilities notes, and usage examples.
+  - Rewrote `docs/database.md` with current Drizzle schema entities and migration workflow.
+  - Rewrote `docs/environment.md` with real env variables and runtime behavior.
+  - Rewrote `docs/project-structure.md` to match current folder/module layout.
+  - Added `docs/implementation-guide.md` with step-by-step API implementation and documentation checklist.
+  - Updated `AGENTS.md` and Copilot instructions to require `docs/` updates when APIs change.
+- Verification:
+  - Tests: not run (docs/instructions-only changes)
+  - Logs / errors: n/a
+- Result:
+  - `docs/` is now repo-specific and aligned with current code.
+  - Agent instruction entry points now explicitly enforce API documentation updates as part of endpoint work.

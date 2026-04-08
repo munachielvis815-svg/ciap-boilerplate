@@ -1,337 +1,196 @@
 # API Documentation
 
-**Last Updated**: April 7, 2026  
-**Version**: 1.0.0
+Updated for the current NestJS codebase on 2026-04-08.
 
----
+## Base URLs
 
-## Overview
+- Local API: `http://localhost:3000`
+- Swagger UI: `http://localhost:3000/api-docs`
 
-This API is documented with Swagger/OpenAPI. Access at:
-- **Dev**: http://localhost:3001/api
-- **Staging**: https://staging-api.example.com/api
-- **Production**: https://api.example.com/api
+## Auth Model
 
----
+- Access token: JWT signed with `ES256`
+- Refresh token: JWT signed with `ES512`
+- Refresh tokens are session-backed:
+  - raw token is returned once to client
+  - SHA-256 hash is stored in `sessions.refresh_token_hash`
+  - refresh rotates by revoking old session and creating a new one
 
-## Authentication
+Use bearer auth on protected endpoints:
 
-### JWT Bearer Token
-
-All protected endpoints require a valid JWT token in the `Authorization` header:
-
-```bash
-Authorization: Bearer <your-jwt-token>
+```http
+Authorization: Bearer <access_token>
 ```
 
-### Getting a Token
+## Endpoint Index
 
-1. Call the `/auth/login` endpoint with email and password
-2. Response includes access token (24-hour expiry) and refresh token (7-day expiry)
-3. Use access token in Authorization header for subsequent requests
+### Root and health
+
+- `GET /` - API metadata
+- `GET /health` - basic API health
+- `GET /health/db` - database connectivity health
+- `GET /health/ready` - readiness status
+
+### Auth
+
+- `POST /auth/signup` - create account (public)
+- `POST /auth/login` - login with email/password (public)
+- `POST /auth/google` - login/signup with Google ID token (public)
+- `POST /auth/refresh` - rotate refresh token (public)
+- `GET /auth/verify` - verify access token + session (protected)
+- `POST /auth/logout` - revoke current session (protected)
+- `GET /auth/oauth2/:provider` - build OAuth authorization URL (public, Google implemented)
+- `GET /auth/oauth2/:provider/callback` - provider callback endpoint (public)
+- `GET /auth/google/callback` - Google callback shortcut (public)
+- `GET /auth/roles` - list roles (protected, `admin` only)
+
+### Users
+
+- `GET /users/:id` - get user by id (protected + RBAC + abilities)
+- `GET /users?limit=10&offset=0` - list users (protected + RBAC + abilities)
+
+## Request and Response Examples
+
+### Signup
 
 ```bash
-curl -X POST http://localhost:3001/auth/login \
+curl -X POST http://localhost:3000/auth/signup \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"password123"}'
+  -d '{
+    "email": "new.user@example.com",
+    "name": "New User",
+    "password": "StrongPassword123!",
+    "role": "user"
+  }'
 ```
 
-Response:
+Response shape:
+
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
-    "id": 1,
-    "email": "user@example.com",
-    "roles": ["user"]
-  }
+    "id": 7,
+    "email": "new.user@example.com",
+    "name": "New User",
+    "role": "user",
+    "tenantId": 2,
+    "isEmailVerified": false
+  },
+  "accessToken": "<jwt>",
+  "refreshToken": "<jwt>",
+  "expiresIn": 900
 }
 ```
 
-### Refreshing Token
+### Login
 
 ```bash
-curl -X POST http://localhost:3001/auth/refresh \
-  -H "Authorization: Bearer <refresh-token>"
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "admin12345"
+  }'
 ```
 
----
+### Refresh
 
-## HTTP Status Codes
+```bash
+curl -X POST http://localhost:3000/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken":"<refresh_token>"}'
+```
 
-| Code | Meaning | When Used |
-|------|---------|-----------|
-| 200 | OK | Successful GET/PUT/PATCH request |
-| 201 | Created | Successful POST request |
-| 204 | No Content | Successful DELETE request |
-| 400 | Bad Request | Invalid input, validation error |
-| 401 | Unauthorized | Missing/invalid JWT token |
-| 403 | Forbidden | Insufficient permissions (role-based) |
-| 404 | Not Found | Resource doesn't exist |
-| 409 | Conflict | Resource already exists (e.g., duplicate email) |
-| 500 | Server Error | Unexpected server error |
-| 503 | Unavailable | Database/external service error |
+### Verify session
 
----
+```bash
+curl http://localhost:3000/auth/verify \
+  -H "Authorization: Bearer <access_token>"
+```
 
-## Error Response Format
-
-All errors return JSON with consistent structure (no stack traces):
+Response shape:
 
 ```json
 {
-  "statusCode": 400,
-  "message": "Email must be a valid email address",
-  "error": "Bad Request",
-  "timestamp": "2026-04-07T10:30:45.123Z",
-  "path": "/users",
-  "details": {
-    "field": "email",
-    "value": "invalid-email"
-  }
+  "valid": true,
+  "userId": 1,
+  "email": "admin@example.com",
+  "tenantId": 1,
+  "role": "admin",
+  "sessionId": "7b4e5e22-0a69-4de5-93b9-e46d9454b0f8"
 }
 ```
 
-See `/docs/exceptions.md` for complete error handling patterns.
+### Start Google OAuth in browser
 
----
-
-## Endpoints
-
-### Users Module
-
-#### Create User
-```http
-POST /users
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "email": "john@example.com",
-  "password": "SecurePassword123!",
-  "firstName": "John",
-  "lastName": "Doe"
-}
+```text
+GET http://localhost:3000/auth/oauth2/google
 ```
 
-**Success (201)**:
-```json
-{
-  "id": 1,
-  "email": "john@example.com",
-  "firstName": "John",
-  "lastName": "Doe",
-  "createdAt": "2026-04-07T10:30:45.123Z"
-}
+It returns an `authorizationUrl`. Open it in a browser, approve consent, then Google redirects to:
+
+```text
+http://localhost:3000/auth/google/callback?code=...
 ```
 
-**Error (400)**: Invalid input
-**Error (409)**: Email already exists
-
----
-
-#### Get User by ID
-```http
-GET /users/:id
-Authorization: Bearer <token>
-```
-
-**Success (200)**: User object
-**Error (401)**: Unauthorized
-**Error (404)**: User not found
-
----
-
-#### List Users (Paginated)
-```http
-GET /users?page=1&limit=10&sort=createdAt:desc
-Authorization: Bearer <token>
-```
-
-**Query Parameters**:
-- `page` (optional, default: 1)
-- `limit` (optional, default: 10, max: 100)
-- `sort` (optional, format: `field:asc|desc`)
-
-**Success (200)**:
-```json
-{
-  "data": [
-    {"id": 1, "email": "john@example.com", ...},
-    {"id": 2, "email": "jane@example.com", ...}
-  ],
-  "meta": {
-    "total": 50,
-    "page": 1,
-    "limit": 10,
-    "pages": 5
-  }
-}
-```
-
----
-
-#### Update User
-```http
-PATCH /users/:id
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "firstName": "Johnny",
-  "lastName": "Doe"
-}
-```
-
-**Success (200)**: Updated user object
-**Error (404)**: User not found
-**Error (409)**: Email conflict (if updating email)
-
----
-
-#### Delete User
-```http
-DELETE /users/:id
-Authorization: Bearer <token>
-```
-
-**Success (204)**: No content
-**Error (404)**: User not found
-
----
-
-### Products Module
-
-*Similar structure to Users module*
-
----
-
-## Pagination
-
-All list endpoints support pagination:
-
-```typescript
-// Response format
-{
-  "data": [...items],
-  "meta": {
-    "total": 100,        // Total items in database
-    "page": 1,           // Current page
-    "limit": 10,         // Items per page
-    "pages": 10          // Total pages
-  }
-}
-```
-
-### Pagination Query
+### Direct Google token login
 
 ```bash
-GET /users?page=2&limit=20
+curl -X POST http://localhost:3000/auth/google \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idToken": "<google_id_token>",
+    "role": "creator"
+  }'
 ```
 
----
-
-## Filtering
-
-Most list endpoints support filtering:
+### Protected users endpoint
 
 ```bash
-# Filter by status
-GET /users?status=active
-
-# Filter by role
-GET /users?role=admin
-
-# Multiple filters (AND logic)
-GET /users?status=active&role=admin
+curl http://localhost:3000/users/1 \
+  -H "Authorization: Bearer <access_token>"
 ```
 
----
+## RBAC and Ability Enforcement
 
-## Sorting
+- Roles: `admin`, `user`, `sme`, `creator`
+- Guards on protected user endpoints:
+  - `JwtAuthGuard`
+  - `RolesGuard`
+  - `AbilitiesGuard`
+- Example:
+  - `/users/:id` accepts abilities `users:read:any`, `users:read:tenant`, `users:read:self`
+  - `/users` list accepts `users:list:any` or `users:list:tenant`
 
-List endpoints support sorting:
+## Error Contract
 
-```bash
-# Sort ascending (default)
-GET /users?sort=createdAt:asc
-
-# Sort descending
-GET /users?sort=createdAt:desc
-
-# Multiple sort fields
-GET /users?sort=role:asc,createdAt:desc
-```
-
----
-
-## Rate Limiting
-
-API endpoints are rate-limited to prevent abuse:
-
-### Limits
-
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| Public endpoints | 100 requests | 1 hour |
-| Authenticated endpoints | 1000 requests | 1 hour |
-| Auth endpoints | 10 requests | 1 hour |
-
-### Headers
-
-Rate limit info is included in response headers:
-
-```
-X-RateLimit-Limit: 1000
-X-RateLimit-Remaining: 999
-X-RateLimit-Reset: 1617859200
-```
-
-When limit is exceeded, API returns `429 Too Many Requests`.
-
----
-
-## Webhook Events
-
-*Document webhook events if applicable*
-
-### User Created Event
+The global filters return safe JSON. Typical shape:
 
 ```json
 {
-  "event": "user.created",
-  "timestamp": "2026-04-07T10:30:45.123Z",
-  "data": {
-    "id": 1,
-    "email": "john@example.com",
-    "firstName": "John"
-  }
+  "statusCode": 401,
+  "message": "Unauthorized",
+  "error": "Unauthorized",
+  "timestamp": "2026-04-08T15:30:00.000Z",
+  "path": "/auth/verify"
 }
 ```
 
----
+- 4xx errors are logged as warnings.
+- 5xx errors are logged with server-side stack details.
+- Internal stack traces are not returned to clients.
 
-## Versioning
+## Implementation Notes
 
-The API currently uses **v1** (implicit).
+- `GET /auth/verify` is intentionally a `GET` endpoint using bearer token auth.
+- OAuth callback routes are `GET` because providers redirect with query params (`code`, etc.).
+- API version prefix is not currently applied in route registration.
 
-Future versions will use:
-- `GET /v2/users` for v2 endpoints
-- `/v1/users` continues to work
-- Deprecation warnings in v1 responses
+## When API Changes
 
----
+If routes, DTOs, guards, or auth flow change, update in the same pull request:
 
-## Deprecations
-
-No endpoints are currently deprecated.
-
----
-
-## Support & Issues
-
-- **Documentation**: See `/docs/` folder
-- **Bug Reports**: GitHub Issues
-- **Support**: support@example.com
+1. this file (`docs/api.md`)
+2. `docs/implementation-guide.md` (if workflow or conventions changed)
+3. Swagger decorators in controllers
 

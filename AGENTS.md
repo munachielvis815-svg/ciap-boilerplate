@@ -36,8 +36,8 @@ Use this file as the default operating guide. Keep changes small, safe, typed, a
 - ORM: Drizzle ORM with `pg`
 - Database: PostgreSQL via `DATABASE_URL`
 - Package manager: `pnpm` only
-- API docs: Swagger at `/api`
-- Current feature modules: `health`, `users`
+- API docs: Swagger at `/api-docs`
+- Current feature modules: `auth`, `health`, `rbac`, `sessions`, `users`
 
 ## Operating Rules
 
@@ -134,6 +134,24 @@ Prefer these aliases when possible:
 
 When you learn something durable while searching or implementing, update the appropriate project docs in the same task when practical.
 
+### Docs Ownership Split
+
+- `docs/` contains repository and API documentation for project users/contributors.
+- `agent-docs/` contains agent workflow, lessons, findings, and internal coding guidance.
+- Keep this separation strict: do not move agent process notes into `docs/`.
+
+### API Documentation Is Mandatory
+
+When creating or changing any API endpoint, update docs in the same task:
+
+1. Update `docs/api.md` with route, auth mode, request/response, and errors.
+2. Update `docs/implementation-guide.md` if implementation workflow or conventions changed.
+3. Update related docs when applicable:
+   - `docs/database.md` for schema/query contract changes
+   - `docs/environment.md` for new env requirements
+   - `docs/project-structure.md` for module/layout changes
+4. Keep Swagger decorators and DTOs aligned with those docs.
+
 ### Update `agent-docs/findings.md` when
 
 - You discover a repo convention not already documented.
@@ -219,6 +237,7 @@ Before finishing a task, quickly check:
 4. Did I update `project-structure.md` if the structure changed?
 5. Did I capture a reusable lesson or mistake in `lessons.md` if one surfaced?
 6. Did I update `tasks/todo.md` with the plan, progress, and result?
+7. If APIs changed, did I update `docs/api.md` (and `docs/implementation-guide.md` if needed)?
 
 ## When Updating Docs
 

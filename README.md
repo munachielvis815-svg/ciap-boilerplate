@@ -1,98 +1,291 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+[![Contributors][ciap-contributors-shield]][ref-ciap-contributors]
+[![Forks][ciap-forks-shield]][ref-ciap-forks]
+[![Stargazers][ciap-stars-shield]][ref-ciap-stars]
+[![Issues][ciap-issues-shield]][ref-ciap-issues]
+[![License][ciap-license-shield]][ref-license]
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+[![NestJS][nestjs-shield]][ref-nestjs]
+[![Node.js][nodejs-shield]][ref-nodejs]
+[![TypeScript][typescript-shield]][ref-typescript]
+[![PostgreSQL][postgresql-shield]][ref-postgresql]
+[![Drizzle ORM][drizzle-shield]][ref-drizzle]
+[![JWT][jwt-shield]][ref-jwt]
+[![Jest][jest-shield]][ref-jest]
+[![PNPM][pnpm-shield]][ref-pnpm]
+[![Docker][docker-shield]][ref-docker]
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+# CIAP Boilerplate
 
-## Description
+Production-oriented NestJS v11 API boilerplate for the Creative Influence and Analytics Platform (CIAP), built with strict TypeScript, Drizzle ORM, PostgreSQL, JWT auth, Google OAuth onboarding, RBAC policies, tenant-aware access control, and session-backed refresh token security.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Table Of Contents
 
-## Project setup
+- [Important Notes](#important-notes)
+- [Current Scope](#current-scope)
+- [Prerequisites](#prerequisites)
+- [Built With](#built-with)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Environment Setup](#environment-setup)
+- [Database Workflow](#database-workflow)
+- [Authentication Flow](#authentication-flow)
+- [Project Structure](#project-structure)
+- [Scripts](#scripts)
+- [Testing](#testing)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Important Notes
+
+- Access tokens use `ES256`; refresh tokens use `ES512`.
+- Refresh tokens are persisted as hashes in the `sessions` table.
+- OAuth onboarding currently supports Google (`/auth/google` and callback flow).
+- Swagger docs are served at `/api-docs`.
+- This project uses `pnpm` exclusively.
+- Exception filters are configured to avoid stack-trace noise for expected `4xx` responses.
+
+## Current Scope
+
+This boilerplate currently focuses on:
+
+- API-first backend with NestJS modules
+- JWT + session-based authentication
+- Google OAuth sign-in onboarding
+- Role-based access (`admin`, `user`, `sme`, `creator`)
+- Ability policies and tenant-scoped access behavior
+- Auditable security events through `audit_logs`
+- Drizzle schema-driven migrations with PostgreSQL
+
+## Prerequisites
+
+1. Node.js `>= 24.11.0`
+2. pnpm `>= 10.25.0`
+3. PostgreSQL database (Neon/Postgres-compatible)
+4. Basic familiarity with NestJS, TypeScript, and SQL migrations
+
+## Built With
+
+| Technology | Version (from repo) | Purpose |
+| --- | --- | --- |
+| NestJS | 11.x | Core API framework |
+| Node.js | >= 24.11.x | Runtime |
+| TypeScript | 5.x | Type-safe development |
+| Drizzle ORM | 0.45.x | Schema + query layer |
+| PostgreSQL (`pg`) | 8.20.x | Database driver |
+| Passport/JWT | 11.x / 4.x | Authentication |
+| google-auth-library | 10.x | Google sign-in token verification |
+| Helmet | 8.x | HTTP security headers |
+| Jest | 30.x | Testing |
+
+## Features
+
+### Architecture
+
+- Modular NestJS codebase (`auth`, `users`, `health`, `sessions`, `rbac`)
+- Shared common layers for guards, decorators, filters, and exceptions
+- Repository-style data access with Drizzle database providers
+- Strict TypeScript config and path aliases
+
+### Authentication And Authorization
+
+- Email/password signup and login
+- Google OAuth sign-in support
+- JWT access token verification via Passport strategy
+- Refresh token rotation with session revocation
+- Role-based route protection (`Roles` + `RolesGuard`)
+- Ability-based policy checks (`RequireAbilities` + `AbilitiesGuard`)
+
+### Security
+
+- Asymmetric JWT key strategy:
+  - Access token: `ES256`
+  - Refresh token: `ES512`
+- `helmet` enabled in bootstrap
+- Structured exception responses
+- Audit logging table for auth/security-sensitive events
+
+### Multitenancy
+
+- Tenant model in schema (`tenants` table)
+- User-to-tenant relationship (`users.tenant_id`)
+- Tenant-aware user access logic for non-admin roles
+
+### Developer Experience
+
+- SWC dev/watch compilation for 20x faster builds than the typescript compiler 
+- Swagger/OpenAPI at `/api-docs`
+- Drizzle migration and studio tooling
+- Typecheck and lint scripts
+- Structured project docs under `agent-docs/` and `docs/`
+
+## Quick Start
 
 ```bash
-$ pnpm install
+pnpm install
+cp .env.example .env
+pnpm run db:migrate
+pnpm run start:dev
 ```
 
-## Compile and run the project
+App defaults:
+
+- API base: `http://localhost:3000`
+- Swagger: `http://localhost:3000/api-docs`
+- Health: `http://localhost:3000/health`
+
+## Environment Setup
+
+At minimum configure:
+
+- `DATABASE_URL`
+- `JWT_ACCESS_PRIVATE_KEY`
+- `JWT_ACCESS_PUBLIC_KEY`
+- `JWT_REFRESH_PRIVATE_KEY`
+- `JWT_REFRESH_PUBLIC_KEY`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI` (default: `http://localhost:3000/auth/google/callback`)
+
+See [.env.example](./.env.example) for full template.
+
+## Database Workflow
+
+Schema source of truth:
+
+- `src/database/drizzle/schema.ts`
+
+Common commands:
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm run db:generate
+pnpm run db:migrate
+pnpm run db:studio
+pnpm run db:seed
 ```
 
-## Run tests
+Recommended workflow:
+
+1. Edit `schema.ts`
+2. Generate migration
+3. Review SQL
+4. Apply migration
+5. Verify app boot and auth flows
+
+## Authentication Flow
+
+### Email/Password
+
+- `POST /auth/signup`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `GET /auth/verify`
+
+### Google OAuth
+
+- Prepare URL: `GET /auth/oauth2/google`
+- Callback: `GET /auth/google/callback` or `GET /auth/oauth2/google/callback`
+- Direct token login: `POST /auth/google` with Google ID token
+
+## Project Structure
+
+```text
+src/
+  modules/
+    auth/
+    health/
+    rbac/
+    sessions/
+    users/
+  common/
+    constants/
+    decorators/
+    exceptions/
+    filters/
+    guards/
+  database/
+    drizzle/
+      schema.ts
+      migrations/
+    seeds/
+  types/
+```
+
+Additional docs:
+
+- [`agent-docs/project-structure.md`](./agent-docs/project-structure.md)
+- [`agent-docs/patterns.md`](./agent-docs/patterns.md)
+- [`agent-docs/testing.md`](./agent-docs/testing.md)
+- [`docs/project-structure.md`](./docs/project-structure.md)
+
+## Scripts
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm run start:dev
+pnpm run build
+pnpm run lint
+pnpm run typecheck
+pnpm run test
+pnpm run test:e2e
+pnpm run db:generate
+pnpm run db:migrate
+pnpm run db:seed
 ```
 
-## Deployment
+## Testing
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+- Unit tests: `pnpm run test`
+- E2E tests: `pnpm run test:e2e`
+- Coverage: `pnpm run test:cov`
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Roadmap
 
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
+- Expand OAuth providers beyond Google (e.g. X, Apple)
+- Add stronger tenant policy boundaries for additional modules
+- Add auth and policy focused integration/e2e tests
+- Introduce rate-limit and abuse-control defaults for auth endpoints
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Contributing
 
-## Resources
+Contributions are welcome. Please keep changes:
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- small and scoped
+- tested and type-safe
+- aligned with existing module boundaries and documented patterns
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Current package license is `UNLICENSED` in `package.json`.  
+If you plan to open-source this repo, define a formal license file and update metadata.
+
+<!-- REFERENCES -->
+
+[ciap-contributors-shield]: https://img.shields.io/github/contributors/munachielvis815-svg/ciap-boilerplate?style=for-the-badge
+[ciap-forks-shield]: https://img.shields.io/github/forks/munachielvis815-svg/ciap-boilerplate?style=for-the-badge
+[ciap-stars-shield]: https://img.shields.io/github/stars/munachielvis815-svg/ciap-boilerplate?style=for-the-badge
+[ciap-issues-shield]: https://img.shields.io/github/issues/munachielvis815-svg/ciap-boilerplate?style=for-the-badge
+[ciap-license-shield]: https://img.shields.io/github/license/munachielvis815-svg/ciap-boilerplate?style=for-the-badge
+[nestjs-shield]: https://img.shields.io/badge/nestjs-%23E0234E.svg?style=for-the-badge&logo=nestjs&logoColor=white
+[nodejs-shield]: https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white
+[typescript-shield]: https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white
+[postgresql-shield]: https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white
+[drizzle-shield]: https://img.shields.io/badge/Drizzle%20ORM-C5F74F?style=for-the-badge&logoColor=black
+[jwt-shield]: https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white
+[jest-shield]: https://img.shields.io/badge/Jest-C21325?style=for-the-badge&logo=jest&logoColor=white
+[pnpm-shield]: https://img.shields.io/badge/PNPM-F69220?style=for-the-badge&logo=pnpm&logoColor=white
+[docker-shield]: https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white
+[ref-ciap-contributors]: https://github.com/munachielvis815-svg/ciap-boilerplate/graphs/contributors
+[ref-ciap-forks]: https://github.com/munachielvis815-svg/ciap-boilerplate/network/members
+[ref-ciap-stars]: https://github.com/munachielvis815-svg/ciap-boilerplate/stargazers
+[ref-ciap-issues]: https://github.com/munachielvis815-svg/ciap-boilerplate/issues
+[ref-license]: ./LICENSE
+[ref-nestjs]: https://nestjs.com
+[ref-nodejs]: https://nodejs.org
+[ref-typescript]: https://www.typescriptlang.org
+[ref-postgresql]: https://www.postgresql.org
+[ref-drizzle]: https://orm.drizzle.team
+[ref-jwt]: https://jwt.io
+[ref-jest]: https://jestjs.io
+[ref-pnpm]: https://pnpm.io
+[ref-docker]: https://docs.docker.com

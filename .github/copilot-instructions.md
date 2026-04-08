@@ -19,6 +19,7 @@ Use these instructions when coding in this repository. They complement `AGENTS.m
 - ORM: Drizzle ORM with PostgreSQL
 - Package manager: `pnpm`
 - Swagger: configured in `src/swagger.ts`
+- Swagger route: `/api-docs`
 - Bootstrap: configured in `src/main.ts`
 
 ## Search Before You Build
@@ -106,6 +107,23 @@ Keep these updates short and useful. Prefer compact entries over long tutorials.
 - Do not over-delete useful context; compact instead of erasing important detail.
 - Prefer short summaries, rules, and examples over long narrative sections.
 - If a doc is wrong, fix it as part of the task when practical.
+- Keep ownership split:
+  - `docs/` is repo-facing documentation
+  - `agent-docs/` is agent-facing guidance and memory
+
+### Required On API Changes
+
+When creating or modifying API endpoints, update in the same task:
+
+1. `docs/api.md` (routes, auth, request/response, errors)
+2. Swagger decorators/DTOs in controller layer
+3. `docs/implementation-guide.md` if conventions/workflow changed
+
+Update related docs when applicable:
+
+- `docs/database.md` for schema/data contract updates
+- `docs/environment.md` for new/changed env vars
+- `docs/project-structure.md` for module/layout changes
 
 ## File Placement Defaults
 
@@ -141,3 +159,4 @@ When the user reports a bug, fix it by default.
 5. Did I update structure docs if the layout changed?
 6. Did I record lessons or mistakes worth reusing?
 7. Did I update `tasks/todo.md` with plan, progress, and results?
+8. If APIs changed, did I update `docs/api.md` and related `docs/` files?
