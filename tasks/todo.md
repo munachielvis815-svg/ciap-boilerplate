@@ -24,6 +24,52 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Logger noise reduction + logger backend toggle
+
+- Date: 2026-04-08
+- Request: Stop verbose request object logging, provide env option for Nest default logger vs pino logger, and use concise winston-style HTTP logs.
+- Plan:
+  - [x] Inspect current pino + filter logging behavior.
+  - [x] Add env-driven logger backend switch (`nest` or `pino`).
+  - [x] Replace verbose HTTP auto logs with concise single-line request logs.
+  - [x] Reduce structured payload dumping in exception filters.
+  - [x] Verify with typecheck and document env controls.
+- Progress:
+  - Confirmed noisy output comes from `pino-http` auto request logging and object payload logs from exception filters.
+  - Added `LOG_BACKEND` support (`pino` default, `nest` optional) and `LOG_HTTP_ENABLED` toggle.
+  - Disabled pino-http auto logging and introduced concise HTTP access logging in bootstrap middleware.
+  - Removed object payload logging from exception filters to avoid full request/response dumps.
+  - Updated `.env`, `.env.example`, `docs/environment.md`, and `docker-compose.yml` with new logger settings.
+- Verification:
+  - Tests: `cmd /c pnpm run typecheck` (pass)
+  - Logs / errors: logger backend extension to winston introduced type issues that were resolved (`PinoLogger` import/root logger usage).
+- Result:
+  - Completed noisy log reduction with strict HTTP mode and logger backend options (`pino`, `nest`, `winston`).
+
+## Task: Env-driven logger + file logging + deadcode/dependency hygiene
+
+- Date: 2026-04-08
+- Request: Enable logger control from env, enforce pretty/json log format, write logs to file using newly added logging deps, use deadcode findings without deleting exports (especially exceptions), and provide unused dependency list.
+- Plan:
+  - [x] Inspect current logger wiring and newly added logging dependencies.
+  - [x] Integrate `nestjs-pino` with env-driven config (enable/disable, format, file logging).
+  - [x] Update env templates/docs for new logging controls.
+  - [x] Apply safe deadcode usage improvements (exceptions/decorator barrels) without deleting exports.
+  - [x] Run verification (`typecheck`, `deadcode`) and produce unused dependency list.
+- Progress:
+  - Confirmed logger packages are installed (`nestjs-pino`, `pino-http`, `pino-pretty`, `pino-roll`) but not yet wired into app bootstrap.
+  - Added `LoggerModule.forRoot(...)` in `AppModule` with env-driven pino config and format enforcement (`pretty`/`json` only).
+  - Added file logging support with `pino-roll` transport (`LOG_TO_FILE`, path, level, size, frequency).
+  - Updated bootstrap to use `nestjs-pino` logger via `app.useLogger(app.get(PinoLogger))`.
+  - Extended compose/env/docs with new logger controls.
+  - Replaced selected auth/users/guard exceptions with project exception classes and switched guards to decorator barrel exports.
+  - Reused shared request/jwt types in controllers/strategy to reduce deadcode noise.
+- Verification:
+  - Tests: `cmd /c pnpm run typecheck` (pass), `cmd /c pnpm run deadcode` (pass)
+  - Logs / errors: initial type mismatch in pino transport options fixed; final compile is clean.
+- Result:
+  - Completed logger/env/file logging implementation with safe deadcode usage improvements and dependency usage scan output.
+
 ## Task: Compose env-list style + CIAP naming + Postgres persistence polish
 
 - Date: 2026-04-08

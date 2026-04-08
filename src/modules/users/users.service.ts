@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import {
+  UnauthorizedUserActionException,
+  UserNotFoundException,
+} from '@common/exceptions';
 import { UsersRepository } from './users.repository';
 import { UserDto } from './dto/user.dto';
 import type { User } from '@database/drizzle/schema';
@@ -19,12 +23,12 @@ export class UsersService {
         : await this.usersRepository.findByIdAndTenant(id, actor.tenantId);
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new UserNotFoundException(id);
     }
 
     if (actor.role === 'user' || actor.role === 'creator') {
       if (actor.id !== user.id) {
-        throw new ForbiddenException('You can only access your own profile');
+        throw new UnauthorizedUserActionException('access this user profile');
       }
     }
 
@@ -39,7 +43,7 @@ export class UsersService {
     const user = await this.usersRepository.findByEmail(email);
 
     if (!user) {
-      throw new NotFoundException(`User with email ${email} not found`);
+      throw new UserNotFoundException(email);
     }
 
     return this.mapUserToDto(user);

@@ -1,12 +1,15 @@
 import {
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { AppRole } from '@constants/roles.constant';
-import { ROLES_KEY } from '@decorators/roles.decorator';
+import { ROLES_KEY } from '@decorators/index';
+import {
+  InsufficientPermissionsException,
+  InvalidTokenException,
+} from '@common/exceptions';
 import type { RequestUser } from '@/types';
 
 @Injectable()
@@ -27,11 +30,13 @@ export class RolesGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('Authentication required');
+      throw new InvalidTokenException({ reason: 'missing-auth-context' });
     }
 
     if (!requiredRoles.includes(user.role)) {
-      throw new ForbiddenException('Insufficient permissions');
+      throw new InsufficientPermissionsException(requiredRoles.join(', '), {
+        userRole: user.role,
+      });
     }
 
     return true;

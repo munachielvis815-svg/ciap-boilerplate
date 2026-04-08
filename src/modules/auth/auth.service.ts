@@ -1,18 +1,28 @@
 import {
-  BadRequestException,
   Injectable,
   Logger,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { compare, hash } from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
 import { createHash, randomUUID } from 'crypto';
 import { sign, verify } from 'jsonwebtoken';
+import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import type { Algorithm, SignOptions } from 'jsonwebtoken';
 import type { Request } from 'express';
 import type { AppRole } from '@constants/roles.constant';
 import type { NewAuditLog, User } from '@database/drizzle/schema';
+import {
+  AccountDisabledException,
+  DuplicateEmailException,
+  ExternalApiException,
+  InvalidCredentialsException,
+  InvalidEnumException,
+  InvalidTokenException,
+  InvalidUserDataException,
+  MissingFieldException,
+  TokenExpiredException,
+} from '@common/exceptions';
 import { UsersRepository } from '@modules/users/users.repository';
 import { SessionsService } from '@modules/sessions/sessions.service';
 import { AuthRepository } from './auth.repository';
@@ -53,12 +63,14 @@ export class AuthService {
     const email = dto.email.toLowerCase();
     const existing = await this.usersRepository.findByEmail(email);
     if (existing) {
-      throw new BadRequestException('Email already in use');
+      throw new DuplicateEmailException(email);
     }
 
     const requestedRole = dto.role || 'user';
     if (requestedRole === 'admin') {
-      throw new BadRequestException('Admin role cannot be self-assigned');
+      throw new InvalidUserDataException('role', {
+        reason: 'Admin role cannot be self-assigned',
+      });
     }
 
     const passwordHash = await hash(dto.password, this.getBcryptRounds());
@@ -94,16 +106,16 @@ export class AuthService {
   async login(dto: LoginDto, request: Request): Promise<AuthResponseDto> {
     const user = await this.usersRepository.findByEmail(dto.email.toLowerCase());
     if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new InvalidCredentialsException();
     }
 
     const validPassword = await compare(dto.password, user.passwordHash);
     if (!validPassword) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new InvalidCredentialsException();
     }
 
     if (!user.isActive) {
-      throw new UnauthorizedException('Account is inactive');
+      throw new AccountDisabledException({ userId: user.id });
     }
 
     await this.usersRepository.updateLastLogin(user.id);
@@ -133,7 +145,7 @@ export class AuthService {
     const name = payload.name || 'Google User';
 
     if (!googleSubject || !email) {
-      throw new UnauthorizedException('Invalid Google token payload');
+      throw new InvalidTokenException({ provider: 'google', reason: 'invalid-payload' });
     }
 
     let user: User | null = null;
@@ -168,7 +180,7 @@ export class AuthService {
     }
 
     if (!user) {
-      throw new UnauthorizedException('Unable to authenticate Google user');
+      throw new InvalidCredentialsException({ provider: 'google' });
     }
 
     await this.usersRepository.markEmailVerified(user.id);
@@ -202,7 +214,7 @@ export class AuthService {
     });
 
     if (!tokens.id_token) {
-      throw new UnauthorizedException('Google token exchange did not return an id_token');
+      throw new InvalidTokenException({ provider: 'google', reason: 'missing-id-token' });
     }
 
     return this.loginWithGoogle(
@@ -217,18 +229,18 @@ export class AuthService {
     const decoded = this.verifyRefreshToken(dto.refreshToken);
     const session = await this.sessionsService.findActiveSessionById(decoded.sid);
     if (!session) {
-      throw new UnauthorizedException('Session is invalid or expired');
+      throw new InvalidTokenException({ reason: 'session-expired' });
     }
 
     const providedHash = this.hashToken(dto.refreshToken);
     if (providedHash !== session.refreshTokenHash) {
       await this.sessionsService.revokeSessionById(session.id);
-      throw new UnauthorizedException('Refresh token mismatch');
+      throw new InvalidTokenException({ reason: 'refresh-token-mismatch' });
     }
 
     const user = await this.usersRepository.findByIdOrNull(decoded.sub);
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('User unavailable');
+      throw new AccountDisabledException({ userId: decoded.sub });
     }
 
     await this.sessionsService.revokeSessionById(session.id);
@@ -275,7 +287,7 @@ export class AuthService {
   ) {
     const session = await this.sessionsService.findActiveSessionById(sessionId);
     if (!session || session.userId !== userId) {
-      throw new UnauthorizedException('Session invalid');
+      throw new InvalidTokenException({ reason: 'session-invalid' });
     }
 
     await this.writeAuditLog({
@@ -300,7 +312,9 @@ export class AuthService {
 
   prepareOauth2(provider: OAuth2Provider) {
     if (provider !== 'google') {
-      throw new BadRequestException(`${provider} OAuth is not configured yet`);
+      throw new InvalidEnumException('provider', ['google'], {
+        providedValue: provider,
+      });
     }
 
     const client = this.getGoogleClient();
@@ -368,7 +382,7 @@ export class AuthService {
       });
 
       if (typeof decoded !== 'object' || !decoded) {
-        throw new UnauthorizedException('Invalid refresh token');
+        throw new InvalidTokenException({ reason: 'invalid-refresh-payload' });
       }
 
       const sub = Number((decoded as { sub?: number | string }).sub);
@@ -376,25 +390,40 @@ export class AuthService {
       const tenantId = Number((decoded as { tenantId?: number | string }).tenantId);
 
       if (!sub || !sid || !tenantId) {
-        throw new UnauthorizedException('Invalid refresh token payload');
+        throw new InvalidTokenException({ reason: 'invalid-refresh-payload' });
       }
 
       return { sub, sid, tenantId };
-    } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        throw new TokenExpiredException();
+      }
+      if (error instanceof JsonWebTokenError) {
+        throw new InvalidTokenException({ reason: error.message });
+      }
+      throw error;
     }
   }
 
   private async verifyGoogleIdToken(idToken: string) {
-    const ticket = await this.getGoogleClient().verifyIdToken({
-      idToken,
-      audience: this.getGoogleClientId(),
-    });
-    const payload = ticket.getPayload();
-    if (!payload) {
-      throw new UnauthorizedException('Google token verification failed');
+    try {
+      const ticket = await this.getGoogleClient().verifyIdToken({
+        idToken,
+        audience: this.getGoogleClientId(),
+      });
+      const payload = ticket.getPayload();
+      if (!payload) {
+        throw new InvalidTokenException({ provider: 'google' });
+      }
+      return payload;
+    } catch (error) {
+      if (error instanceof InvalidTokenException) {
+        throw error;
+      }
+      throw new ExternalApiException('Google OAuth', {
+        reason: 'token-verification-failed',
+      });
     }
-    return payload;
   }
 
   private getGoogleClient(): OAuth2Client {
@@ -530,7 +559,7 @@ export class AuthService {
   private getGoogleClientId(): string {
     const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
     if (!clientId) {
-      throw new BadRequestException('GOOGLE_CLIENT_ID is not configured');
+      throw new MissingFieldException('GOOGLE_CLIENT_ID');
     }
     return clientId;
   }
@@ -544,7 +573,7 @@ export class AuthService {
 
   private normalizePemKey(rawValue: string | undefined, envName: string): string {
     if (!rawValue) {
-      throw new BadRequestException(`${envName} is not configured`);
+      throw new MissingFieldException(envName);
     }
 
     return rawValue.replace(/\\n/g, '\n');

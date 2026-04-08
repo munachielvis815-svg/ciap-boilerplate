@@ -2,17 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import type { AppRole } from '@constants/roles.constant';
-
-type JwtStrategyPayload = {
-  sub: number;
-  email: string;
-  role: AppRole;
-  tenantId: number;
-  sid: string;
-  iat?: number;
-  exp?: number;
-};
+import type { JwtPayload } from '@/types';
 
 function normalizePem(value: string | undefined): string {
   if (!value) {
@@ -35,7 +25,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtStrategyPayload) {
+  async validate(payload: JwtPayload) {
     return {
       id: payload.sub,
       email: payload.email,

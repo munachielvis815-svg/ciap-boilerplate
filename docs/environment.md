@@ -24,7 +24,17 @@ Updated for the current runtime config on 2026-04-08.
 - `NODE_ENV` (default `development`)
 - `PORT` (default `3000`)
 - `APP_PORT` (compose host/container app port, default `3000`)
-- `LOG_LEVEL` (comma-separated levels, default `log,error,warn,debug`)
+- `LOG_ENABLED` (default `true`)
+- `LOG_BACKEND` (`pino`, `nest`, or `winston`; default `pino`)
+- `LOG_HTTP_ENABLED` (default `true`, controls single-line HTTP access logs)
+- `LOG_HTTP_MODE` (`off`, `errors`, `all`; default `errors`)
+- `LOG_LEVEL` (default `info` when unset)
+- `LOG_FORMAT` (`pretty` or `json`, defaults to `json` for invalid/missing values)
+- `LOG_TO_FILE` (default `false`)
+- `LOG_FILE_PATH` (default `./logs/ciap.log`)
+- `LOG_FILE_LEVEL` (default inherits `LOG_LEVEL`)
+- `LOG_FILE_SIZE` (default `50m`)
+- `LOG_FILE_FREQUENCY` (default `daily`)
 - `CORS_ORIGIN` (default `http://localhost:3000`)
 
 ### Auth and security
@@ -71,6 +81,12 @@ Updated for the current runtime config on 2026-04-08.
 ## Runtime Features That Depend on Env
 
 - Logger levels in NestFactory bootstrap are derived from `LOG_LEVEL`.
+- Logger backend is powered by `nestjs-pino` and can be toggled by `LOG_ENABLED`.
+- Logger provider can switch between `pino`, Nest default logger, and `winston` using `LOG_BACKEND`.
+- HTTP access logs are emitted in concise single-line format (winston-style) when `LOG_HTTP_ENABLED=true`.
+- HTTP access verbosity is controlled by `LOG_HTTP_MODE` (recommended `errors` for strict 4xx/5xx logging).
+- Log format is enforced to `pretty` or `json` through `LOG_FORMAT`.
+- File logging is enabled with `LOG_TO_FILE=true` and rotated through `pino-roll`.
 - CORS origin is derived from `CORS_ORIGIN`.
 - JWT signing and verification keys are pulled from env.
 - Google OAuth client and redirect URI come from env.

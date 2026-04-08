@@ -17,7 +17,17 @@ services:
       - NODE_ENV=${NODE_ENV:-development}
       - HOST=0.0.0.0
       - PORT=${APP_PORT:-3000}
+      - LOG_ENABLED=${LOG_ENABLED:-true}
+      - LOG_BACKEND=${LOG_BACKEND:-pino}
+      - LOG_HTTP_ENABLED=${LOG_HTTP_ENABLED:-true}
+      - LOG_HTTP_MODE=${LOG_HTTP_MODE:-errors}
       - LOG_LEVEL=${LOG_LEVEL:-debug}
+      - LOG_FORMAT=${LOG_FORMAT:-pretty}
+      - LOG_TO_FILE=${LOG_TO_FILE:-false}
+      - LOG_FILE_PATH=${LOG_FILE_PATH:-./logs/ciap.log}
+      - LOG_FILE_LEVEL=${LOG_FILE_LEVEL:-info}
+      - LOG_FILE_SIZE=${LOG_FILE_SIZE:-50m}
+      - LOG_FILE_FREQUENCY=${LOG_FILE_FREQUENCY:-daily}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-ciap}:${POSTGRES_PASSWORD:-ciap_dev_password}@postgres:5432/${POSTGRES_DB:-ciap}?sslmode=disable
       - REDIS_HOST=redis
@@ -36,6 +46,7 @@ services:
     volumes:
       - ./src:/app/src
       - ./.env:/app/.env:ro
+      - ciap_logs:/app/logs
     depends_on:
       redis:
         condition: service_healthy
@@ -187,6 +198,10 @@ volumes:
   # Persistent Redis data storage
   redis_data:
     name: ciap-redis-data
+
+  # Persistent application logs
+  ciap_logs:
+    name: ciap-logs-data
 
 networks:
   app-network:

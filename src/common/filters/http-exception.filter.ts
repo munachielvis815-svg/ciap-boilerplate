@@ -39,25 +39,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
       ...(errorResponse.details && { details: errorResponse.details }),
     };
 
-    const logPayload = {
-      statusCode,
-      path: request.url,
-      method: request.method,
-      details: errorResponse.details,
-    };
+    const details =
+      errorResponse.details && typeof errorResponse.details === 'object'
+        ? JSON.stringify(errorResponse.details)
+        : undefined;
 
     if (statusCode >= 500) {
       this.logger.error(
         `${request.method} ${request.url} - ${statusCode}: ${formattedResponse.message}`,
-        {
-          ...logPayload,
-          stack: exception.stack,
-        },
+        exception.stack,
       );
     } else {
+      const detailsSuffix = details ? ` | details=${details}` : '';
       this.logger.warn(
-        `${request.method} ${request.url} - ${statusCode}: ${formattedResponse.message}`,
-        logPayload,
+        `${request.method} ${request.url} - ${statusCode}: ${formattedResponse.message}${detailsSuffix}`,
       );
     }
 

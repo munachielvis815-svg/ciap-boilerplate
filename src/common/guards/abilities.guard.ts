@@ -1,13 +1,16 @@
 import {
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ABILITIES_KEY } from '@decorators/abilities.decorator';
+import { ABILITIES_KEY } from '@decorators/index';
 import { ROLE_ABILITIES } from '@constants/abilities.constant';
 import type { AppAbility } from '@constants/abilities.constant';
+import {
+  InsufficientPermissionsException,
+  InvalidTokenException,
+} from '@common/exceptions';
 import type { RequestUser } from '@/types';
 
 @Injectable()
@@ -28,7 +31,7 @@ export class AbilitiesGuard implements CanActivate {
     const user = request.user;
 
     if (!user) {
-      throw new ForbiddenException('Authentication required');
+      throw new InvalidTokenException({ reason: 'missing-auth-context' });
     }
 
     const allowedAbilities = ROLE_ABILITIES[user.role] || [];
@@ -37,7 +40,9 @@ export class AbilitiesGuard implements CanActivate {
     );
 
     if (!hasAnyAbility) {
-      throw new ForbiddenException('Insufficient policy abilities');
+      throw new InsufficientPermissionsException(requiredAbilities.join(', '), {
+        userRole: user.role,
+      });
     }
 
     return true;

@@ -70,3 +70,9 @@ Append-only notes for discoveries, decisions, and gotchas.
 - Context: Production-style containerization was added for local/prod parity.
 - Finding: The repository now uses a multi-stage pnpm Docker build (`dockerfile`) and a compose stack with `api`, `postgres`, `redis`, and `redis-bullboard` on a dedicated internal bridge network.
 - Impact: Local container startup should prefer `docker compose up --build` with env-driven `DATABASE_URL`, Redis settings, and JWT key variables instead of hardcoded service credentials.
+
+## Env-Driven Pino Logger Wiring (2026-04-08)
+
+- Context: Logging dependencies were already installed but not integrated into app bootstrap.
+- Finding: `AppModule` now configures `nestjs-pino` with env-driven controls (`LOG_ENABLED`, `LOG_LEVEL`, `LOG_FORMAT`, `LOG_TO_FILE`, file rotation vars) and enforces `LOG_FORMAT` to `pretty` or `json`.
+- Impact: Logging behavior can be changed without code edits, and file logging with rotation is available via `pino-roll` for local/container observability.

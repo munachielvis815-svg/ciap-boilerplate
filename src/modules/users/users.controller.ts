@@ -4,17 +4,7 @@ import { UsersService } from './users.service';
 import { UserDto } from './dto/user.dto';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
 import { RequireAbilities, Roles } from '@decorators/index';
-import type { Request } from 'express';
-
-type AuthenticatedRequest = Request & {
-  user: {
-    id: number;
-    email: string;
-    role: 'admin' | 'user' | 'sme' | 'creator';
-    sessionId: string;
-    tenantId: number;
-  };
-};
+import type { AuthenticatedRequest } from '@/types/express';
 
 @ApiTags('users')
 @Controller('users')

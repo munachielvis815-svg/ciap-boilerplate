@@ -16,6 +16,9 @@ RUN touch .env
 # Copy source code after dependencies are installed.
 COPY . .
 
+# Ensure runtime log directory exists for file logging mode.
+RUN mkdir -p logs
+
 # Generate Drizzle artifacts required by runtime startup flow.
 RUN pnpm run db:generate
 

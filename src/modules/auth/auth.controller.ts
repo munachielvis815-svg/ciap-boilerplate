@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -20,26 +19,16 @@ import {
 import { Public, Roles } from '@decorators/index';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
 import type { Request } from 'express';
+import { InvalidEnumException } from '@common/exceptions';
+import type { AuthenticatedRequest } from '@/types/express';
 import { AuthService } from './auth.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { LoginDto } from './dto/login.dto';
-import {
-  OAuth2ProviderDto,
-} from './dto/oauth2-provider.dto';
+import { OAuth2ProviderDto } from './dto/oauth2-provider.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignupDto } from './dto/signup.dto';
 import { VerifyResponseDto } from './dto/verify-response.dto';
-
-type AuthenticatedRequest = Request & {
-  user: {
-    id: number;
-    email: string;
-    role: 'admin' | 'user' | 'sme' | 'creator';
-    tenantId: number;
-    sessionId: string;
-  };
-};
 
 @ApiTags('auth')
 @Controller('auth')
@@ -161,7 +150,9 @@ export class AuthController {
     @Req() request: Request,
   ): Promise<AuthResponseDto> {
     if (params.provider !== 'google') {
-      throw new BadRequestException(`${params.provider} callback is not configured`);
+      throw new InvalidEnumException('provider', ['google'], {
+        providedValue: params.provider,
+      });
     }
 
     return this.authService.loginWithGoogleAuthorizationCode(code, request);

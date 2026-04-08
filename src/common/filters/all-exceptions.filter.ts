@@ -43,26 +43,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ...(errorResponse.details && { details: errorResponse.details }),
       };
 
-      const logPayload = {
-        statusCode,
-        path,
-        method,
-        details: errorResponse.details,
-      };
+      const details =
+        errorResponse.details && typeof errorResponse.details === 'object'
+          ? JSON.stringify(errorResponse.details)
+          : undefined;
 
       if (statusCode >= 500) {
         this.logger.error(
           `${method} ${path} - ${statusCode}: ${formattedResponse.message}`,
-          {
-            ...logPayload,
-            stack: exception.stack,
-          },
+          exception.stack,
         );
       } else {
-        this.logger.warn(
-          `${method} ${path} - ${statusCode}: ${formattedResponse.message}`,
-          logPayload,
-        );
+        const detailsSuffix = details ? ` | details=${details}` : '';
+        this.logger.warn(`${method} ${path} - ${statusCode}: ${formattedResponse.message}${detailsSuffix}`);
       }
 
       response.status(statusCode).json(formattedResponse);
@@ -94,18 +87,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
 
     // Log full error details internally
-    this.logger.error(
-      `${method} ${path} - 500: ${errorMessage}`,
-      {
-        statusCode,
-        path,
-        method,
-        errorMessage,
-        errorType: (exception as any)?.constructor?.name || 'Unknown',
-        stack: errorStack,
-        fullException: exception,
-      },
-    );
+    this.logger.error(`${method} ${path} - 500: ${errorMessage}`, errorStack);
 
     // Send safe response
     response.status(statusCode).json(formattedResponse);
