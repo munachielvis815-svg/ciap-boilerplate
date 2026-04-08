@@ -35,3 +35,17 @@ Reusable lessons, mistakes, debugging notes, and tooling cautions.
 - Lesson: Compact docs by preserving rules, examples, and update triggers while removing repetition.
 - Avoid: Deleting useful detail just to shorten a file.
 - Apply: Replace long prose with checklists, scoped sections, and targeted examples.
+
+## Re-Plan As Soon As Evidence Changes (2026-04-08)
+
+- Situation: A plan can become wrong as soon as logs, errors, or failing tests reveal new information.
+- Lesson: Stop and re-plan immediately when evidence contradicts the working hypothesis.
+- Avoid: Continuing with a stale implementation path after the failure mode has changed.
+- Apply: Use logs, runtime errors, and failing tests as re-plan triggers.
+
+## User Corrections Must Become Future Rules (2026-04-08)
+
+- Situation: Some mistakes are avoidable if the user correction is turned into a durable instruction.
+- Lesson: Convert user corrections into explicit prevention rules in this file.
+- Avoid: Treating corrections as one-off comments that are forgotten next session.
+- Apply: Record the correction, the mistake pattern, and the rule that should prevent recurrence.

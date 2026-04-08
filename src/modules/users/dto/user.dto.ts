@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ROLE_VALUES } from '@constants/roles.constant';
+import type { AppRole } from '@constants/roles.constant';
 
 export class UserDto {
   @ApiProperty({
@@ -26,10 +28,23 @@ export class UserDto {
   isActive!: boolean;
 
   @ApiProperty({
+    description: 'Tenant ID for multitenancy scope',
+    example: 2,
+  })
+  tenantId!: number;
+
+  @ApiProperty({
     description: 'Whether the user email is verified',
     example: true,
   })
   isEmailVerified!: boolean;
+
+  @ApiProperty({
+    description: 'User role for RBAC',
+    enum: ROLE_VALUES,
+    example: 'user',
+  })
+  role!: AppRole;
 
   @ApiProperty({
     description: 'User creation timestamp',

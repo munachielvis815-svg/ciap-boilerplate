@@ -24,8 +24,8 @@ export class AppService {
    */
   getInfo() {
     return {
-      name: 'Test API',
-      version: '1.0.0',
+      name: 'CIAP',
+      version: '0.0.1',
       description: 'NestJS API with Drizzle ORM and PostgreSQL',
       environment: process.env.NODE_ENV || 'development',
       features: [

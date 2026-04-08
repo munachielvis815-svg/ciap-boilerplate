@@ -6,6 +6,15 @@ Project bootstrap for coding agents working in this repository.
 
 Use this file as the default operating guide. Keep changes small, safe, typed, and consistent with the existing NestJS + Drizzle architecture. Maintain project knowledge as you work instead of treating docs as an afterthought.
 
+## Default Mode
+
+- Enter plan mode by default for every non-trivial task.
+- Build a short implementation plan before editing code.
+- Verify the plan against the repo, current constraints, and the user's request.
+- Track progress while working instead of holding the whole plan in your head.
+- If execution goes sideways, stop, re-evaluate, and re-plan immediately.
+- Do not push ahead on a stale plan after new errors, failing tests, or contradictory evidence appear.
+
 ## Read Order
 
 1. This file for default behavior.
@@ -41,6 +50,7 @@ Use this file as the default operating guide. Keep changes small, safe, typed, a
 - Do not refactor unrelated code while implementing a focused task.
 - Follow existing naming and file-placement patterns already used in `src/`.
 - Prefer improving clarity and maintainability over cleverness.
+- Explain meaningful changes clearly at the end of the task.
 
 ## Research And Repo Search
 
@@ -50,6 +60,28 @@ Before substantial work, search the repository for existing patterns:
 - Reuse established patterns before creating new ones.
 - Verify assumptions against actual code, scripts, and config files.
 - When introducing a new dependency or unfamiliar API, verify usage against official documentation and the installed version.
+
+## Task Management
+
+Use `tasks/todo.md` as the task log for planning and closeout.
+
+### For each substantial task
+
+1. Write or refresh a short plan in `tasks/todo.md`.
+2. Verify the plan against the repo before implementation.
+3. Track progress with brief status updates as major steps complete.
+4. Document the final result, important changes, and verification outcome.
+
+### Re-plan triggers
+
+Immediately re-plan when:
+
+- a test fails in a way the current plan did not anticipate
+- logs or runtime errors contradict the current hypothesis
+- the repo structure or existing pattern differs from what was assumed
+- the user changes scope or corrects a previous assumption
+
+Keep the task log compact. It should help execution, not become a second spec.
 
 ## Current Code Shape
 
@@ -120,6 +152,15 @@ When you learn something durable while searching or implementing, update the app
 - A mistake was made and the correction is generally useful.
 - You learn a repeatable lesson worth applying in future tasks.
 - A debugging dead end, tooling caveat, or integration trap should be avoided next time.
+- The user corrects you in a way that should change future behavior.
+
+## Self-Improvement Loop
+
+- Review `agent-docs/lessons.md` at session start for topics relevant to the task.
+- When a mistake happens, write a prevention rule that makes the same error less likely next time.
+- When the user corrects behavior, capture that correction in `agent-docs/lessons.md`.
+- Ruthlessly refine lessons until the same category of mistake stops recurring.
+- Prefer concrete prevention rules over vague reminders.
 
 Keep these updates concise. Prefer short entries, checklists, and examples over long prose.
 
@@ -142,6 +183,7 @@ Keep these updates concise. Prefer short entries, checklists, and examples over 
 - For error-handling work: read `exceptions.md` and `testing.md`.
 - For config or startup work: read `environment.md` and `project-structure.md`.
 - For unfamiliar areas: read `findings.md` and search the repo for similar code first.
+- For debugging or regressions: review `lessons.md`, inspect logs/errors/tests, then plan the fix.
 
 ## Commands
 
@@ -157,6 +199,16 @@ Use `pnpm` scripts from `package.json`:
 - `pnpm run db:migrate`
 - `pnpm run db:seed`
 
+## Autonomous Bug Fixing
+
+When the user gives a bug report, default to fixing it end-to-end instead of only describing it.
+
+- Reproduce or triangulate the issue with logs, stack traces, failing tests, or runtime errors.
+- Point to the concrete evidence that explains the bug.
+- Implement the fix and verify the outcome.
+- Update or add tests when feasible.
+- Check whether the problem is influenced by outdated library usage or stale patterns, and verify against the currently installed version before changing integrations.
+
 ## Completion Checklist
 
 Before finishing a task, quickly check:
@@ -166,6 +218,7 @@ Before finishing a task, quickly check:
 3. Did I update `findings.md` for any durable discovery or decision?
 4. Did I update `project-structure.md` if the structure changed?
 5. Did I capture a reusable lesson or mistake in `lessons.md` if one surfaced?
+6. Did I update `tasks/todo.md` with the plan, progress, and result?
 
 ## When Updating Docs
 

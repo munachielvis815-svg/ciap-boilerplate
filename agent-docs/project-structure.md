@@ -6,6 +6,7 @@ Quick map of the repository and where new code should go.
 
 - `src/`: application code
 - `test/`: e2e tests
+- `tasks/`: task planning and execution logs
 - `agent-docs/`: agent-facing guidance
 - `docs/`: longer-form project docs
 - `src/swagger.ts`: Swagger configuration
@@ -13,11 +14,17 @@ Quick map of the repository and where new code should go.
 
 ## Source Layout
 
+- `src/modules/auth`: auth endpoints, token/session lifecycle, and strategies
 - `src/modules/health`: health endpoints and DTOs
+- `src/modules/rbac`: role ability policy service and RBAC module wiring
+- `src/modules/sessions`: session persistence module for refresh lifecycle
 - `src/modules/users`: users controller, service, repository, DTOs
 - `src/common/bases`: shared base classes
+- `src/common/constants`: shared constants (RBAC roles + abilities)
+- `src/common/decorators`: route metadata decorators (`Public`, `Roles`, `RequireAbilities`)
 - `src/common/exceptions`: domain-specific exception classes
 - `src/common/filters`: global exception filters
+- `src/common/guards`: JWT auth, role guards, and ability guards
 - `src/database/drizzle`: schema and generated migrations
 - `src/database/seeds`: seed module and scripts
 - `src/types`: shared TypeScript types
@@ -58,6 +65,7 @@ Global validation and CORS are configured in `src/main.ts`.
 - Migrations stay under `src/database/drizzle/migrations/`.
 - One-off or historical notes belong in `agent-docs/findings.md`.
 - Reusable mistakes, lessons, and cautions belong in `agent-docs/lessons.md`.
+- Task plans, progress notes, and task results belong in `tasks/todo.md`.
 
 ## Naming
 

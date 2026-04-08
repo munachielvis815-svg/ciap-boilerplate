@@ -49,7 +49,7 @@
       "@constants/*": ["src/common/constants/*"],
       "@factories/*": ["src/common/factories/*"],
       "@bases/*": ["src/common/bases/*"],
-      "@migrations/*": ["src/database/migrations/*"],
+      "@migrations/*": ["src/database/drizzle/migrations/*"],
       "@generated/*": ["src/generated/*"],
       "@test/*": ["test/*"]
     }

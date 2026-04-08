@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class HealthDto {
+export class ApiHealthDto {
   @ApiProperty({
     description: 'Health status',
-    enum: ['ok', 'error', 'unavailable'],
+    enum: ['ok'],
     example: 'ok',
   })
-  status!: 'ok' | 'error' | 'unavailable';
+  status!: 'ok';
 
   @ApiProperty({
     description: 'Timestamp of health check',
@@ -15,50 +15,82 @@ export class HealthDto {
   timestamp!: string;
 
   @ApiProperty({
-    description: 'Optional message',
-    required: false,
-    example: 'Service is healthy',
-  })
-  message?: string;
-
-  @ApiProperty({
     description: 'Server uptime in seconds',
-    required: false,
     example: 1234.56,
   })
-  uptime?: number;
+  uptime!: number;
 
   @ApiProperty({
     description: 'Node environment',
-    required: false,
-    example: 'production',
+    example: 'development',
   })
-  environment?: string;
+  environment!: string;
 
   @ApiProperty({
     description: 'API version',
-    required: false,
     example: '1.0.0',
   })
-  version?: string;
+  version!: string;
+}
 
+export class DatabaseHealthDto {
   @ApiProperty({
-    description: 'Database status',
-    required: false,
-    enum: ['connected', 'disconnected', 'pending'],
+    description: 'Database health status',
+    enum: ['ok', 'error'],
+    example: 'ok',
   })
-  database?: 'connected' | 'disconnected' | 'pending';
+  status!: 'ok' | 'error';
 
   @ApiProperty({
-    description: 'Service readiness',
-    required: false,
-    example: true,
+    description: 'Timestamp of health check',
+    example: '2024-01-01T00:00:00.000Z',
   })
-  ready?: boolean;
+  timestamp!: string;
 
   @ApiProperty({
-    description: 'Error message if any',
+    description: 'Health message',
+    example: 'Database connection successful',
+  })
+  message!: string;
+
+  @ApiProperty({
+    description: 'Database connection status',
+    enum: ['connected', 'disconnected'],
+    example: 'connected',
+  })
+  database!: 'connected' | 'disconnected';
+
+  @ApiProperty({
+    description: 'Error message when status is error',
     required: false,
+    example: 'Connection timeout',
   })
   error?: string;
+}
+
+export class ReadinessHealthDto {
+  @ApiProperty({
+    description: 'Service readiness status',
+    enum: ['ok', 'unavailable'],
+    example: 'ok',
+  })
+  status!: 'ok' | 'unavailable';
+
+  @ApiProperty({
+    description: 'Timestamp of readiness check',
+    example: '2024-01-01T00:00:00.000Z',
+  })
+  timestamp!: string;
+
+  @ApiProperty({
+    description: 'Readiness message',
+    example: 'Service is ready',
+  })
+  message!: string;
+
+  @ApiProperty({
+    description: 'Whether service is ready',
+    example: true,
+  })
+  ready!: boolean;
 }

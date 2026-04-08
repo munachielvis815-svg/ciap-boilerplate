@@ -8,6 +8,34 @@
       "when": 1775557455593,
       "tag": "20260407102415_sharp_the_hand",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775653238379,
+      "tag": "20260408130038_wise_the_liberteens",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775659375345,
+      "tag": "20260408144255_marvelous_bloodaxe",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775659685209,
+      "tag": "20260408144805_orange_silk_fever",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775660343307,
+      "tag": "20260408145903_wandering_pestilence",
+      "breakpoints": true
     }
   ]
 }

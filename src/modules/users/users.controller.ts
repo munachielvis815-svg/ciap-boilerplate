@@ -1,10 +1,24 @@
-import { Controller, Get, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Param, Query, ParseIntPipe, Req, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UserDto } from './dto/user.dto';
+import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
+import { RequireAbilities, Roles } from '@decorators/index';
+import type { Request } from 'express';
+
+type AuthenticatedRequest = Request & {
+  user: {
+    id: number;
+    email: string;
+    role: 'admin' | 'user' | 'sme' | 'creator';
+    sessionId: string;
+    tenantId: number;
+  };
+};
 
 @ApiTags('users')
 @Controller('users')
+@UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -24,6 +38,8 @@ export class UsersController {
     description: 'User found',
     type: UserDto,
   })
+  @Roles('admin', 'user', 'sme', 'creator')
+  @RequireAbilities('users:read:any', 'users:read:tenant', 'users:read:self')
   @ApiResponse({
     status: 404,
     description: 'User not found',
@@ -35,8 +51,11 @@ export class UsersController {
       },
     },
   })
-  async getUser(@Param('id', ParseIntPipe) id: number): Promise<UserDto> {
-    return this.usersService.getUserById(id);
+  async getUser(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<UserDto> {
+    return this.usersService.getUserById(id, request.user);
   }
 
   /**
@@ -63,13 +82,16 @@ export class UsersController {
     description: 'List of users',
     type: [UserDto],
   })
+  @Roles('admin', 'sme')
+  @RequireAbilities('users:list:any', 'users:list:tenant')
   async getAllUsers(
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
+    @Req() request?: AuthenticatedRequest,
   ): Promise<UserDto[]> {
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
     const parsedOffset = offset ? parseInt(offset, 10) : 0;
 
-    return this.usersService.getAllUsers(parsedLimit, parsedOffset);
+    return this.usersService.getAllUsers(parsedLimit, parsedOffset, request?.user);
   }
 }

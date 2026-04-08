@@ -1,4 +1,5 @@
 import { Module, Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import type { PoolClient } from 'pg';
@@ -11,11 +12,12 @@ export const DATABASE_PROVIDER = 'DATABASE_CONNECTION';
 export type Database = NodePgDatabase<typeof schema>;
 
 @Module({
+  imports: [ConfigModule],
   providers: [
     {
       provide: DATABASE_PROVIDER,
-      useFactory: async (): Promise<Database> => {
-        const connectionString = process.env.DATABASE_URL;
+      useFactory: async (configService: ConfigService): Promise<Database> => {
+        const connectionString = configService.get<string>('DATABASE_URL');
 
         if (!connectionString) {
           throw new Error(
@@ -47,6 +49,7 @@ export type Database = NodePgDatabase<typeof schema>;
         const db = drizzle(pool, { schema });
         return db;
       },
+      inject: [ConfigService],
     },
   ],
   exports: [DATABASE_PROVIDER],

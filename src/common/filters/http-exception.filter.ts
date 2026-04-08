@@ -39,17 +39,27 @@ export class HttpExceptionFilter implements ExceptionFilter {
       ...(errorResponse.details && { details: errorResponse.details }),
     };
 
-    // Log error (include stack trace for debugging)
-    this.logger.warn(
-      `${request.method} ${request.url} - ${statusCode}: ${formattedResponse.message}`,
-      {
-        statusCode,
-        path: request.url,
-        method: request.method,
-        details: errorResponse.details,
-        stack: exception.stack,
-      },
-    );
+    const logPayload = {
+      statusCode,
+      path: request.url,
+      method: request.method,
+      details: errorResponse.details,
+    };
+
+    if (statusCode >= 500) {
+      this.logger.error(
+        `${request.method} ${request.url} - ${statusCode}: ${formattedResponse.message}`,
+        {
+          ...logPayload,
+          stack: exception.stack,
+        },
+      );
+    } else {
+      this.logger.warn(
+        `${request.method} ${request.url} - ${statusCode}: ${formattedResponse.message}`,
+        logPayload,
+      );
+    }
 
     // Send response (no stack trace to client)
     response.status(statusCode).json(formattedResponse);

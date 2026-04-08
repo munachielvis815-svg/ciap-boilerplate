@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { HealthService } from './health.service';
-import { HealthDto } from './dto/health.dto';
+import { ApiHealthDto, DatabaseHealthDto, ReadinessHealthDto } from './dto/health.dto';
 
 @ApiTags('health')
 @Controller('health')
@@ -13,9 +13,9 @@ export class HealthController {
   @ApiResponse({
     status: 200,
     description: 'Health status',
-    type: HealthDto,
+    type: ApiHealthDto,
   })
-  async check(): Promise<HealthDto> {
+  async check(): Promise<ApiHealthDto> {
     return this.healthService.check();
   }
 
@@ -24,9 +24,9 @@ export class HealthController {
   @ApiResponse({
     status: 200,
     description: 'Database health status',
-    type: HealthDto,
+    type: DatabaseHealthDto,
   })
-  async checkDb(): Promise<HealthDto> {
+  async checkDb(): Promise<DatabaseHealthDto> {
     return this.healthService.checkDatabase();
   }
 
@@ -35,9 +35,9 @@ export class HealthController {
   @ApiResponse({
     status: 200,
     description: 'Readiness status',
-    type: HealthDto,
+    type: ReadinessHealthDto,
   })
-  async readiness(): Promise<HealthDto> {
+  async readiness(): Promise<ReadinessHealthDto> {
     return this.healthService.readiness();
   }
 }

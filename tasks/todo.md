@@ -1,0 +1,140 @@
+# Task Log
+
+Use this file to keep substantial tasks planned, tracked, and closed out.
+
+## Entry Template
+
+```md
+## Task: <title>
+
+- Date:
+- Request:
+- Plan:
+  - [ ] Step 1
+  - [ ] Step 2
+  - [ ] Step 3
+- Progress:
+  - Note major checkpoints and re-plans
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Summary of changes and outcome
+```
+
+## Active / Recent Tasks
+
+## Task: Runtime wiring + Swagger accuracy fixes
+
+- Date: 2026-04-08
+- Request: Fix Swagger examples that include fields not returned, add NestJS config integration, ensure `CommonModule` usage in `AppModule`, stop seed module from loading at runtime, replace logger `as any` with `LogLevel`, and fix TypeScript config issues.
+- Plan:
+  - [x] Inspect current wiring and identify concrete failure points.
+  - [x] Patch module/config/bootstrap wiring.
+  - [x] Patch Swagger response DTO usage to match actual endpoint outputs.
+  - [x] Patch TypeScript config alignment issues.
+  - [x] Run verification and summarize results.
+- Progress:
+  - Confirmed `SeedModule` is imported in `AppModule` and seed script boots `AppModule`.
+  - Confirmed logger level still uses `as any` cast in `main.ts`.
+  - Confirmed health endpoints all use one broad `HealthDto`, which over-documents fields per endpoint.
+  - Confirmed TypeScript currently passes; config cleanup will target structural mismatches.
+  - Added `ConfigModule` integration in root module and database provider factory.
+  - Removed runtime `SeedModule` import from `AppModule`, and switched seed bootstrap to `SeedModule` directly.
+  - Replaced logger `as any` cast with `LogLevel` parsing logic in `main.ts`.
+  - Split health Swagger DTOs per endpoint response shape (`api`, `db`, `ready`) to avoid over-reported fields.
+  - Fixed path alias mismatch in `tsconfig.json` for migrations.
+- Verification:
+  - Tests: `cmd /c pnpm run typecheck` (pass)
+  - Logs / errors: no compiler errors after patch
+- Result:
+  - Completed all requested fixes in this task scope and verified TypeScript compilation.
+
+## Task: Auth + RBAC + sessions + audit log foundation
+
+- Date: 2026-04-08
+- Request: Scan installed dependencies, suggest needed ones, implement RBAC for `admin`, `user`, `sme`, `creator`, add auth endpoints (signup/login/verify with JWT and OAuth2 preparation), design DB migration, include session management, and add audit log schema.
+- Plan:
+  - [x] Scan dependencies and current module/schema baseline.
+  - [x] Implement auth module with signup/login/verify/refresh/logout endpoints.
+  - [x] Implement RBAC decorators/guards and role model updates.
+  - [x] Extend schema and migration for roles, sessions, and audit logs.
+  - [x] Scaffold OAuth2 strategy placeholder for provider details later.
+  - [x] Verify with typecheck and document dependency recommendations.
+- Progress:
+  - Confirmed current stack already includes `@nestjs/passport`, `passport-jwt`, `jsonwebtoken`, and `bcrypt`.
+  - Confirmed there is no `auth` module yet and current schema lacks role/session/audit log tables.
+  - Confirmed OAuth2 runtime package is not installed yet (`passport-oauth2` missing).
+  - Added `AuthModule` with endpoints: `signup`, `login`, `refresh`, `verify`, `logout`, and OAuth2 prepare/callback placeholders.
+  - Added RBAC primitives: `Roles` decorator, `JwtAuthGuard`, and `RolesGuard`.
+  - Added role-aware auth/session JWT flow with refresh-token session persistence and audit logging.
+  - Extended Drizzle schema with `user_role`, `auth_provider`, `audit_action`, `sessions`, and `audit_logs`.
+  - Added migration SQL for auth/RBAC/session/audit changes.
+  - Updated users DTO/repository/service for role support and auth-friendly user mutations.
+- Verification:
+  - Tests: `cmd /c pnpm run typecheck` (pass)
+  - Logs / errors: initial type errors fixed (`bcrypt` typing, JWT option typing, Express user typing); final compile clean.
+- Result:
+  - Completed auth/RBAC/session/audit foundation and OAuth2 preparation scaffold for provider-specific follow-up.
+  - Dependency recommendations prepared: `passport-oauth2`, `@types/passport-oauth2`, and optional `@nestjs/jwt` for Nest-native JWT service ergonomics.
+
+## Task: Migration reset for Drizzle generation
+
+- Date: 2026-04-08
+- Request: Remove raw SQL migration file and ensure schema has core details for clean Drizzle-generated migrations.
+- Plan:
+  - [x] Remove manual SQL migration and clean migration journal entry.
+  - [x] Tighten schema constraints/indexes important for auth/RBAC/session/audit.
+  - [x] Verify compile baseline.
+- Progress:
+  - Removing manual migration artifact so Drizzle can generate authoritative SQL.
+  - Updating schema with missing core uniqueness constraints for one-to-one profile and OAuth identity safety.
+- Verification:
+  - Tests: `cmd /c pnpm run typecheck` (pass)
+  - Logs / errors: no TypeScript compile errors after schema/journal cleanup
+- Result:
+  - Removed manual SQL migration artifact and reverted migration journal to prior applied state.
+  - Added missing core schema constraints for one-to-one profiles and OAuth identity uniqueness.
+
+## Task: Fix AuthModule DI resolution for UsersRepository
+
+- Date: 2026-04-08
+- Request: Fix `UnknownDependenciesException` for `AuthService` and identify root cause.
+- Plan:
+  - [x] Reproduce from provided stack trace and map the missing provider.
+  - [ ] Patch module exports/imports so `UsersRepository` is available in `AuthModule`.
+  - [ ] Verify compile/runtime bootstrap path.
+- Progress:
+  - Stack trace shows `AuthService` constructor dependency index `0` (`UsersRepository`) missing in `AuthModule` context.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - In progress.
+
+## Task: Security hardening - ES JWT, sessions module, Google auth, multitenancy, RBAC policies
+
+- Date: 2026-04-08
+- Request: Use ES256/ES512 JWT, move sessions to module, integrate Google auth, enforce multitenancy and role abilities, add OAuth table and redirect env, enable Helmet, and keep schema migration-ready for Drizzle generation.
+- Plan:
+  - [x] Scan dependencies and current auth/security wiring.
+  - [x] Implement schema updates for tenants and oauth accounts.
+  - [x] Create Sessions module and refactor auth token/session handling.
+  - [x] Add Google auth endpoint and token verification.
+  - [x] Add abilities policy guard and tenant enforcement.
+  - [x] Enable Helmet and extend env templates.
+  - [x] Verify with typecheck and update docs.
+- Progress:
+  - Confirmed required dependencies are already installed (`google-auth-library`, `passport-oauth2`, `helmet`, typings).
+  - Switched JWT signing/verification to asymmetric keys: ES256 access and ES512 refresh.
+  - Extracted session lifecycle into dedicated `SessionsModule`.
+  - Added multitenancy primitives (`tenants` table + tenant-scoped user checks).
+  - Added `oauth_accounts` table and Google ID-token login endpoint.
+  - Added policy abilities model and `AbilitiesGuard`.
+  - Enabled Helmet middleware for API security headers.
+  - Added `GOOGLE_REDIRECT_URI` and ES key env vars in `.env` and `.env.example`.
+- Verification:
+  - Tests: `cmd /c pnpm run typecheck` (pass)
+  - Logs / errors: no TypeScript compile errors after refactor
+- Result:
+  - Completed requested security/auth architecture refactor with schema-first migration readiness for Drizzle.

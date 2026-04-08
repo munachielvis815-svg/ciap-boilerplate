@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { UsersRepository } from './users.repository';
 import { UserDto } from './dto/user.dto';
+import type { User } from '@database/drizzle/schema';
+import type { RequestUser } from '@/types';
 
 @Injectable()
 export class UsersService {
@@ -10,11 +12,20 @@ export class UsersService {
    * Get a user by ID
    * @throws NotFoundException if user does not exist
    */
-  async getUserById(id: number): Promise<UserDto> {
-    const user = await this.usersRepository.findById(id);
+  async getUserById(id: number, actor: RequestUser): Promise<UserDto> {
+    const user =
+      actor.role === 'admin'
+        ? await this.usersRepository.findById(id)
+        : await this.usersRepository.findByIdAndTenant(id, actor.tenantId);
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    if (actor.role === 'user' || actor.role === 'creator') {
+      if (actor.id !== user.id) {
+        throw new ForbiddenException('You can only access your own profile');
+      }
     }
 
     return this.mapUserToDto(user);
@@ -37,21 +48,26 @@ export class UsersService {
   /**
    * Get all users with pagination
    */
-  async getAllUsers(limit = 10, offset = 0): Promise<UserDto[]> {
-    const users = await this.usersRepository.findAll(limit, offset);
+  async getAllUsers(limit = 10, offset = 0, actor?: RequestUser): Promise<UserDto[]> {
+    const users =
+      actor && actor.role !== 'admin'
+        ? await this.usersRepository.findAllByTenant(actor.tenantId, limit, offset)
+        : await this.usersRepository.findAll(limit, offset);
     return users.map((user) => this.mapUserToDto(user));
   }
 
   /**
    * Map user entity to DTO (excludes sensitive fields)
    */
-  private mapUserToDto(user: any): UserDto {
+  private mapUserToDto(user: User): UserDto {
     return {
       id: user.id,
       email: user.email,
       name: user.name,
+      tenantId: user.tenantId,
       isActive: user.isActive,
       isEmailVerified: user.isEmailVerified,
+      role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

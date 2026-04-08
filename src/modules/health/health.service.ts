@@ -1,5 +1,5 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { HealthDto } from './dto/health.dto';
+import { ApiHealthDto, DatabaseHealthDto, ReadinessHealthDto } from './dto/health.dto';
 import { DATABASE_PROVIDER } from '@database/database.module';
 import type { Database } from '@database/database.module';
 import { sql } from 'drizzle-orm';
@@ -13,7 +13,7 @@ export class HealthService {
   /**
    * Check overall API health
    */
-  async check(): Promise<HealthDto> {
+  async check(): Promise<ApiHealthDto> {
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -26,7 +26,7 @@ export class HealthService {
   /**
    * Check database connection using Drizzle ORM
    */
-  async checkDatabase(): Promise<HealthDto> {
+  async checkDatabase(): Promise<DatabaseHealthDto> {
     try {
       // Use SQL raw query to test connection
       const result = await this.db.execute(sql`SELECT NOW()`);
@@ -63,7 +63,7 @@ export class HealthService {
   /**
    * Check service readiness (all dependencies ready)
    */
-  async readiness(): Promise<HealthDto> {
+  async readiness(): Promise<ReadinessHealthDto> {
     const dbHealth = await this.checkDatabase();
     const isReady = dbHealth.status === 'ok';
 

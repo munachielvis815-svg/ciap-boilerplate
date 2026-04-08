@@ -5,10 +5,12 @@ Use these instructions when coding in this repository. They complement `AGENTS.m
 ## Primary Behavior
 
 - Start by searching the repo for similar code and existing patterns.
+- Plan first by default for non-trivial tasks.
 - Make the smallest safe change that solves the task.
 - Preserve the controller -> service -> repository split.
 - Prefer strict types, explicit return types, DTO-based boundaries, and path aliases.
 - Avoid unnecessary refactors and avoid introducing new abstractions without a clear need.
+- If reality diverges from the plan, stop and re-plan immediately.
 
 ## Project Context
 
@@ -28,6 +30,16 @@ Before adding new code:
 3. Check `tsconfig.json`, `package.json`, `src/main.ts`, and nearby modules before assuming behavior.
 4. If using a library or feature you do not fully know, verify against official docs and the installed version.
 
+## Task Management
+
+Use `tasks/todo.md` to manage substantial work.
+
+1. Write a short plan first.
+2. Verify the plan against the codebase.
+3. Track progress as steps complete.
+4. Explain the changes and document final results in `tasks/todo.md`.
+5. If the plan breaks, re-plan immediately instead of forcing the old approach.
+
 ## Implementation Rules
 
 - Controllers own routing, params, query parsing, and Swagger decorators.
@@ -44,6 +56,8 @@ Before adding new code:
 - Use `import type` where appropriate for decorated TypeScript codepaths.
 - Check actual package APIs before using them.
 - Prefer existing `pnpm` scripts over ad hoc command sequences.
+- When debugging, use logs, stack traces, and failing tests as the primary evidence.
+- Check whether relevant integrations or patterns are outdated before fixing library-related bugs.
 
 ## Knowledge Maintenance
 
@@ -75,8 +89,16 @@ Do this when:
 - a debugging lesson is worth preserving
 - a repeated trap or anti-pattern should be called out
 - a tool usage lesson would save time next time
+- the user corrects the agent in a reusable way
 
 Keep these updates short and useful. Prefer compact entries over long tutorials.
+
+## Self-Improvement Loop
+
+- Review `agent-docs/lessons.md` at session start when the task touches a relevant topic.
+- Turn mistakes into prevention rules, not just retrospective notes.
+- Record user corrections in `agent-docs/lessons.md`.
+- Keep iterating on lessons until repeated mistakes in the same category drop off.
 
 ## Documentation Discipline
 
@@ -93,12 +115,22 @@ Keep these updates short and useful. Prefer compact entries over long tutorials.
 - Seeds: `src/database/seeds/`
 - E2E tests: `test/`
 - Repo knowledge docs: `agent-docs/`
+- Task planning and results: `tasks/todo.md`
 
 ## Testing Expectations
 
 - Add or update unit tests when logic changes.
 - Add e2e coverage for critical endpoint behavior when needed.
 - Keep tests close to the changed behavior.
+
+## Autonomous Bug Fixing
+
+When the user reports a bug, fix it by default.
+
+- Reproduce or triangulate the failure with logs, errors, or tests.
+- Explain the concrete evidence that identified the cause.
+- Implement the fix and verify the result.
+- Update tests when practical.
 
 ## Quick Finish Checklist
 
@@ -108,3 +140,4 @@ Keep these updates short and useful. Prefer compact entries over long tutorials.
 4. Did I capture durable findings?
 5. Did I update structure docs if the layout changed?
 6. Did I record lessons or mistakes worth reusing?
+7. Did I update `tasks/todo.md` with plan, progress, and results?

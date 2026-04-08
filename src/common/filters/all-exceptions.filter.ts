@@ -1,4 +1,10 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpStatus } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpStatus,
+  HttpException,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Logger } from '@nestjs/common';
 
@@ -15,11 +21,55 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-
-    const statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
     const timestamp = new Date().toISOString();
     const path = request.url;
     const method = request.method;
+
+    // Preserve HttpException status/response (e.g. Unauthorized = 401)
+    if (exception instanceof HttpException) {
+      const statusCode = exception.getStatus();
+      const exceptionResponse = exception.getResponse();
+      const errorResponse =
+        typeof exceptionResponse === 'object'
+          ? (exceptionResponse as Record<string, any>)
+          : { message: exceptionResponse };
+
+      const formattedResponse = {
+        statusCode,
+        message: errorResponse.message || HttpStatus[statusCode] || 'Unknown Error',
+        error: errorResponse.error || HttpStatus[statusCode],
+        timestamp: errorResponse.timestamp || timestamp,
+        path,
+        ...(errorResponse.details && { details: errorResponse.details }),
+      };
+
+      const logPayload = {
+        statusCode,
+        path,
+        method,
+        details: errorResponse.details,
+      };
+
+      if (statusCode >= 500) {
+        this.logger.error(
+          `${method} ${path} - ${statusCode}: ${formattedResponse.message}`,
+          {
+            ...logPayload,
+            stack: exception.stack,
+          },
+        );
+      } else {
+        this.logger.warn(
+          `${method} ${path} - ${statusCode}: ${formattedResponse.message}`,
+          logPayload,
+        );
+      }
+
+      response.status(statusCode).json(formattedResponse);
+      return;
+    }
+
+    const statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
 
     // Get error message and stack
     let errorMessage = 'An unexpected error occurred';

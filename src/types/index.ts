@@ -44,8 +44,11 @@ export interface ErrorResponse {
  * JWT Payload type for authentication
  */
 export interface JwtPayload {
-  sub: string; // User ID
+  sub: number; // User ID
   email: string;
+  role: 'admin' | 'user' | 'sme' | 'creator';
+  tenantId: number;
+  sid: string;
   iat?: number; // Issued at
   exp?: number; // Expiration
 }
@@ -54,7 +57,9 @@ export interface JwtPayload {
  * Request user type (attached to Express Request)
  */
 export interface RequestUser {
-  id: string;
+  id: number;
   email: string;
-  role: string;
+  role: 'admin' | 'user' | 'sme' | 'creator';
+  tenantId: number;
+  sessionId: string;
 }
