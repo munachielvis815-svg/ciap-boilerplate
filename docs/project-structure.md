@@ -6,48 +6,48 @@ Updated for the current repository layout on 2026-04-08.
 
 ```text
 test-api/
-├─ src/
-├─ test/
-├─ docs/
-├─ agent-docs/
-├─ tasks/
-├─ AGENTS.md
-├─ drizzle.config.ts
-├─ nest-cli.json
-├─ package.json
-├─ tsconfig.json
-└─ .env.example
+|- src/
+|- test/
+|- docs/
+|- agent-docs/
+|- tasks/
+|- AGENTS.md
+|- drizzle.config.ts
+|- nest-cli.json
+|- package.json
+|- tsconfig.json
+`- .env.example
 ```
 
 ## `src/` Layout
 
 ```text
 src/
-├─ app.controller.ts
-├─ app.module.ts
-├─ app.service.ts
-├─ main.ts
-├─ swagger.ts
-├─ common/
-│  ├─ bases/
-│  ├─ constants/
-│  ├─ decorators/
-│  ├─ exceptions/
-│  ├─ filters/
-│  └─ guards/
-├─ database/
-│  ├─ database.module.ts
-│  ├─ drizzle/
-│  │  ├─ schema.ts
-│  │  └─ migrations/
-│  └─ seeds/
-├─ modules/
-│  ├─ auth/
-│  ├─ health/
-│  ├─ rbac/
-│  ├─ sessions/
-│  └─ users/
-└─ types/
+|- app.controller.ts
+|- app.module.ts
+|- app.service.ts
+|- main.ts
+|- swagger.ts
+|- common/
+|  |- bases/
+|  |- constants/
+|  |- decorators/
+|  |- exceptions/
+|  |- filters/
+|  `- guards/
+|- database/
+|  |- database.module.ts
+|  |- drizzle/
+|  |  |- schema.ts
+|  |  `- migrations/
+|  `- seeds/
+|- modules/
+|  |- auth/
+|  |- health/
+|  |- rbac/
+|  |- sessions/
+|  `- users/
+`- types/
 ```
 
 ## Feature Modules
