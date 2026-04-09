@@ -31,16 +31,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const exceptionResponse = exception.getResponse();
       const errorResponse =
         typeof exceptionResponse === 'object'
-          ? (exceptionResponse as Record<string, any>)
+          ? (exceptionResponse as Record<string, unknown>)
           : { message: exceptionResponse };
+      const detailsField =
+        typeof errorResponse.details !== 'undefined'
+          ? { details: errorResponse.details }
+          : {};
 
       const formattedResponse = {
         statusCode,
-        message: errorResponse.message || HttpStatus[statusCode] || 'Unknown Error',
+        message:
+          errorResponse.message || HttpStatus[statusCode] || 'Unknown Error',
         error: errorResponse.error || HttpStatus[statusCode],
         timestamp: errorResponse.timestamp || timestamp,
         path,
-        ...(errorResponse.details && { details: errorResponse.details }),
+        ...detailsField,
       };
 
       const details =
@@ -55,7 +60,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
         );
       } else {
         const detailsSuffix = details ? ` | details=${details}` : '';
-        this.logger.warn(`${method} ${path} - ${statusCode}: ${formattedResponse.message}${detailsSuffix}`);
+        this.logger.warn(
+          `${method} ${path} - ${statusCode}: ${formattedResponse.message}${detailsSuffix}`,
+        );
       }
 
       response.status(statusCode).json(formattedResponse);
@@ -74,7 +81,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else if (typeof exception === 'string') {
       errorMessage = exception;
     } else if (typeof exception === 'object') {
-      errorMessage = (exception as Record<string, any>)?.message || errorMessage;
+      const message = (exception as Record<string, unknown>)?.message;
+      if (typeof message === 'string' && message.trim()) {
+        errorMessage = message;
+      }
     }
 
     // Safe response to client (no internal details)

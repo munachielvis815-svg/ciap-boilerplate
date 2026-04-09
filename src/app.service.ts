@@ -5,22 +5,8 @@ export class AppService {
   constructor() {}
 
   /**
-   * Health check endpoint
-   * Returns API health status and uptime
-   */
-  getHealth() {
-    const uptime = process.uptime();
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      uptime: Math.floor(uptime),
-      environment: process.env.NODE_ENV || 'development',
-    };
-  }
-
-  /**
-   * API information endpoint
-   * Returns API metadata and version
+   * API information endpoint.
+   * Health status is intentionally served by HealthModule routes under /health.
    */
   getInfo() {
     return {

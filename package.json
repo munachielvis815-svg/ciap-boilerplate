@@ -19,7 +19,7 @@
     "start:dev": "nest start --watch --config nest-cli.json",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint",
+    "lint": "eslint .",
     "lint-fix": "eslint --fix",
     "test": "jest",
     "test:watch": "jest --watch",

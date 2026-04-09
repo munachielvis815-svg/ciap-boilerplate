@@ -1,6 +1,6 @@
 # API Documentation
 
-Updated for the current NestJS codebase on 2026-04-08.
+Updated for the current NestJS codebase on 2026-04-09.
 
 ## Base URLs
 
@@ -35,19 +35,27 @@ Authorization: Bearer <access_token>
 
 - `POST /auth/signup` - create account (public)
 - `POST /auth/login` - login with email/password (public)
-- `POST /auth/google` - login/signup with Google ID token (public)
+- `POST /auth/admin/signup` - create admin account (public endpoint, protected by `ADMIN_SIGNUP_KEY`)
+- `POST /auth/admin/login` - admin login (public)
 - `POST /auth/refresh` - rotate refresh token (public)
 - `GET /auth/verify` - verify access token + session (protected)
 - `POST /auth/logout` - revoke current session (protected)
-- `GET /auth/oauth2/:provider` - build OAuth authorization URL (public, Google implemented)
-- `GET /auth/oauth2/:provider/callback` - provider callback endpoint (public)
-- `GET /auth/google/callback` - Google callback shortcut (public)
 - `GET /auth/roles` - list roles (protected, `admin` only)
+
+### Auth social providers
+
+- `POST /auth/socials/google` - login/signup with Google ID token (public)
+- `GET /auth/socials/oauth2/google` - build Google OAuth authorization URL (public)
+- `GET /auth/socials/google/callback` - Google OAuth callback endpoint (public)
+- `POST /auth/socials/google/token/refresh` - refresh stored Google OAuth token for current user (protected)
+- `GET /auth/socials/google/youtube/metrics` - pull channel + latest videos + analytics metrics (protected, no persistence)
+- `GET /auth/socials/google/youtube/metrics/job-payload` - prepare BullMQ job payload contract (protected, no enqueue)
 
 ### Users
 
 - `GET /users/:id` - get user by id (protected + RBAC + abilities)
-- `GET /users?limit=10&offset=0` - list users (protected + RBAC + abilities)
+- `GET /users?limit=10&offset=0` - list tenant users (protected, `sme` only)
+- `GET /users/admin/all?limit=10&offset=0` - list users across tenants (protected, `admin` only)
 
 ## Request and Response Examples
 
@@ -84,14 +92,7 @@ Response shape:
 
 ### Login
 
-```bash
-curl -X POST http://localhost:3000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@example.com",
-    "password": "admin12345"
-  }'
-```
+`POST /auth/login` does not accept admin accounts. Admin must use `/auth/admin/login`.
 
 ### Refresh
 
@@ -124,25 +125,44 @@ Response shape:
 ### Start Google OAuth in browser
 
 ```text
-GET http://localhost:3000/auth/oauth2/google
+GET http://localhost:3000/auth/socials/oauth2/google
 ```
 
 It returns an `authorizationUrl`. Open it in a browser, approve consent, then Google redirects to:
 
 ```text
-http://localhost:3000/auth/google/callback?code=...
+http://localhost:3000/auth/socials/google/callback?code=...
 ```
+
+Callback error cases:
+
+- `400` when `code` query param is missing
+- `401` when Google returns `invalid_grant` (expired/invalid/reused authorization code)
 
 ### Direct Google token login
 
 ```bash
-curl -X POST http://localhost:3000/auth/google \
+curl -X POST http://localhost:3000/auth/socials/google \
   -H "Content-Type: application/json" \
   -d '{
     "idToken": "<google_id_token>",
     "role": "creator"
   }'
 ```
+
+### Pull YouTube metrics
+
+```bash
+curl "http://localhost:3000/auth/socials/google/youtube/metrics?days=30&maxVideos=20" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Notes:
+
+- Pulls channel-level and video-level metrics for the latest videos (`maxVideos <= 20`).
+- Pulls Analytics API data for the requested date window (`days <= 90`).
+- Metrics are returned directly and are not persisted.
+- Response includes BullMQ queue/job payload contract for later queue integration.
 
 ### Protected users endpoint
 
@@ -160,7 +180,9 @@ curl http://localhost:3000/users/1 \
   - `AbilitiesGuard`
 - Example:
   - `/users/:id` accepts abilities `users:read:any`, `users:read:tenant`, `users:read:self`
-  - `/users` list accepts `users:list:any` or `users:list:tenant`
+  - `/users` list requires `users:list:tenant` (`sme`)
+  - `/users/admin/all` requires `users:list:any` (`admin`)
+  - social token refresh + YouTube pull endpoints enforce dedicated social abilities
 
 ## Error Contract
 
@@ -185,6 +207,9 @@ The global filters return safe JSON. Typical shape:
 - `GET /auth/verify` is intentionally a `GET` endpoint using bearer token auth.
 - OAuth callback routes are `GET` because providers redirect with query params (`code`, etc.).
 - API version prefix is not currently applied in route registration.
+- Duplicate Google auth route overlap was removed:
+  - old mixed routes under `/auth/google*` and `/auth/oauth2/*` were replaced with `/auth/socials/*`.
+  - health functionality is owned by `HealthModule` routes under `/health*`.
 
 ## When API Changes
 
@@ -193,4 +218,3 @@ If routes, DTOs, guards, or auth flow change, update in the same pull request:
 1. this file (`docs/api.md`)
 2. `docs/implementation-guide.md` (if workflow or conventions changed)
 3. Swagger decorators in controllers
-

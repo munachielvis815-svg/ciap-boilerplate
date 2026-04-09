@@ -1,9 +1,14 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import { DATABASE_PROVIDER } from '@database/database.module';
 import type { Database } from '@database/database.module';
 import { tenants, users } from '@database/drizzle/schema';
-import type { NewTenant, NewUser, Tenant, User } from '@database/drizzle/schema';
+import type {
+  NewTenant,
+  NewUser,
+  Tenant,
+  User,
+} from '@database/drizzle/schema';
 
 @Injectable()
 export class UsersRepository {
@@ -83,7 +88,11 @@ export class UsersRepository {
   /**
    * Get users by tenant with pagination
    */
-  async findAllByTenant(tenantId: number, limit = 10, offset = 0): Promise<User[]> {
+  async findAllByTenant(
+    tenantId: number,
+    limit = 10,
+    offset = 0,
+  ): Promise<User[]> {
     return this.db.query.users.findMany({
       where: eq(users.tenantId, tenantId),
       limit,
@@ -116,7 +125,7 @@ export class UsersRepository {
    * Count total users
    */
   async count(): Promise<number> {
-    const result = await this.db.query.users.findMany();
-    return result.length;
+    const result = await this.db.select({ value: count() }).from(users);
+    return Number(result[0]?.value ?? 0);
   }
 }

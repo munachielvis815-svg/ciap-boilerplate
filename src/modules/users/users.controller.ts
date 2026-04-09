@@ -1,5 +1,19 @@
-import { Controller, Get, Param, Query, ParseIntPipe, Req, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  ParseIntPipe,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UserDto } from './dto/user.dto';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
@@ -72,8 +86,8 @@ export class UsersController {
     description: 'List of users',
     type: [UserDto],
   })
-  @Roles('admin', 'sme')
-  @RequireAbilities('users:list:any', 'users:list:tenant')
+  @Roles('sme')
+  @RequireAbilities('users:list:tenant')
   async getAllUsers(
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
@@ -82,6 +96,43 @@ export class UsersController {
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
     const parsedOffset = offset ? parseInt(offset, 10) : 0;
 
-    return this.usersService.getAllUsers(parsedLimit, parsedOffset, request?.user);
+    return this.usersService.getTenantUsers(
+      parsedLimit,
+      parsedOffset,
+      request?.user,
+    );
+  }
+
+  @Get('admin/all')
+  @ApiOperation({ summary: 'Get all users across tenants (admin only)' })
+  @ApiQuery({
+    name: 'limit',
+    description: 'Maximum number of users to return',
+    type: Number,
+    required: false,
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'offset',
+    description: 'Number of users to skip',
+    type: Number,
+    required: false,
+    example: 0,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of users across tenants',
+    type: [UserDto],
+  })
+  @Roles('admin')
+  @RequireAbilities('users:list:any')
+  async getAllUsersAsAdmin(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ): Promise<UserDto[]> {
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    const parsedOffset = offset ? parseInt(offset, 10) : 0;
+
+    return this.usersService.getAllUsersForAdmin(parsedLimit, parsedOffset);
   }
 }

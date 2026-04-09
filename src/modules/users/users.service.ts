@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  InvalidTokenException,
   UnauthorizedUserActionException,
   UserNotFoundException,
 } from '@common/exceptions';
@@ -52,11 +53,25 @@ export class UsersService {
   /**
    * Get all users with pagination
    */
-  async getAllUsers(limit = 10, offset = 0, actor?: RequestUser): Promise<UserDto[]> {
-    const users =
-      actor && actor.role !== 'admin'
-        ? await this.usersRepository.findAllByTenant(actor.tenantId, limit, offset)
-        : await this.usersRepository.findAll(limit, offset);
+  async getTenantUsers(
+    limit = 10,
+    offset = 0,
+    actor?: RequestUser,
+  ): Promise<UserDto[]> {
+    if (!actor) {
+      throw new InvalidTokenException({ reason: 'missing-auth-context' });
+    }
+
+    const users = await this.usersRepository.findAllByTenant(
+      actor.tenantId,
+      limit,
+      offset,
+    );
+    return users.map((user) => this.mapUserToDto(user));
+  }
+
+  async getAllUsersForAdmin(limit = 10, offset = 0): Promise<UserDto[]> {
+    const users = await this.usersRepository.findAll(limit, offset);
     return users.map((user) => this.mapUserToDto(user));
   }
 

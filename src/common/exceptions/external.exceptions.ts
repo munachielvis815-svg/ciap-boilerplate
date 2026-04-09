@@ -5,7 +5,7 @@ import { BaseException } from '@bases/base.exception';
  * Thrown when external API request fails
  */
 export class ExternalApiException extends BaseException {
-  constructor(service?: string, details?: Record<string, any>) {
+  constructor(service?: string, details?: Record<string, unknown>) {
     super(
       service ? `${service} API request failed` : 'External API request failed',
       HttpStatus.SERVICE_UNAVAILABLE,
@@ -19,9 +19,11 @@ export class ExternalApiException extends BaseException {
  * Thrown when external API request times out
  */
 export class ExternalApiTimeoutException extends BaseException {
-  constructor(service?: string, details?: Record<string, any>) {
+  constructor(service?: string, details?: Record<string, unknown>) {
     super(
-      service ? `${service} API request timed out` : 'External API request timed out',
+      service
+        ? `${service} API request timed out`
+        : 'External API request timed out',
       HttpStatus.GATEWAY_TIMEOUT,
       'EXTERNAL_API_TIMEOUT',
       { ...details, service },
@@ -33,7 +35,11 @@ export class ExternalApiTimeoutException extends BaseException {
  * Thrown when external API returns error response
  */
 export class ExternalApiResponseException extends BaseException {
-  constructor(service?: string, statusCode?: number, details?: Record<string, any>) {
+  constructor(
+    service?: string,
+    statusCode?: number,
+    details?: Record<string, unknown>,
+  ) {
     super(
       service
         ? `${service} API returned error (${statusCode})`
@@ -49,9 +55,11 @@ export class ExternalApiResponseException extends BaseException {
  * Thrown when email sending fails
  */
 export class EmailSendingException extends BaseException {
-  constructor(recipient?: string, details?: Record<string, any>) {
+  constructor(recipient?: string, details?: Record<string, unknown>) {
     super(
-      recipient ? `Failed to send email to ${recipient}` : 'Failed to send email',
+      recipient
+        ? `Failed to send email to ${recipient}`
+        : 'Failed to send email',
       HttpStatus.INTERNAL_SERVER_ERROR,
       'EMAIL_SENDING_ERROR',
       { ...details, recipient },
@@ -63,7 +71,7 @@ export class EmailSendingException extends BaseException {
  * Thrown when file upload fails
  */
 export class FileUploadException extends BaseException {
-  constructor(reason?: string, details?: Record<string, any>) {
+  constructor(reason?: string, details?: Record<string, unknown>) {
     super(
       reason ? `File upload failed: ${reason}` : 'File upload failed',
       HttpStatus.BAD_REQUEST,
@@ -77,9 +85,14 @@ export class FileUploadException extends BaseException {
  * Thrown when third-party integration fails
  */
 export class IntegrationException extends BaseException {
-  constructor(provider?: string, message?: string, details?: Record<string, any>) {
+  constructor(
+    provider?: string,
+    message?: string,
+    details?: Record<string, unknown>,
+  ) {
     super(
-      message || (provider ? `${provider} integration error` : 'Integration error'),
+      message ||
+        (provider ? `${provider} integration error` : 'Integration error'),
       HttpStatus.INTERNAL_SERVER_ERROR,
       'INTEGRATION_ERROR',
       { ...details, provider },
@@ -91,7 +104,7 @@ export class IntegrationException extends BaseException {
  * Thrown when rate limit is exceeded
  */
 export class RateLimitExceededException extends BaseException {
-  constructor(retryAfter?: number, details?: Record<string, any>) {
+  constructor(retryAfter?: number, details?: Record<string, unknown>) {
     super(
       'Too many requests',
       HttpStatus.TOO_MANY_REQUESTS,

@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
-import { ROLE_VALUES } from '@constants/roles.constant';
-import type { AppRole } from '@constants/roles.constant';
+import { PUBLIC_ONBOARDING_ROLE_VALUES } from '@constants/roles.constant';
+import type { PublicOnboardingRole } from '@constants/roles.constant';
 
 export class GoogleAuthDto {
   @ApiProperty({
@@ -12,11 +12,12 @@ export class GoogleAuthDto {
   idToken!: string;
 
   @ApiPropertyOptional({
-    enum: ROLE_VALUES,
+    enum: PUBLIC_ONBOARDING_ROLE_VALUES,
     example: 'user',
-    description: 'Initial role when onboarding new Google user',
+    description:
+      'Initial role for first-time social onboarding. Admin is not allowed here.',
   })
   @IsOptional()
-  @IsIn(ROLE_VALUES)
-  role?: AppRole;
+  @IsIn(PUBLIC_ONBOARDING_ROLE_VALUES)
+  role?: PublicOnboardingRole;
 }

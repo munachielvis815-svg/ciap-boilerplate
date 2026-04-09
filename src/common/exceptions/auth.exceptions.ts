@@ -5,7 +5,7 @@ import { BaseException } from '@bases/base.exception';
  * Thrown when user provides invalid credentials
  */
 export class InvalidCredentialsException extends BaseException {
-  constructor(details?: Record<string, any>) {
+  constructor(details?: Record<string, unknown>) {
     super(
       'Invalid email or password',
       HttpStatus.UNAUTHORIZED,
@@ -19,7 +19,7 @@ export class InvalidCredentialsException extends BaseException {
  * Thrown when JWT token has expired
  */
 export class TokenExpiredException extends BaseException {
-  constructor(details?: Record<string, any>) {
+  constructor(details?: Record<string, unknown>) {
     super(
       'Token has expired',
       HttpStatus.UNAUTHORIZED,
@@ -33,7 +33,7 @@ export class TokenExpiredException extends BaseException {
  * Thrown when JWT token is invalid or malformed
  */
 export class InvalidTokenException extends BaseException {
-  constructor(details?: Record<string, any>) {
+  constructor(details?: Record<string, unknown>) {
     super(
       'Invalid or malformed token',
       HttpStatus.UNAUTHORIZED,
@@ -47,7 +47,7 @@ export class InvalidTokenException extends BaseException {
  * Thrown when user lacks required permissions
  */
 export class InsufficientPermissionsException extends BaseException {
-  constructor(requiredRole?: string, details?: Record<string, any>) {
+  constructor(requiredRole?: string, details?: Record<string, unknown>) {
     super(
       requiredRole
         ? `Insufficient permissions. Required role: ${requiredRole}`
@@ -63,13 +63,8 @@ export class InsufficientPermissionsException extends BaseException {
  * Thrown when user account is locked
  */
 export class AccountLockedException extends BaseException {
-  constructor(details?: Record<string, any>) {
-    super(
-      'Account is locked',
-      HttpStatus.FORBIDDEN,
-      'ACCOUNT_LOCKED',
-      details,
-    );
+  constructor(details?: Record<string, unknown>) {
+    super('Account is locked', HttpStatus.FORBIDDEN, 'ACCOUNT_LOCKED', details);
   }
 }
 
@@ -77,7 +72,7 @@ export class AccountLockedException extends BaseException {
  * Thrown when user account is disabled
  */
 export class AccountDisabledException extends BaseException {
-  constructor(details?: Record<string, any>) {
+  constructor(details?: Record<string, unknown>) {
     super(
       'Account is disabled',
       HttpStatus.FORBIDDEN,

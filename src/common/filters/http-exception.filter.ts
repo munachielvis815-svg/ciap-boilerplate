@@ -26,17 +26,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Get error details (may include custom fields for known exceptions)
     const errorResponse =
       typeof exceptionResponse === 'object'
-        ? (exceptionResponse as Record<string, any>)
+        ? (exceptionResponse as Record<string, unknown>)
         : { message: exceptionResponse };
+    const detailsField =
+      typeof errorResponse.details !== 'undefined'
+        ? { details: errorResponse.details }
+        : {};
 
     // Ensure response structure
     const formattedResponse = {
       statusCode,
-      message: errorResponse.message || HttpStatus[statusCode] || 'Unknown Error',
+      message:
+        errorResponse.message || HttpStatus[statusCode] || 'Unknown Error',
       error: errorResponse.error || HttpStatus[statusCode],
       timestamp: errorResponse.timestamp || new Date().toISOString(),
       path: request.url,
-      ...(errorResponse.details && { details: errorResponse.details }),
+      ...detailsField,
     };
 
     const details =

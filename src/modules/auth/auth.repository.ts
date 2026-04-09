@@ -34,7 +34,44 @@ export class AuthRepository {
   }
 
   async createOauthAccount(data: NewOauthAccount): Promise<OauthAccount> {
-    const [created] = await this.db.insert(oauthAccounts).values(data).returning();
+    const [created] = await this.db
+      .insert(oauthAccounts)
+      .values(data)
+      .returning();
     return created;
+  }
+
+  async findOauthAccountByUserAndProvider(
+    userId: number,
+    provider: 'google' | 'github' | 'linkedin',
+  ): Promise<OauthAccount | null> {
+    const oauthAccount = await this.db.query.oauthAccounts.findFirst({
+      where: and(
+        eq(oauthAccounts.userId, userId),
+        eq(oauthAccounts.provider, provider),
+      ),
+    });
+
+    return oauthAccount || null;
+  }
+
+  async updateOauthAccountTokens(
+    oauthAccountId: number,
+    data: {
+      accessToken?: string | null;
+      refreshToken?: string | null;
+      tokenExpiresAt?: Date | null;
+      email?: string | null;
+    },
+  ): Promise<OauthAccount> {
+    const [updated] = await this.db
+      .update(oauthAccounts)
+      .set({
+        ...data,
+      })
+      .where(eq(oauthAccounts.id, oauthAccountId))
+      .returning();
+
+    return updated;
   }
 }

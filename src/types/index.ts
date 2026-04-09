@@ -10,7 +10,7 @@ export type LogLevel = 'error' | 'warn' | 'log' | 'debug' | 'verbose';
 /**
  * API Response wrapper type for consistent responses
  */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   statusCode: number;
   message: string;
   data?: T;

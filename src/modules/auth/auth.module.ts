@@ -6,6 +6,8 @@ import { UsersModule } from '@modules/users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthRepository } from './auth.repository';
 import { AuthService } from './auth.service';
+import { SocialsController } from './socials/socials.controller';
+import { SocialsService } from './socials/socials.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { Oauth2StrategyScaffold } from './strategies/oauth2.strategy';
 
@@ -16,8 +18,14 @@ import { Oauth2StrategyScaffold } from './strategies/oauth2.strategy';
     UsersModule,
     SessionsModule,
   ],
-  controllers: [AuthController],
-  providers: [AuthService, AuthRepository, JwtStrategy, Oauth2StrategyScaffold],
-  exports: [AuthService],
+  controllers: [AuthController, SocialsController],
+  providers: [
+    AuthService,
+    AuthRepository,
+    SocialsService,
+    JwtStrategy,
+    Oauth2StrategyScaffold,
+  ],
+  exports: [AuthService, SocialsService],
 })
 export class AuthModule {}

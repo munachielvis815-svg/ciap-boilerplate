@@ -76,3 +76,15 @@ Append-only notes for discoveries, decisions, and gotchas.
 - Context: Logging dependencies were already installed but not integrated into app bootstrap.
 - Finding: `AppModule` now configures `nestjs-pino` with env-driven controls (`LOG_ENABLED`, `LOG_LEVEL`, `LOG_FORMAT`, `LOG_TO_FILE`, file rotation vars) and enforces `LOG_FORMAT` to `pretty` or `json`.
 - Impact: Logging behavior can be changed without code edits, and file logging with rotation is available via `pino-roll` for local/container observability.
+
+## Google OAuth Callback Error Translation (2026-04-09)
+
+- Context: Google OAuth callback failures were returning HTTP 500 when token exchange returned `invalid_grant`.
+- Finding: `AuthService.loginWithGoogleAuthorizationCode` now validates missing `code` and maps Google `invalid_grant` failures to `InvalidTokenException` instead of bubbling an unhandled error.
+- Impact: OAuth callback routes return typed 4xx responses for invalid/expired/reused authorization codes, reducing noisy 500s and keeping client error handling predictable.
+
+## Social Auth Split + Admin/Auth Route Separation (2026-04-09)
+
+- Context: Auth flows were reviewed for role escalation risk, duplicated route responsibilities, and OAuth token lifecycle needs for YouTube API calls.
+- Finding: Google/social routes now live under `src/modules/auth/socials` and expose dedicated endpoints under `/auth/socials/*`; local auth routes remain in `AuthController`, with separate admin signup/login endpoints. `/users` list is now tenant-scoped (`sme`), while cross-tenant listing moved to `/users/admin/all` (`admin`).
+- Impact: API boundaries are clearer, role-safe onboarding is enforced (no public admin role assignment), and social OAuth token refresh/YouTube metrics pull can evolve independently without mixing local auth concerns.

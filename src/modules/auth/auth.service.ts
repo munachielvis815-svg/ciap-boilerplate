@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { compare, hash } from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
@@ -10,8 +7,8 @@ import { sign, verify } from 'jsonwebtoken';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import type { Algorithm, SignOptions } from 'jsonwebtoken';
 import type { Request } from 'express';
-import type { AppRole } from '@constants/roles.constant';
-import type { NewAuditLog, User } from '@database/drizzle/schema';
+import type { AppRole, PublicOnboardingRole } from '@constants/roles.constant';
+import type { NewAuditLog, OauthAccount, User } from '@database/drizzle/schema';
 import {
   AccountDisabledException,
   DuplicateEmailException,
@@ -19,7 +16,6 @@ import {
   InvalidCredentialsException,
   InvalidEnumException,
   InvalidTokenException,
-  InvalidUserDataException,
   MissingFieldException,
   TokenExpiredException,
 } from '@common/exceptions';
@@ -27,11 +23,13 @@ import { UsersRepository } from '@modules/users/users.repository';
 import { SessionsService } from '@modules/sessions/sessions.service';
 import { AuthRepository } from './auth.repository';
 import type { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
+import type { AdminSignupDto } from './dto/admin-signup.dto';
 import type { GoogleAuthDto } from './dto/google-auth.dto';
 import type { LoginDto } from './dto/login.dto';
 import type { OAuth2Provider } from './dto/oauth2-provider.dto';
 import type { RefreshTokenDto } from './dto/refresh-token.dto';
 import type { SignupDto } from './dto/signup.dto';
+import type { RequestUser } from '@/types';
 
 type AccessTokenPayload = {
   sub: number;
@@ -45,6 +43,12 @@ type RefreshTokenPayload = {
   sub: number;
   tenantId: number;
   sid: string;
+};
+
+type GoogleTokenExchangePayload = {
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: Date | null;
 };
 
 @Injectable()
@@ -66,15 +70,14 @@ export class AuthService {
       throw new DuplicateEmailException(email);
     }
 
-    const requestedRole = dto.role || 'user';
-    if (requestedRole === 'admin') {
-      throw new InvalidUserDataException('role', {
-        reason: 'Admin role cannot be self-assigned',
-      });
-    }
+    const requestedRole: PublicOnboardingRole = dto.role || 'user';
 
     const passwordHash = await hash(dto.password, this.getBcryptRounds());
-    const tenantId = await this.resolveTenantForSignup(requestedRole, dto.name, email);
+    const tenantId = await this.resolveTenantForSignup(
+      requestedRole,
+      dto.name,
+      email,
+    );
 
     const createdUser = await this.usersRepository.create({
       tenantId,
@@ -103,9 +106,106 @@ export class AuthService {
     return this.issueTokens(createdUser, request);
   }
 
+  async adminSignup(
+    dto: AdminSignupDto,
+    request: Request,
+  ): Promise<AuthResponseDto> {
+    const expectedAdminSignupKey =
+      this.configService.get<string>('ADMIN_SIGNUP_KEY');
+    if (!expectedAdminSignupKey) {
+      throw new MissingFieldException('ADMIN_SIGNUP_KEY');
+    }
+
+    if (dto.adminSignupKey !== expectedAdminSignupKey) {
+      throw new InvalidCredentialsException({
+        reason: 'invalid-admin-signup-key',
+      });
+    }
+
+    const email = dto.email.toLowerCase();
+    const existing = await this.usersRepository.findByEmail(email);
+    if (existing) {
+      throw new DuplicateEmailException(email);
+    }
+
+    const passwordHash = await hash(dto.password, this.getBcryptRounds());
+    const tenantId = await this.resolveAdminTenantId();
+
+    const createdUser = await this.usersRepository.create({
+      tenantId,
+      email,
+      name: dto.name,
+      passwordHash,
+      role: 'admin',
+      authProvider: 'local',
+      isActive: true,
+      isEmailVerified: true,
+    });
+
+    await this.writeAuditLog({
+      userId: createdUser.id,
+      action: 'signup',
+      entity: 'users',
+      entityId: String(createdUser.id),
+      metadata: {
+        role: createdUser.role,
+        tenantId: createdUser.tenantId,
+        flow: 'admin-signup',
+      },
+      ipAddress: this.getIpAddress(request),
+      userAgent: request.headers['user-agent'] || null,
+    });
+
+    return this.issueTokens(createdUser, request);
+  }
+
   async login(dto: LoginDto, request: Request): Promise<AuthResponseDto> {
-    const user = await this.usersRepository.findByEmail(dto.email.toLowerCase());
+    const user = await this.usersRepository.findByEmail(
+      dto.email.toLowerCase(),
+    );
     if (!user || !user.passwordHash) {
+      throw new InvalidCredentialsException();
+    }
+
+    const validPassword = await compare(dto.password, user.passwordHash);
+    if (!validPassword) {
+      throw new InvalidCredentialsException();
+    }
+
+    if (!user.isActive) {
+      throw new AccountDisabledException({ userId: user.id });
+    }
+
+    if (user.role === 'admin') {
+      throw new InvalidCredentialsException({
+        reason: 'use-admin-login-endpoint',
+      });
+    }
+
+    await this.usersRepository.updateLastLogin(user.id);
+    const tokenResponse = await this.issueTokens(user, request);
+
+    await this.writeAuditLog({
+      userId: user.id,
+      action: 'login',
+      entity: 'users',
+      entityId: String(user.id),
+      metadata: {
+        role: user.role,
+        tenantId: user.tenantId,
+      },
+      ipAddress: this.getIpAddress(request),
+      userAgent: request.headers['user-agent'] || null,
+    });
+
+    return tokenResponse;
+  }
+
+  async adminLogin(dto: LoginDto, request: Request): Promise<AuthResponseDto> {
+    const user = await this.usersRepository.findByEmail(
+      dto.email.toLowerCase(),
+    );
+    if (!user || !user.passwordHash || user.role !== 'admin') {
       throw new InvalidCredentialsException();
     }
 
@@ -129,6 +229,7 @@ export class AuthService {
       metadata: {
         role: user.role,
         tenantId: user.tenantId,
+        flow: 'admin-login',
       },
       ipAddress: this.getIpAddress(request),
       userAgent: request.headers['user-agent'] || null,
@@ -137,7 +238,11 @@ export class AuthService {
     return tokenResponse;
   }
 
-  async loginWithGoogle(dto: GoogleAuthDto, request: Request): Promise<AuthResponseDto> {
+  async loginWithGoogle(
+    dto: GoogleAuthDto,
+    request: Request,
+    googleTokens?: GoogleTokenExchangePayload,
+  ): Promise<AuthResponseDto> {
     const payload = await this.verifyGoogleIdToken(dto.idToken);
 
     const googleSubject = payload.sub;
@@ -145,18 +250,25 @@ export class AuthService {
     const name = payload.name || 'Google User';
 
     if (!googleSubject || !email) {
-      throw new InvalidTokenException({ provider: 'google', reason: 'invalid-payload' });
+      throw new InvalidTokenException({
+        provider: 'google',
+        reason: 'invalid-payload',
+      });
     }
 
     let user: User | null = null;
-    const existingOauth = await this.authRepository.findOauthAccount('google', googleSubject);
+    const existingOauth = await this.authRepository.findOauthAccount(
+      'google',
+      googleSubject,
+    );
+    let oauthAccount: OauthAccount | null = existingOauth;
 
     if (existingOauth) {
       user = await this.usersRepository.findByIdOrNull(existingOauth.userId);
     } else {
       user = await this.usersRepository.findByEmail(email);
       if (!user) {
-        const role = dto.role || 'user';
+        const role: PublicOnboardingRole = dto.role || 'user';
         const tenantId = await this.resolveTenantForSignup(role, name, email);
         user = await this.usersRepository.create({
           tenantId,
@@ -171,7 +283,7 @@ export class AuthService {
         });
       }
 
-      await this.authRepository.createOauthAccount({
+      oauthAccount = await this.authRepository.createOauthAccount({
         userId: user.id,
         provider: 'google',
         providerUserId: googleSubject,
@@ -185,6 +297,7 @@ export class AuthService {
 
     await this.usersRepository.markEmailVerified(user.id);
     await this.usersRepository.updateLastLogin(user.id);
+    await this.saveGoogleOauthTokens(oauthAccount, googleTokens, email);
 
     await this.writeAuditLog({
       userId: user.id,
@@ -199,7 +312,8 @@ export class AuthService {
       userAgent: request.headers['user-agent'] || null,
     });
 
-    const latestUser = (await this.usersRepository.findByIdOrNull(user.id)) || user;
+    const latestUser =
+      (await this.usersRepository.findByIdOrNull(user.id)) || user;
     return this.issueTokens(latestUser, request);
   }
 
@@ -207,27 +321,69 @@ export class AuthService {
     code: string,
     request: Request,
   ): Promise<AuthResponseDto> {
-    const client = this.getGoogleClient();
-    const { tokens } = await client.getToken({
-      code,
-      redirect_uri: this.getGoogleRedirectUri(),
-    });
-
-    if (!tokens.id_token) {
-      throw new InvalidTokenException({ provider: 'google', reason: 'missing-id-token' });
+    if (!code?.trim()) {
+      throw new MissingFieldException('code');
     }
 
-    return this.loginWithGoogle(
-      {
-        idToken: tokens.id_token,
-      },
-      request,
-    );
+    const client = this.getGoogleClient();
+    try {
+      const { tokens } = await client.getToken({
+        code,
+        redirect_uri: this.getGoogleRedirectUri(),
+      });
+
+      if (!tokens.id_token) {
+        throw new InvalidTokenException({
+          provider: 'google',
+          reason: 'missing-id-token',
+        });
+      }
+
+      return this.loginWithGoogle(
+        {
+          idToken: tokens.id_token,
+          role: 'user',
+        },
+        request,
+        {
+          accessToken: tokens.access_token ?? undefined,
+          refreshToken: tokens.refresh_token ?? undefined,
+          expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+        },
+      );
+    } catch (error) {
+      if (
+        error instanceof MissingFieldException ||
+        error instanceof InvalidTokenException
+      ) {
+        throw error;
+      }
+
+      if (this.isGoogleInvalidGrantError(error)) {
+        throw new InvalidTokenException({
+          provider: 'google',
+          reason: 'invalid-grant',
+        });
+      }
+
+      this.logger.error(
+        'Google OAuth authorization code exchange failed',
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new ExternalApiException('Google OAuth', {
+        reason: 'token-exchange-failed',
+      });
+    }
   }
 
-  async refresh(dto: RefreshTokenDto, request: Request): Promise<AuthResponseDto> {
+  async refresh(
+    dto: RefreshTokenDto,
+    request: Request,
+  ): Promise<AuthResponseDto> {
     const decoded = this.verifyRefreshToken(dto.refreshToken);
-    const session = await this.sessionsService.findActiveSessionById(decoded.sid);
+    const session = await this.sessionsService.findActiveSessionById(
+      decoded.sid,
+    );
     if (!session) {
       throw new InvalidTokenException({ reason: 'session-expired' });
     }
@@ -261,7 +417,11 @@ export class AuthService {
     return nextTokenPair;
   }
 
-  async logout(userId: number, sessionId: string, request: Request): Promise<{ success: boolean }> {
+  async logout(
+    userId: number,
+    sessionId: string,
+    request: Request,
+  ): Promise<{ success: boolean }> {
     await this.sessionsService.revokeSessionById(sessionId);
 
     await this.writeAuditLog({
@@ -320,7 +480,13 @@ export class AuthService {
     const client = this.getGoogleClient();
     const url = client.generateAuthUrl({
       access_type: 'offline',
-      scope: ['openid', 'email', 'profile'],
+      scope: [
+        'openid',
+        'email',
+        'profile',
+        'https://www.googleapis.com/auth/youtube.readonly',
+        'https://www.googleapis.com/auth/yt-analytics.readonly',
+      ],
       redirect_uri: this.getGoogleRedirectUri(),
       prompt: 'consent',
     });
@@ -332,7 +498,98 @@ export class AuthService {
     };
   }
 
-  private async issueTokens(user: User, request: Request): Promise<AuthResponseDto> {
+  async refreshGoogleOauthTokensForUser(
+    targetUserId: number,
+    actor: RequestUser,
+  ): Promise<{ accessToken: string; tokenExpiresAt: Date | null }> {
+    if (actor.role !== 'admin' && actor.id !== targetUserId) {
+      throw new InvalidCredentialsException({
+        reason: 'cross-user-google-token-refresh-forbidden',
+      });
+    }
+
+    if (actor.role !== 'admin' && actor.id === targetUserId) {
+      const actorRecord = await this.usersRepository.findByIdOrNull(actor.id);
+      if (!actorRecord || actorRecord.tenantId !== actor.tenantId) {
+        throw new InvalidCredentialsException({
+          reason: 'tenant-context-mismatch',
+        });
+      }
+    }
+
+    const oauthAccount =
+      await this.authRepository.findOauthAccountByUserAndProvider(
+        targetUserId,
+        'google',
+      );
+    if (!oauthAccount) {
+      throw new InvalidTokenException({
+        provider: 'google',
+        reason: 'oauth-account-not-found',
+      });
+    }
+
+    if (!oauthAccount.refreshToken) {
+      throw new InvalidTokenException({
+        provider: 'google',
+        reason: 'missing-refresh-token',
+      });
+    }
+
+    try {
+      const googleClient = this.getGoogleClient();
+      googleClient.setCredentials({
+        refresh_token: oauthAccount.refreshToken,
+      });
+
+      const { credentials } = await googleClient.refreshAccessToken();
+      const accessToken = credentials.access_token ?? oauthAccount.accessToken;
+
+      if (!accessToken) {
+        throw new InvalidTokenException({
+          provider: 'google',
+          reason: 'missing-access-token',
+        });
+      }
+
+      const tokenExpiresAt = credentials.expiry_date
+        ? new Date(credentials.expiry_date)
+        : oauthAccount.tokenExpiresAt;
+      const refreshToken =
+        credentials.refresh_token ?? oauthAccount.refreshToken;
+
+      await this.authRepository.updateOauthAccountTokens(oauthAccount.id, {
+        accessToken,
+        refreshToken,
+        tokenExpiresAt,
+      });
+
+      return {
+        accessToken,
+        tokenExpiresAt,
+      };
+    } catch (error) {
+      if (error instanceof InvalidTokenException) {
+        throw error;
+      }
+
+      if (this.isGoogleInvalidGrantError(error)) {
+        throw new InvalidTokenException({
+          provider: 'google',
+          reason: 'invalid-grant',
+        });
+      }
+
+      throw new ExternalApiException('Google OAuth', {
+        reason: 'refresh-token-exchange-failed',
+      });
+    }
+  }
+
+  private async issueTokens(
+    user: User,
+    request: Request,
+  ): Promise<AuthResponseDto> {
     const sessionId = randomUUID();
     const accessTokenPayload: AccessTokenPayload = {
       sub: user.id,
@@ -352,10 +609,14 @@ export class AuthService {
       expiresIn: this.getAccessExpiresIn() as SignOptions['expiresIn'],
     });
 
-    const refreshToken = sign(refreshTokenPayload, this.getRefreshPrivateKey(), {
-      algorithm: 'ES512',
-      expiresIn: this.getRefreshExpiresIn() as SignOptions['expiresIn'],
-    });
+    const refreshToken = sign(
+      refreshTokenPayload,
+      this.getRefreshPrivateKey(),
+      {
+        algorithm: 'ES512',
+        expiresIn: this.getRefreshExpiresIn() as SignOptions['expiresIn'],
+      },
+    );
 
     await this.sessionsService.createSession({
       id: sessionId,
@@ -363,7 +624,9 @@ export class AuthService {
       refreshTokenHash: this.hashToken(refreshToken),
       userAgent: request.headers['user-agent'] || null,
       ipAddress: this.getIpAddress(request),
-      expiresAt: new Date(Date.now() + this.parseDurationToMs(this.getRefreshExpiresIn())),
+      expiresAt: new Date(
+        Date.now() + this.parseDurationToMs(this.getRefreshExpiresIn()),
+      ),
       revokedAt: null,
     });
 
@@ -371,7 +634,9 @@ export class AuthService {
       user: this.mapUser(user),
       accessToken,
       refreshToken,
-      expiresIn: Math.floor(this.parseDurationToMs(this.getAccessExpiresIn()) / 1000),
+      expiresIn: Math.floor(
+        this.parseDurationToMs(this.getAccessExpiresIn()) / 1000,
+      ),
     };
   }
 
@@ -387,7 +652,9 @@ export class AuthService {
 
       const sub = Number((decoded as { sub?: number | string }).sub);
       const sid = String((decoded as { sid?: string }).sid || '');
-      const tenantId = Number((decoded as { tenantId?: number | string }).tenantId);
+      const tenantId = Number(
+        (decoded as { tenantId?: number | string }).tenantId,
+      );
 
       if (!sub || !sid || !tenantId) {
         throw new InvalidTokenException({ reason: 'invalid-refresh-payload' });
@@ -438,15 +705,42 @@ export class AuthService {
     return this.oauthClient;
   }
 
+  private isGoogleInvalidGrantError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+
+    const candidate = error as {
+      message?: unknown;
+      response?: {
+        data?: {
+          error?: unknown;
+        };
+      };
+    };
+
+    if (candidate.response?.data?.error === 'invalid_grant') {
+      return true;
+    }
+
+    return (
+      typeof candidate.message === 'string' &&
+      candidate.message.includes('invalid_grant')
+    );
+  }
+
   private async resolveTenantForSignup(
-    role: AppRole,
+    role: PublicOnboardingRole,
     displayName: string,
     email: string,
   ): Promise<number> {
     if (role === 'sme' || role === 'creator') {
-      const preferredSlugBase = this.slugify(displayName || email.split('@')[0] || role);
+      const preferredSlugBase = this.slugify(
+        displayName || email.split('@')[0] || role,
+      );
       const preferredSlug = `${preferredSlugBase}-${role}`;
-      const existing = await this.usersRepository.findTenantBySlug(preferredSlug);
+      const existing =
+        await this.usersRepository.findTenantBySlug(preferredSlug);
       if (existing) {
         return existing.id;
       }
@@ -460,7 +754,8 @@ export class AuthService {
     }
 
     const publicTenantSlug = 'public-tenant';
-    const publicTenant = await this.usersRepository.findTenantBySlug(publicTenantSlug);
+    const publicTenant =
+      await this.usersRepository.findTenantBySlug(publicTenantSlug);
     if (publicTenant) {
       return publicTenant.id;
     }
@@ -471,6 +766,46 @@ export class AuthService {
       isActive: true,
     });
     return created.id;
+  }
+
+  private async resolveAdminTenantId(): Promise<number> {
+    const adminTenantSlug = 'platform-admin';
+    const existing =
+      await this.usersRepository.findTenantBySlug(adminTenantSlug);
+    if (existing) {
+      return existing.id;
+    }
+
+    const created = await this.usersRepository.createTenant({
+      name: 'Platform Admin',
+      slug: adminTenantSlug,
+      isActive: true,
+    });
+    return created.id;
+  }
+
+  private async saveGoogleOauthTokens(
+    oauthAccount: OauthAccount | null,
+    googleTokens: GoogleTokenExchangePayload | undefined,
+    email: string,
+  ): Promise<void> {
+    if (!oauthAccount) {
+      return;
+    }
+
+    if (!googleTokens?.accessToken && !googleTokens?.refreshToken) {
+      return;
+    }
+
+    await this.authRepository.updateOauthAccountTokens(oauthAccount.id, {
+      accessToken: googleTokens.accessToken ?? oauthAccount.accessToken,
+      refreshToken: googleTokens.refreshToken ?? oauthAccount.refreshToken,
+      tokenExpiresAt:
+        googleTokens.expiresAt === undefined
+          ? oauthAccount.tokenExpiresAt
+          : googleTokens.expiresAt,
+      email,
+    });
   }
 
   private hashToken(token: string): string {
@@ -508,7 +843,9 @@ export class AuthService {
   }
 
   private getBcryptRounds(): number {
-    const rounds = Number(this.configService.get<string>('BCRYPT_ROUNDS') || '10');
+    const rounds = Number(
+      this.configService.get<string>('BCRYPT_ROUNDS') || '10',
+    );
     return Number.isFinite(rounds) ? rounds : 10;
   }
 
@@ -567,11 +904,14 @@ export class AuthService {
   private getGoogleRedirectUri(): string {
     return (
       this.configService.get<string>('GOOGLE_REDIRECT_URI') ||
-      'http://localhost:3000/auth/google/callback'
+      'http://localhost:3000/auth/socials/google/callback'
     );
   }
 
-  private normalizePemKey(rawValue: string | undefined, envName: string): string {
+  private normalizePemKey(
+    rawValue: string | undefined,
+    envName: string,
+  ): string {
     if (!rawValue) {
       throw new MissingFieldException(envName);
     }

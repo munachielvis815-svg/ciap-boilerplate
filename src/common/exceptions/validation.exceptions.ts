@@ -5,7 +5,7 @@ import { BaseException } from '@bases/base.exception';
  * Thrown when validation fails
  */
 export class ValidationException extends BaseException {
-  constructor(message?: string, details?: Record<string, any>) {
+  constructor(message?: string, details?: Record<string, unknown>) {
     super(
       message || 'Validation failed',
       HttpStatus.BAD_REQUEST,
@@ -19,13 +19,11 @@ export class ValidationException extends BaseException {
  * Thrown when email format is invalid
  */
 export class InvalidEmailException extends BaseException {
-  constructor(email?: string, details?: Record<string, any>) {
-    super(
-      'Email format is invalid',
-      HttpStatus.BAD_REQUEST,
-      'INVALID_EMAIL',
-      { ...details, email },
-    );
+  constructor(email?: string, details?: Record<string, unknown>) {
+    super('Email format is invalid', HttpStatus.BAD_REQUEST, 'INVALID_EMAIL', {
+      ...details,
+      email,
+    });
   }
 }
 
@@ -33,7 +31,7 @@ export class InvalidEmailException extends BaseException {
  * Thrown when password doesn't meet requirements
  */
 export class WeakPasswordException extends BaseException {
-  constructor(requirements?: string[], details?: Record<string, any>) {
+  constructor(requirements?: string[], details?: Record<string, unknown>) {
     super(
       'Password does not meet security requirements',
       HttpStatus.BAD_REQUEST,
@@ -47,7 +45,7 @@ export class WeakPasswordException extends BaseException {
  * Thrown when required field is missing
  */
 export class MissingFieldException extends BaseException {
-  constructor(field?: string, details?: Record<string, any>) {
+  constructor(field?: string, details?: Record<string, unknown>) {
     super(
       field ? `Missing required field: ${field}` : 'Missing required field',
       HttpStatus.BAD_REQUEST,
@@ -61,7 +59,12 @@ export class MissingFieldException extends BaseException {
  * Thrown when field value is out of acceptable range
  */
 export class InvalidRangeException extends BaseException {
-  constructor(field?: string, min?: number, max?: number, details?: Record<string, any>) {
+  constructor(
+    field?: string,
+    min?: number,
+    max?: number,
+    details?: Record<string, unknown>,
+  ) {
     super(
       field
         ? `${field} must be between ${min} and ${max}`
@@ -77,7 +80,11 @@ export class InvalidRangeException extends BaseException {
  * Thrown when input length is invalid
  */
 export class InvalidLengthException extends BaseException {
-  constructor(field?: string, expected?: number | Record<string, number>, details?: Record<string, any>) {
+  constructor(
+    field?: string,
+    expected?: number | Record<string, number>,
+    details?: Record<string, unknown>,
+  ) {
     let message = 'Invalid length';
     if (field && typeof expected === 'number') {
       message = `${field} must have exactly ${expected} characters`;
@@ -85,7 +92,11 @@ export class InvalidLengthException extends BaseException {
       message = `${field} must be between ${expected.min} and ${expected.max} characters`;
     }
 
-    super(message, HttpStatus.BAD_REQUEST, 'INVALID_LENGTH', { ...details, field, expected });
+    super(message, HttpStatus.BAD_REQUEST, 'INVALID_LENGTH', {
+      ...details,
+      field,
+      expected,
+    });
   }
 }
 
@@ -93,7 +104,11 @@ export class InvalidLengthException extends BaseException {
  * Thrown when enum value is invalid
  */
 export class InvalidEnumException extends BaseException {
-  constructor(field?: string, validValues?: string[], details?: Record<string, any>) {
+  constructor(
+    field?: string,
+    validValues?: string[],
+    details?: Record<string, unknown>,
+  ) {
     super(
       field
         ? `${field} must be one of: ${validValues?.join(', ')}`

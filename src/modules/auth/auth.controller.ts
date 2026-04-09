@@ -4,28 +4,27 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
   Post,
   Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiExcludeEndpoint,
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { Public, Roles } from '@decorators/index';
+import { Public, RequireAbilities, Roles } from '@decorators/index';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
 import type { Request } from 'express';
-import { InvalidEnumException } from '@common/exceptions';
+import { MissingFieldException } from '@common/exceptions';
 import type { AuthenticatedRequest } from '@/types/express';
 import { AuthService } from './auth.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
-import { GoogleAuthDto } from './dto/google-auth.dto';
+import { AdminSignupDto } from './dto/admin-signup.dto';
 import { LoginDto } from './dto/login.dto';
-import { OAuth2ProviderDto } from './dto/oauth2-provider.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignupDto } from './dto/signup.dto';
 import { VerifyResponseDto } from './dto/verify-response.dto';
@@ -42,7 +41,14 @@ export class AuthController {
     status: 201,
     type: AuthResponseDto,
   })
-  async signup(@Body() dto: SignupDto, @Req() request: Request): Promise<AuthResponseDto> {
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failure or unsupported role selection',
+  })
+  async signup(
+    @Body() dto: SignupDto,
+    @Req() request: Request,
+  ): Promise<AuthResponseDto> {
     return this.authService.signup(dto, request);
   }
 
@@ -54,23 +60,57 @@ export class AuthController {
     status: 200,
     type: AuthResponseDto,
   })
-  async login(@Body() dto: LoginDto, @Req() request: Request): Promise<AuthResponseDto> {
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid credentials or admin login attempted on public route',
+  })
+  async login(
+    @Body() dto: LoginDto,
+    @Req() request: Request,
+  ): Promise<AuthResponseDto> {
     return this.authService.login(dto, request);
   }
 
   @Public()
   @HttpCode(HttpStatus.OK)
-  @Post('google')
-  @ApiOperation({ summary: 'Sign in/up with Google ID token' })
+  @Post('admin/signup')
+  @ApiOperation({
+    summary: 'Create platform admin account (separate protected flow)',
+  })
   @ApiResponse({
     status: 200,
     type: AuthResponseDto,
   })
-  async googleAuth(
-    @Body() dto: GoogleAuthDto,
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid admin signup key',
+  })
+  async adminSignup(
+    @Body() dto: AdminSignupDto,
     @Req() request: Request,
   ): Promise<AuthResponseDto> {
-    return this.authService.loginWithGoogle(dto, request);
+    return this.authService.adminSignup(dto, request);
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('admin/login')
+  @ApiOperation({
+    summary: 'Authenticate platform admin (separate from public login)',
+  })
+  @ApiResponse({
+    status: 200,
+    type: AuthResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid credentials or non-admin account',
+  })
+  async adminLogin(
+    @Body() dto: LoginDto,
+    @Req() request: Request,
+  ): Promise<AuthResponseDto> {
+    return this.authService.adminLogin(dto, request);
   }
 
   @Public()
@@ -96,7 +136,9 @@ export class AuthController {
     status: 200,
     type: VerifyResponseDto,
   })
-  async verify(@Req() request: AuthenticatedRequest): Promise<VerifyResponseDto> {
+  async verify(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<VerifyResponseDto> {
     return this.authService.verifySession(
       request.user.id,
       request.user.tenantId,
@@ -123,57 +165,63 @@ export class AuthController {
   async logout(
     @Req() request: AuthenticatedRequest,
   ): Promise<{ success: boolean }> {
-    return this.authService.logout(request.user.id, request.user.sessionId, request);
+    return this.authService.logout(
+      request.user.id,
+      request.user.sessionId,
+      request,
+    );
   }
 
+  /**
+   * Backward-compatibility alias for older Google OAuth callback URL.
+   * Preferred route is /auth/socials/google/callback.
+   */
   @Public()
-  @Get('oauth2/:provider')
-  @ApiOperation({ summary: 'Prepare OAuth2 provider authorization flow' })
-  @ApiResponse({
-    status: 400,
-    description: 'Provider details not fully configured yet',
-  })
-  async oauth2Prepare(@Param() params: OAuth2ProviderDto) {
-    return this.authService.prepareOauth2(params.provider);
-  }
-
-  @Public()
-  @Get('oauth2/:provider/callback')
-  @ApiOperation({ summary: 'OAuth2 callback endpoint' })
-  @ApiResponse({
-    status: 200,
-    type: AuthResponseDto,
-  })
-  async oauth2Callback(
-    @Param() params: OAuth2ProviderDto,
+  @Get('google/callback')
+  @ApiExcludeEndpoint()
+  async legacyGoogleCallback(
     @Query('code') code: string,
     @Req() request: Request,
   ): Promise<AuthResponseDto> {
-    if (params.provider !== 'google') {
-      throw new InvalidEnumException('provider', ['google'], {
-        providedValue: params.provider,
-      });
+    if (!code?.trim()) {
+      throw new MissingFieldException('code');
     }
 
     return this.authService.loginWithGoogleAuthorizationCode(code, request);
   }
 
+  /**
+   * Backward-compatibility alias for older OAuth2 prepare route.
+   * Preferred route is /auth/socials/oauth2/google.
+   */
   @Public()
-  @Get('google/callback')
-  @ApiOperation({ summary: 'Google OAuth callback endpoint' })
-  @ApiResponse({
-    status: 200,
-    type: AuthResponseDto,
-  })
-  async googleCallback(
+  @Get('oauth2/google')
+  @ApiExcludeEndpoint()
+  legacyOauth2PrepareGoogle() {
+    return this.authService.prepareOauth2('google');
+  }
+
+  /**
+   * Backward-compatibility alias for older OAuth2 callback route.
+   * Preferred route is /auth/socials/google/callback.
+   */
+  @Public()
+  @Get('oauth2/google/callback')
+  @ApiExcludeEndpoint()
+  async legacyOauth2GoogleCallback(
     @Query('code') code: string,
     @Req() request: Request,
   ): Promise<AuthResponseDto> {
+    if (!code?.trim()) {
+      throw new MissingFieldException('code');
+    }
+
     return this.authService.loginWithGoogleAuthorizationCode(code, request);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
   @Roles('admin')
+  @RequireAbilities('auth:manage:any')
   @Get('roles')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'List configured RBAC roles (admin-only)' })

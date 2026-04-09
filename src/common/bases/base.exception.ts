@@ -12,7 +12,7 @@ export abstract class BaseException extends HttpException {
     message: string,
     statusCode: HttpStatus,
     public readonly code: string,
-    public readonly details?: Record<string, any>,
+    public readonly details?: Record<string, unknown>,
   ) {
     super(
       {
@@ -32,8 +32,8 @@ export abstract class BaseException extends HttpException {
   /**
    * Get safe error response (no stack trace, internal details safe)
    */
-  getResponse(): Record<string, any> {
-    return super.getResponse() as Record<string, any>;
+  getResponse(): Record<string, unknown> {
+    return super.getResponse() as Record<string, unknown>;
   }
 
   /**

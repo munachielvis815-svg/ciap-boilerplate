@@ -1,6 +1,6 @@
 # Project Structure
 
-Updated for the current repository layout on 2026-04-08.
+Updated for the current repository layout on 2026-04-09.
 
 ## Top-Level Layout
 
@@ -43,6 +43,7 @@ src/
 |  `- seeds/
 |- modules/
 |  |- auth/
+|  |  `- socials/
 |  |- health/
 |  |- rbac/
 |  |- sessions/
@@ -52,7 +53,8 @@ src/
 
 ## Feature Modules
 
-- `auth`: signup/login/refresh/verify/logout + Google OAuth entry points
+- `auth`: local/public signup-login, admin signup-login, verify/logout, refresh
+- `auth/socials`: Google OAuth routes, stored social token refresh, YouTube metrics pull, BullMQ payload contract prep
 - `users`: protected user retrieval/list endpoints
 - `health`: API, DB, readiness checks
 - `sessions`: session lifecycle abstraction over session repository

@@ -5,7 +5,7 @@ import { BaseException } from '@bases/base.exception';
  * Thrown when requested user is not found
  */
 export class UserNotFoundException extends BaseException {
-  constructor(userId?: number | string, details?: Record<string, any>) {
+  constructor(userId?: number | string, details?: Record<string, unknown>) {
     super(
       userId ? `User #${userId} not found` : 'User not found',
       HttpStatus.NOT_FOUND,
@@ -19,13 +19,11 @@ export class UserNotFoundException extends BaseException {
  * Thrown when email already exists in database
  */
 export class DuplicateEmailException extends BaseException {
-  constructor(email?: string, details?: Record<string, any>) {
-    super(
-      'Email already exists',
-      HttpStatus.CONFLICT,
-      'DUPLICATE_EMAIL',
-      { ...details, email },
-    );
+  constructor(email?: string, details?: Record<string, unknown>) {
+    super('Email already exists', HttpStatus.CONFLICT, 'DUPLICATE_EMAIL', {
+      ...details,
+      email,
+    });
   }
 }
 
@@ -33,7 +31,7 @@ export class DuplicateEmailException extends BaseException {
  * Thrown when attempting to create user with invalid data
  */
 export class InvalidUserDataException extends BaseException {
-  constructor(field?: string, details?: Record<string, any>) {
+  constructor(field?: string, details?: Record<string, unknown>) {
     super(
       field ? `Invalid user data: ${field}` : 'Invalid user data',
       HttpStatus.BAD_REQUEST,
@@ -47,7 +45,7 @@ export class InvalidUserDataException extends BaseException {
  * Thrown when user profile is incomplete
  */
 export class IncompleteUserProfileException extends BaseException {
-  constructor(missingFields?: string[], details?: Record<string, any>) {
+  constructor(missingFields?: string[], details?: Record<string, unknown>) {
     super(
       missingFields
         ? `Incomplete profile. Missing: ${missingFields.join(', ')}`
@@ -63,9 +61,11 @@ export class IncompleteUserProfileException extends BaseException {
  * Thrown when user tries to perform action on another user without permission
  */
 export class UnauthorizedUserActionException extends BaseException {
-  constructor(action?: string, details?: Record<string, any>) {
+  constructor(action?: string, details?: Record<string, unknown>) {
     super(
-      action ? `Not authorized to ${action}` : 'Not authorized to perform this action',
+      action
+        ? `Not authorized to ${action}`
+        : 'Not authorized to perform this action',
       HttpStatus.FORBIDDEN,
       'UNAUTHORIZED_USER_ACTION',
       { ...details, action },
@@ -77,7 +77,7 @@ export class UnauthorizedUserActionException extends BaseException {
  * Thrown when user limit exceeded (e.g., max users per organization)
  */
 export class UserLimitExceededException extends BaseException {
-  constructor(limit?: number, details?: Record<string, any>) {
+  constructor(limit?: number, details?: Record<string, unknown>) {
     super(
       limit ? `User limit exceeded (${limit})` : 'User limit exceeded',
       HttpStatus.CONFLICT,

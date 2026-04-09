@@ -14,7 +14,8 @@ Quick map of the repository and where new code should go.
 
 ## Source Layout
 
-- `src/modules/auth`: auth endpoints, token/session lifecycle, and strategies
+- `src/modules/auth`: local/admin auth endpoints, token/session lifecycle, and strategies
+- `src/modules/auth/socials`: social provider auth flows (Google), token refresh, and social metrics pull helpers
 - `src/modules/health`: health endpoints and DTOs
 - `src/modules/rbac`: role ability policy service and RBAC module wiring
 - `src/modules/sessions`: session persistence module for refresh lifecycle

@@ -24,6 +24,53 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: RBAC hardening, socials submodule, and Google token lifecycle
+
+- Date: 2026-04-09
+- Request: Enforce stricter admin/sme RBAC and tenant boundaries, separate admin auth endpoints, extract Google/social OAuth concerns into a socials submodule, store and refresh Google OAuth tokens for YouTube API usage, prep BullMQ contracts (without queue implementation), remove duplicate health/docs placeholders, optimize user counting, and enforce no-explicit-any.
+- Plan:
+  - [x] Split role onboarding rules (public vs admin) and add dedicated admin auth endpoints.
+  - [x] Extract Google/social auth into `auth/socials` submodule with token storage + refresh logic.
+  - [x] Add protected socials endpoints for YouTube channel/video/analytics pull and job-payload prep (no persistence).
+  - [x] Tighten users RBAC route split (`/users` tenant list vs admin-only list), strengthen tenant policy checks, and optimize repository count query.
+  - [x] Remove duplicate health endpoint overlap and hardcoded Swagger placeholder values.
+  - [x] Enforce `no-explicit-any` and update affected typing patterns.
+  - [x] Update docs/findings and verify with typecheck/lint.
+- Progress:
+  - Repo scan completed; identified mixed admin/sme list endpoint, permissive onboarding role DTO usage, and non-isolated social auth/token lifecycle in `AuthService`.
+  - Added admin-specific auth endpoints and role-safe onboarding DTO constraints (`user|sme|creator` only for public/social onboarding).
+  - Created `auth/socials` submodule with Google OAuth routes, stored token refresh route, YouTube metrics pull route, and BullMQ payload contract route.
+  - Persisted Google OAuth access/refresh/expiry tokens in `oauth_accounts` and added refresh exchange logic.
+  - Split users list endpoint responsibilities: `/users` (tenant list for `sme`) and `/users/admin/all` (global list for `admin`), and optimized repository count query with DB-side aggregation.
+  - Removed duplicate health behavior from app service/controller path, keeping health behavior in dedicated health module routes.
+  - Updated Swagger configuration/tags and endpoint examples for improved API docs UI clarity.
+  - Enforced `@typescript-eslint/no-explicit-any` and replaced explicit-any typing patterns with safer alternatives in shared exception/filter/type files.
+- Verification:
+  - Tests: `cmd /c pnpm run typecheck` (pass)
+  - Logs / errors: `cmd /c pnpm run lint` still reports existing repository-wide baseline issues (not introduced by this task), including linting generated `dist/` files and project-service scope mismatch.
+- Result:
+  - Completed. Auth/social responsibilities are separated, Swagger API docs/examples are updated, duplicate/overlapping API concerns were cleaned, and RBAC/tenant boundaries were tightened for users and social token usage.
+
+## Task: Handle Google OAuth callback invalid_grant without 500
+
+- Date: 2026-04-09
+- Request: Preload agent instructions and handle OAuth callback `invalid_grant` error currently returning HTTP 500.
+- Plan:
+  - [x] Inspect current Google OAuth callback path and reproduce likely failure mode from logs.
+  - [x] Translate Google token exchange errors into typed auth/validation exceptions.
+  - [x] Validate callback query input and update route docs/decorators for expected failures.
+  - [x] Verify with typecheck and close task log with result.
+- Progress:
+  - Reviewed auth controller/service flow and confirmed `loginWithGoogleAuthorizationCode` lets Google `invalid_grant` bubble to global 500 handler.
+  - Added explicit `code` query validation in callback routes and in service-level OAuth exchange path.
+  - Added error translation for Google token exchange so `invalid_grant` becomes `InvalidTokenException` (401) instead of unhandled 500.
+  - Updated Swagger callback decorators and `docs/api.md` callback error cases.
+- Verification:
+  - Tests: `cmd /c pnpm run typecheck` (pass)
+  - Logs / errors: no TypeScript errors after callback error-handling patch.
+- Result:
+  - Completed. OAuth callback bad/expired/reused Google auth code paths now return typed client errors rather than internal server error.
+
 ## Task: Logger noise reduction + logger backend toggle
 
 - Date: 2026-04-08

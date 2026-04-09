@@ -18,6 +18,7 @@ Updated for the current runtime config on 2026-04-08.
 - `JWT_REFRESH_PRIVATE_KEY`
 - `JWT_REFRESH_PUBLIC_KEY`
 - `GOOGLE_CLIENT_ID` (required for Google OAuth flows)
+- `ADMIN_SIGNUP_KEY` (required for `/auth/admin/signup`)
 
 ### Common runtime
 
@@ -43,7 +44,16 @@ Updated for the current runtime config on 2026-04-08.
 - `JWT_ACCESS_EXPIRES_IN` (default `15m`)
 - `JWT_REFRESH_EXPIRES_IN` (default `7d`)
 - `GOOGLE_CLIENT_SECRET`
-- `GOOGLE_REDIRECT_URI` (default fallback: `http://localhost:3000/auth/google/callback`)
+- `GOOGLE_REDIRECT_URI` (default fallback: `http://localhost:3000/auth/socials/google/callback`)
+- Swagger metadata overrides:
+  - `APP_NAME`
+  - `APP_DESCRIPTION`
+  - `APP_VERSION`
+  - `APP_SUPPORT_NAME`
+  - `APP_SUPPORT_URL`
+  - `APP_SUPPORT_EMAIL`
+  - `APP_LICENSE_NAME`
+  - `APP_LICENSE_URL`
 
 ### Present but optional/future-facing in `.env.example`
 
@@ -90,6 +100,7 @@ Updated for the current runtime config on 2026-04-08.
 - CORS origin is derived from `CORS_ORIGIN`.
 - JWT signing and verification keys are pulled from env.
 - Google OAuth client and redirect URI come from env.
+- Admin onboarding flow validates `ADMIN_SIGNUP_KEY`.
 - Database connection uses `DATABASE_URL`.
 - BullMQ/Redis compose wiring uses `REDIS_HOST`, `REDIS_PORT`, and `REDIS_URL` values passed by Docker Compose.
 
@@ -98,7 +109,7 @@ Updated for the current runtime config on 2026-04-08.
 1. Copy `.env.example` to `.env`.
 2. Provide valid PostgreSQL `DATABASE_URL` for your target runtime.
 3. Generate/insert real ES256 and ES512 key pairs.
-4. Set Google OAuth credentials if using `/auth/google` or `/auth/oauth2/google`.
+4. Set Google OAuth credentials if using `/auth/socials/google` or `/auth/socials/oauth2/google`.
 5. Start app with `pnpm run start:dev`.
 6. Verify:
    - `GET /health`
