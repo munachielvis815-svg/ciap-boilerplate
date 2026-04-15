@@ -1,5 +1,0 @@
-{
-  "css.customData": [".vscode/tailwind.json"],
-  "css.lint.unknownAtRules": "ignore",
-  "typescript.tsdk": "node_modules/typescript/lib"
-}
