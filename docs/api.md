@@ -44,12 +44,33 @@ Authorization: Bearer <access_token>
 
 ### Auth social providers
 
-- `POST /auth/socials/google` - login/signup with Google ID token (public)
-- `GET /auth/socials/oauth2/google` - build Google OAuth authorization URL (public)
-- `GET /auth/socials/google/callback` - Google OAuth callback endpoint (public)
+- `GET /auth/socials/oauth2/google/login` - build Google OAuth authorization URL for login (public)
+- `GET /auth/socials/google/login/callback` - Google OAuth login callback endpoint (public)
 - `POST /auth/socials/google/token/refresh` - refresh stored Google OAuth token for current user (protected)
-- `GET /auth/socials/google/youtube/metrics` - pull channel + latest videos + analytics metrics (protected, no persistence)
+- `GET /auth/socials/google/youtube/metrics` - pull channel + latest 10 videos + analytics metrics (protected, no persistence)
 - `GET /auth/socials/google/youtube/metrics/job-payload` - prepare BullMQ job payload contract (protected, no enqueue)
+
+Deprecated (excluded from Swagger):
+
+- `POST /auth/socials/google` - legacy Google ID token login
+- `GET /auth/socials/oauth2/google` - legacy Google OAuth prepare endpoint
+- `GET /auth/socials/google/callback` - legacy Google OAuth callback endpoint
+
+### Ingestion
+
+- `GET /ingestion/youtube/metrics` - pull authenticated user channel + latest 10 videos + analytics metrics (protected, no persistence)
+- `GET /ingestion/youtube/oauth2` - prepare Google OAuth flow for YouTube connect (protected)
+- `GET /ingestion/youtube/oauth2/callback` - Google OAuth callback for YouTube connect + immediate sync (public)
+
+### Creator insights
+
+- `GET /creators/insights/audience` - audience insights (protected, creator only)
+- `GET /creators/insights/content` - content insights (protected, creator only)
+
+### SME creator discovery
+
+- `GET /sme/creators/discovery` - creator discovery (protected, sme only)
+- `GET /sme/creators/compare` - compare creators by IDs or search (protected, sme only)
 
 ### Users
 
@@ -68,7 +89,7 @@ curl -X POST http://localhost:3000/auth/signup \
     "email": "new.user@example.com",
     "name": "New User",
     "password": "StrongPassword123!",
-    "role": "user"
+    "role": "creator"
   }'
 ```
 
@@ -125,13 +146,13 @@ Response shape:
 ### Start Google OAuth in browser
 
 ```text
-GET http://localhost:3000/auth/socials/oauth2/google
+GET http://localhost:3000/auth/socials/oauth2/google/login?role=creator
 ```
 
 It returns an `authorizationUrl`. Open it in a browser, approve consent, then Google redirects to:
 
 ```text
-http://localhost:3000/auth/socials/google/callback?code=...
+http://localhost:3000/auth/socials/google/login/callback?code=...&state=...
 ```
 
 Callback error cases:
@@ -139,30 +160,50 @@ Callback error cases:
 - `400` when `code` query param is missing
 - `401` when Google returns `invalid_grant` (expired/invalid/reused authorization code)
 
-### Direct Google token login
+### Connect YouTube via OAuth
 
-```bash
-curl -X POST http://localhost:3000/auth/socials/google \
-  -H "Content-Type: application/json" \
-  -d '{
-    "idToken": "<google_id_token>",
-    "role": "creator"
-  }'
+```text
+GET http://localhost:3000/ingestion/youtube/oauth2
 ```
+
+Open the `authorizationUrl`. Google redirects to:
+
+```text
+http://localhost:3000/ingestion/youtube/oauth2/callback?code=...&state=...
+```
+
+The callback immediately runs the YouTube ingestion sync and queues influence scoring.
 
 ### Pull YouTube metrics
 
 ```bash
-curl "http://localhost:3000/auth/socials/google/youtube/metrics?days=30&maxVideos=20" \
+curl "http://localhost:3000/auth/socials/google/youtube/metrics?days=30&maxVideos=10" \
   -H "Authorization: Bearer <access_token>"
 ```
 
 Notes:
 
-- Pulls channel-level and video-level metrics for the latest videos (`maxVideos <= 20`).
+- Pulls channel-level and video-level metrics for the latest videos (`maxVideos <= 10`).
 - Pulls Analytics API data for the requested date window (`days <= 90`).
 - Metrics are returned directly and are not persisted.
 - Response includes BullMQ queue/job payload contract for later queue integration.
+- Requires a linked Google OAuth token for the authenticated user; otherwise returns `401` with `oauth2-link-required` details.
+- Use `/ingestion/youtube/oauth2` to connect YouTube if missing.
+
+### Ingest YouTube metrics
+
+```bash
+curl "http://localhost:3000/ingestion/youtube/metrics?days=30&maxVideos=10" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Notes:
+
+- Uses the authenticated user's stored Google OAuth token (linked via `/auth/socials/oauth2/google`).
+- Uses the authenticated user's stored Google OAuth token (linked via `/ingestion/youtube/oauth2`).
+- Returns channel info including `statistics.viewCount` and a top-level `channelViews`.
+- Pulls analytics metrics for the requested date window (`days <= 90`).
+- Returns `401` with `oauth2-link-required` details if no Google OAuth token is available.
 
 ### Protected users endpoint
 

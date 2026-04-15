@@ -42,7 +42,7 @@ export class UsersController {
     description: 'User found',
     type: UserDto,
   })
-  @Roles('admin', 'user', 'sme', 'creator')
+  @Roles('admin', 'sme', 'creator')
   @RequireAbilities('users:read:any', 'users:read:tenant', 'users:read:self')
   @ApiResponse({
     status: 404,

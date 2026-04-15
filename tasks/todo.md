@@ -24,6 +24,166 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Modularize AuthService for readability
+
+- Date: 2026-04-16
+- Request: Split `AuthService` into smaller services for Google OAuth and token handling without changing behavior.
+- Plan:
+  - [x] Extract token issuance/refresh helpers into a dedicated service and update `AuthService` to delegate.
+  - [x] Extract Google OAuth helpers into a dedicated service and update `AuthService` wrappers.
+  - [x] Update module wiring and validate typecheck/lint status.
+- Progress:
+  - Added `AuthTokensService` and `AuthGoogleOauthService` with delegated helpers.
+  - Wired new services in `AuthModule` and updated `AuthService` call sites.
+- Verification:
+  - Tests: not run
+  - Logs / errors: `get_errors` still reports existing unsafe-call warnings on `usersRepository.createProfile`.
+- Result:
+  - Completed. Auth token/OAuth logic now lives in dedicated services for readability.
+
+## Task: Add SME/creator endpoints, OAuth split, and schema updates
+
+- Date: 2026-04-15
+- Request: Add endpoints and schema for SME/creator flows, split Google OAuth login vs YouTube connect, normalize data, and queue ML scoring.
+- Plan:
+  - [x] Confirm endpoint scope, roles, and OAuth split details.
+  - [x] Add new schema tables (profiles, content, metrics, conversions) + influence score column for creators; update relations/types.
+  - [x] Implement creator insights + SME discovery/comparison modules with cache + queue integration.
+  - [x] Simplify/align OAuth + YouTube connect flow and normalization.
+  - [x] Update docs (docs/api.md, docs/database.md) and record results.
+- Progress:
+  - Enforced SME/creator onboarding, updated OAuth to Google login vs YouTube connect, and deprecated ID-token login.
+  - Added creator insights + SME discovery modules and wired caching.
+  - Added profile/content/metrics/conversions tables and persistence for YouTube ingestion.
+- Verification:
+  - Tests: not run (implementation + docs update)
+  - Logs / errors: `get_errors` shows existing lint/style warnings in `auth.service.ts` not addressed
+- Result:
+  - Completed. New OAuth split, creator insights, SME discovery, schema updates, and YouTube connect flow are in place.
+
+## Task: Use stored Google OAuth tokens for YouTube endpoints
+
+- Date: 2026-04-10
+- Request: Make YouTube metrics endpoints use stored Google OAuth tokens (no `x-google-access-token` header) so app JWT is sufficient once OAuth is linked.
+- Plan:
+  - [x] Remove `x-google-access-token` header usage in controllers and docs.
+  - [x] Update SocialsService token resolution to rely on stored tokens only.
+  - [x] Record results and verification status.
+- Progress:
+  - Reviewed YouTube metrics call sites.
+  - Removed header usage in controllers and docs; YouTube metrics now rely on stored tokens.
+  - SocialsService token resolution now uses DB-stored tokens only.
+- Verification:
+  - Tests: not run (controller/signature change only)
+  - Logs / errors: n/a
+- Result:
+  - Completed. YouTube endpoints now use stored Google OAuth tokens and do not accept `x-google-access-token`.
+
+## Task: Add repo-style module layout guidance + clarify YouTube token requirement
+
+- Date: 2026-04-10
+- Request: Add repo-style module layout guidance to patterns and improve YouTube ingestion error handling when Google OAuth tokens are missing.
+- Plan:
+  - [x] Update `agent-docs/patterns.md` with optional module subfolder guidance aligned to this repo.
+  - [x] Improve YouTube token resolution errors to be actionable when Google OAuth tokens are missing.
+  - [x] Update API docs to reflect the Google OAuth requirement and error guidance.
+- Progress:
+  - Reviewed current patterns and SocialsService token resolution.
+  - Added optional module subfolder catalog to patterns.
+  - Added actionable OAuth link details when Google tokens are missing.
+  - Updated API docs with OAuth requirements for YouTube metrics endpoints.
+- Verification:
+  - Tests: not run (docs + error message change only)
+  - Logs / errors: n/a
+- Result:
+  - Completed. Patterns now include a repo-aligned optional subfolder catalog and YouTube metrics return actionable OAuth guidance on missing tokens.
+
+## Task: Merge custom agent/copilot guidance
+
+- Date: 2026-04-10
+- Request: Incorporate user-provided custom AGENTS/Copilot guidance, keeping only the parts relevant to this repo.
+- Plan:
+  - [x] Extract applicable guidance (Drizzle/NestJS, repo patterns, docs/testing, safety notes).
+  - [x] Update `AGENTS.md` and `.github/copilot-instructions.md` with a concise adapted section.
+  - [x] Record results and verification status.
+- Progress:
+  - Reviewed provided guidance for relevant, non-conflicting rules.
+  - Added adapted custom guidance sections to AGENTS and Copilot instructions.
+- Verification:
+  - Tests: not run (docs/instructions-only change)
+  - Logs / errors: n/a
+- Result:
+  - Completed. Added concise, repo-relevant custom guidance and excluded Prisma/Mongo-specific rules.
+
+## Task: Move ingestion YouTube into a submodule
+
+- Date: 2026-04-10
+- Request: Restructure ingestion so YouTube lives in its own submodule.
+- Plan:
+  - [x] Create `ingestion/youtube` module with controller/service.
+  - [x] Update root ingestion module to import YouTube submodule.
+  - [x] Update docs and tests to match new module layout.
+- Progress:
+  - Moved YouTube ingestion controller/service/tests under `src/modules/ingestion/youtube`.
+  - Root ingestion module now composes the YouTube submodule.
+  - Updated project-structure docs for new module layout.
+- Verification:
+  - Tests: not run (module re-organization only)
+  - Logs / errors: n/a
+- Result:
+  - Completed. Ingestion now has a YouTube submodule with unchanged routes.
+
+## Task: Align YouTube metrics pull to first 10 videos
+
+- Date: 2026-04-10
+- Request: Ensure YouTube metrics pull fetches the user's channel, analytics, and only the first 10 latest videos.
+- Plan:
+  - [x] Review socials YouTube fetch logic and DTO defaults.
+  - [x] Update defaults/limits to 10 videos and align Swagger/docs.
+  - [x] Record results and verification status.
+- Progress:
+  - Reviewed YouTube fetch flow in `SocialsService` and Swagger/docs.
+  - Updated DTO defaults, service clamps, and Swagger/docs examples to 10 videos.
+- Verification:
+  - Tests: not run (docs + parameter change only)
+  - Logs / errors: n/a
+- Result:
+  - Completed. YouTube metrics now default to 10 latest videos and enforce a 10-video cap.
+
+## Task: Make seed idempotent and tenant-safe
+
+- Date: 2026-04-10
+- Request: Fix seed failure caused by tenant foreign key IDs; make test seed safe to re-run.
+- Plan:
+  - [x] Inspect seed data and FK usage.
+  - [x] Update seed logic to insert missing tenants, map tenant IDs by slug, and build user seed data from that map.
+  - [x] Document results and verification.
+- Progress:
+  - Seed failure traced to hard-coded tenant IDs in `SEED_USERS` and unique slug collisions when re-seeding.
+  - Added slug-based tenant mapping and missing-tenant insert to make seeds idempotent.
+- Verification:
+  - Tests: not run (seed logic change only)
+  - Logs / errors: n/a
+- Result:
+  - Completed. Seed now maps tenant IDs by slug and skips existing tenants, avoiding FK and unique constraint failures.
+
+## Task: Replace Neon dev DB URL with generic Postgres
+
+- Date: 2026-04-10
+- Request: Switch env config from a Neon-specific database URL to a universal Postgres connection string so a custom DB URL can be provided.
+- Plan:
+  - [x] Review env files and docs for Neon-specific references.
+  - [x] Update `.env` to a generic Postgres `DATABASE_URL` placeholder and remove Neon wording where it appears in docs.
+  - [x] Record results and verification status.
+- Progress:
+  - Reviewed `.env`, `.env.example`, database module, and README for Neon-specific usage.
+  - Replaced Neon-specific URL in `.env` with a generic Postgres placeholder and updated README prerequisite wording.
+- Verification:
+  - Tests: not run (env/docs-only change)
+  - Logs / errors: n/a
+- Result:
+  - Completed. `.env` now uses a provider-agnostic Postgres URL placeholder and README no longer names Neon as a prerequisite.
+
 ## Task: RBAC hardening, socials submodule, and Google token lifecycle
 
 - Date: 2026-04-09
@@ -71,10 +231,48 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 - Result:
   - Completed. OAuth callback bad/expired/reused Google auth code paths now return typed client errors rather than internal server error.
 
-## Task: Logger noise reduction + logger backend toggle
+## Task: YouTube metrics expansion, normalization, and BullMQ queue infrastructure
 
-- Date: 2026-04-08
-- Request: Stop verbose request object logging, provide env option for Nest default logger vs pino logger, and use concise winston-style HTTP logs.
+- Date: 2026-04-11
+- Request: Expand YouTube metrics API to fetch full analytics and engagement data, normalize and persist to database with Redis caching, implement BullMQ queue system for ML job processing with retries/DLQ/backoff, and design for content intelligence + growth tracking.
+- Plan:
+  - [x] Expand YouTube API calls to return all engagement metrics (likes, comments, duration) + full analytics columns (views, watch time, subscriber velocity).
+  - [x] Create normalized database schema: `youtube_channels`, `youtube_videos`, `youtube_daily_analytics` with relations and indexes.
+  - [x] Build normalization service to transform raw YouTube API response to typed, validated records (string→int conversion, ISO8601 duration parsing, BigInt for view counts).
+  - [x] Create Redis cache service with TTL-based storage and invalidation for normalized data.
+  - [x] Create BullMQ queue module with env-driven config: retries (3 with exponential backoff), DLQ for failed jobs, backoff strategy when queue depth > 100.
+  - [ ] Create job processor for ML scoring: accepts normalized data, runs ML pipeline, logs results.
+  - [ ] Update ingestion controller/service to orchestrate: call API → normalize → cache → persist → queue job.
+  - [ ] End-to-end test: verify full pipeline from API fetch to ML job enqueue.
+- Progress:
+  - ✅ Expanded YouTube API types in `socials.service.ts` to capture full response structure with engagement metrics.
+  - ✅ Updated `youtube.service.ts` to extract channel subscribers + video count, improved type safety with doc comments.
+  - ✅ Added YouTube schema tables to `schema.ts`: `youtubeChannels`, `youtubeVideos`, `youtubeDailyAnalytics` with explicit relations and field indexes.
+  - ✅ Created `youtube-normalization.service.ts`: parses string→int, handles ISO8601 durations, BigInt view counts, validates data integrity.
+  - ✅ Created `redis-cache.service.ts`: Generic Redis caching with TTL, pattern deletion, health checks, graceful shutdown (reusable by all modules).
+  - ✅ Created `youtube-cache.service.ts`: YouTube-specific cache with domain-aware key patterns and invalidation logic.
+  - ✅ Created `cache.module.ts`: NestJS module provider exporting both `RedisCacheService` and `YoutubeCacheService` for dependency injection.
+  - ✅ Wired `CacheModule` into `YouTubeIngestionModule` for local YouTube cache injection.
+  - ✅ Wired `CacheModule` and `QueueModule` globally in `AppModule` for availability across all modules.
+  - ✅ Created BullMQ queue module: `queue-config.service.ts` (env-driven config), `queue.service.ts` (job enqueue/DLQ/backpressure), `queue.module.ts` (NestJS integration).
+  - ✅ Created job processor infrastructure:
+    - Added `youtube_ml_scores` table to schema with relations and indexes for storing ML scoring results.
+    - Created `youtube-metrics.processor.ts`: Job handler with placeholder ML scoring (engagement + growth + recommendation score).
+    - Created `youtube-metrics.repository.ts`: Persistence layer for ML score upserts.
+    - Created `youtube.repository.ts`: Data access for channel/video/analytics queries (used by processor).
+    - Created `youtube-queue.worker.ts`: BullMQ worker lifecycle management with graceful shutdown.
+    - Updated `youtube.module.ts` to register processor, repositories, worker, and export for controller use.
+  - ⏳ Next: Update ingestion controller to orchestrate full pipeline (fetch → normalize → cache → persist → queue).
+  - ⏳ Next: E2E test and verification.
+- Verification:
+  - Tests: Schema migration pending (`pnpm run db:generate && db:migrate`); normalization service unit tests planned.
+  - Logs / errors: TypeScript strict mode pass assumed (types added, no-explicit-any avoided).
+- Result:
+  - In Progress. Schema and normalization layer complete. Next: caching and queue infrastructure.
+- Custom Agent Instructions:
+  - See `.github/copilot-instructions-youtube-metrics.md` for domain-specific guidance on ingestion, normalization, caching, and queueing patterns for this task.
+
+
 - Plan:
   - [x] Inspect current pino + filter logging behavior.
   - [x] Add env-driven logger backend switch (`nest` or `pino`).

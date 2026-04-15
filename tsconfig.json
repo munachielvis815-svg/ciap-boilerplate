@@ -1,4 +1,5 @@
 {
+  "include": ["src/**/*", "drizzle.config.ts", "eslint.config.mjs"],
   "compilerOptions": {
     "module": "nodenext",
     "moduleResolution": "nodenext",
@@ -54,6 +55,5 @@
       "@test/*": ["test/*"]
     }
   },
-  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
 }

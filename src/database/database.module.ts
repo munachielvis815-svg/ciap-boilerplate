@@ -36,7 +36,8 @@ export type Database = NodePgDatabase<typeof schema>;
         try {
           client = await pool.connect();
           const result = await client.query('SELECT NOW()');
-          logger.log(`Database connected successfully at ${result.rows[0].now}`);
+          const now = (result.rows[0] as Record<string, unknown>).now;
+          logger.log(`Database connected successfully at ${String(now)}`);
         } catch (error) {
           logger.error('Failed to connect to database', error);
           throw error;
@@ -55,7 +56,7 @@ export type Database = NodePgDatabase<typeof schema>;
   exports: [DATABASE_PROVIDER],
 })
 export class DatabaseModule implements OnModuleInit {
-  async onModuleInit() {
+  onModuleInit(): void {
     logger.log('Database module initialized');
   }
 }

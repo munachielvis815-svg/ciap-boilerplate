@@ -3,6 +3,9 @@ name: ciap-nestjs-boilerplate
 services:
   # -----------------------------
   # NestJS API service
+  # Run with: docker compose --profile apis up
+  # Requires: Redis, PostgreSQL, and full environment setup
+  # Not needed for Redis + BullBoard-only local development
   # -----------------------------
   apis:
     build:
@@ -11,6 +14,7 @@ services:
     hostname: apis
     container_name: ciap-apis
     restart: on-failure
+    profiles: ["apis"]
     env_file:
       - .env
     environment:
@@ -66,7 +70,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    profiles: ["apis"]
     deploy:
       resources:
         limits:
@@ -80,9 +83,11 @@ services:
 
   # -----------------------------
   # Redis queue backend
+  # Run with: docker compose up redis
+  # (Uses default profile, no --profile flag needed)
   # -----------------------------
   redis:
-    image: redis:7.4-alpine
+    image: redis:latest
     hostname: redis
     container_name: ciap-redis
     restart: unless-stopped
@@ -112,6 +117,10 @@ services:
 
   # -----------------------------
   # Bull Board dashboard
+  # Access at http://localhost:3010 (user: admin / pass: admin123)
+  # Run with: docker compose up redis-bullboard
+  # (Uses default profile, no --profile flag needed)
+  # Depends on Redis being running
   # -----------------------------
   redis-bullboard:
     image: venatum/bull-board:latest
@@ -158,12 +167,16 @@ services:
 
   # -----------------------------
   # PostgreSQL database
+  # Run with: docker compose --profile db up
+  # Only needed when running the full stack (NestJS API)
+  # Not needed for Redis + BullBoard-only development
   # -----------------------------
   postgres:
     image: postgres:17-alpine
     hostname: postgres
     container_name: ciap-postgres
     restart: unless-stopped
+    profiles: ["db"]
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-ciap}
       - POSTGRES_USER=${POSTGRES_USER:-ciap}
@@ -206,4 +219,4 @@ volumes:
 networks:
   app-network:
     driver: bridge
-    internal: true
+    internal: false

@@ -5,7 +5,9 @@ import { SessionsModule } from '@modules/sessions/sessions.module';
 import { UsersModule } from '@modules/users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthRepository } from './auth.repository';
+import { AuthGoogleOauthService } from './auth-google-oauth.service';
 import { AuthService } from './auth.service';
+import { AuthTokensService } from './auth-tokens.service';
 import { SocialsController } from './socials/socials.controller';
 import { SocialsService } from './socials/socials.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -22,6 +24,8 @@ import { Oauth2StrategyScaffold } from './strategies/oauth2.strategy';
   providers: [
     AuthService,
     AuthRepository,
+    AuthGoogleOauthService,
+    AuthTokensService,
     SocialsService,
     JwtStrategy,
     Oauth2StrategyScaffold,

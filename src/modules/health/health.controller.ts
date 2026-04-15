@@ -1,7 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { HealthService } from './health.service';
-import { ApiHealthDto, DatabaseHealthDto, ReadinessHealthDto } from './dto/health.dto';
+import {
+  ApiHealthDto,
+  DatabaseHealthDto,
+  ReadinessHealthDto,
+  CacheHealthDto,
+} from './dto/health.dto';
 
 @ApiTags('health')
 @Controller('health')
@@ -15,7 +20,7 @@ export class HealthController {
     description: 'Health status',
     type: ApiHealthDto,
   })
-  async check(): Promise<ApiHealthDto> {
+  check(): ApiHealthDto {
     return this.healthService.check();
   }
 
@@ -28,6 +33,17 @@ export class HealthController {
   })
   async checkDb(): Promise<DatabaseHealthDto> {
     return this.healthService.checkDatabase();
+  }
+
+  @Get('cache')
+  @ApiOperation({ summary: 'Check Redis cache connection health' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cache health status',
+    type: CacheHealthDto,
+  })
+  async checkCache(): Promise<CacheHealthDto> {
+    return this.healthService.checkCache();
   }
 
   @Get('ready')

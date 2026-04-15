@@ -36,8 +36,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Ensure response structure
     const formattedResponse = {
       statusCode,
-      message:
-        errorResponse.message || HttpStatus[statusCode] || 'Unknown Error',
+      message: String(
+        typeof errorResponse.message === 'string'
+          ? errorResponse.message
+          : HttpStatus[statusCode] || 'Unknown Error',
+      ),
       error: errorResponse.error || HttpStatus[statusCode],
       timestamp: errorResponse.timestamp || new Date().toISOString(),
       path: request.url,
@@ -51,13 +54,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     if (statusCode >= 500) {
       this.logger.error(
-        `${request.method} ${request.url} - ${statusCode}: ${formattedResponse.message}`,
+        `${request.method} ${request.url} - ${statusCode}: ${String(formattedResponse.message)}`,
         exception.stack,
       );
     } else {
       const detailsSuffix = details ? ` | details=${details}` : '';
       this.logger.warn(
-        `${request.method} ${request.url} - ${statusCode}: ${formattedResponse.message}${detailsSuffix}`,
+        `${request.method} ${request.url} - ${statusCode}: ${String(formattedResponse.message)}${detailsSuffix}`,
       );
     }
 

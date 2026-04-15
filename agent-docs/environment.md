@@ -9,6 +9,8 @@ Short reference for env files and runtime configuration.
 - `LOG_LEVEL`
 - `DATABASE_URL`
 - `CORS_ORIGIN`
+- `GOOGLE_LOGIN_REDIRECT_URI`
+- `GOOGLE_YOUTUBE_REDIRECT_URI`
 
 ## Current Behavior
 

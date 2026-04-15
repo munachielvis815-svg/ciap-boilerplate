@@ -105,3 +105,35 @@ export class UsersRepository {
 3. Does the repository own the query?
 4. Are DTOs the external contract?
 5. Are errors typed and safe?
+
+## Optional Module Subfolders (Catalog)
+
+This repo currently keeps feature modules flat (e.g. `users.controller.ts`, `users.service.ts`, `users.repository.ts`, `dto/`). Only introduce deeper subfolders when a module grows enough to need them, and keep names consistent across modules.
+
+If needed, use the following catalog as guidance (adapt to Drizzle/NestJS, not Prisma/Mongo):
+
+```text
+module/
+  bases/              # Abstract base classes for shared functionality
+  constants/          # Static values and configuration
+  controllers/        # API endpoint handlers
+  decorators/         # Custom metadata decorators
+  docs/               # Swagger/OpenAPI decorator helpers (module-local)
+  dtos/               # Data Transfer Objects with validation
+  entities/           # Database entity types (Drizzle record shapes)
+  enums/              # Type-safe enumerations
+  exceptions/         # Custom error classes
+  factories/          # Object creation patterns
+  filters/            # Exception/validation filters
+  guards/             # Authorization and access control
+  interceptors/       # Request/response transformation
+  interfaces/         # TypeScript contracts
+  middlewares/        # Request preprocessing
+  pipes/              # Data transformation and validation
+  processors/         # Background job handlers (BullMQ)
+  repositories/       # Data access layer (Drizzle)
+  services/           # Business logic
+  templates/          # Email/document templates
+  utils/              # Helper utilities
+  validations/        # Custom validators
+```

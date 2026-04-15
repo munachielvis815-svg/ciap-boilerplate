@@ -11,16 +11,23 @@ type WinstonLoggerOptions = {
 
 function resolveWinstonFormat(mode: 'pretty' | 'json') {
   if (mode === 'json') {
-    return format.combine(format.timestamp(), format.errors({ stack: true }), format.json());
+    return format.combine(
+      format.timestamp(),
+      format.errors({ stack: true }),
+      format.json(),
+    );
   }
 
   return format.combine(
     format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
     format.errors({ stack: true }),
     format.printf(({ timestamp, level, message, context, stack }) => {
-      const contextPart = context ? ` [${String(context)}]` : '';
-      const stackPart = stack ? `\n${String(stack)}` : '';
-      return `${timestamp} ${level.toUpperCase()}${contextPart}: ${String(message)}${stackPart}`;
+      const contextStr = context ? JSON.stringify(context) : '';
+      const stackStr = stack ? JSON.stringify(stack) : '';
+      const contextPart = contextStr ? ` [${contextStr}]` : '';
+      const stackPart = stackStr ? `\n${stackStr}` : '';
+      const msgStr = String(message);
+      return `${timestamp} ${level.toUpperCase()}${contextPart}: ${msgStr}${stackPart}`;
     }),
   );
 }
@@ -28,10 +35,13 @@ function resolveWinstonFormat(mode: 'pretty' | 'json') {
 export class WinstonLoggerService implements LoggerService {
   private readonly logger: Logger;
 
-  constructor(private readonly context = 'Application', options: WinstonLoggerOptions) {
-    const loggerTransports: Array<transports.ConsoleTransportInstance | transports.FileTransportInstance> = [
-      new transports.Console({ level: options.level }),
-    ];
+  constructor(
+    private readonly context = 'Application',
+    options: WinstonLoggerOptions,
+  ) {
+    const loggerTransports: Array<
+      transports.ConsoleTransportInstance | transports.FileTransportInstance
+    > = [new transports.Console({ level: options.level })];
 
     if (options.toFile) {
       loggerTransports.push(
@@ -76,7 +86,9 @@ export class WinstonLoggerService implements LoggerService {
   }
 
   fatal(message: unknown, context?: string): void {
-    this.logger.error(String(message), { context: context || this.context, fatal: true });
+    this.logger.error(String(message), {
+      context: context || this.context,
+      fatal: true,
+    });
   }
 }
-

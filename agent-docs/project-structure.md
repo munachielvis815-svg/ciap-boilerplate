@@ -16,6 +16,10 @@ Quick map of the repository and where new code should go.
 
 - `src/modules/auth`: local/admin auth endpoints, token/session lifecycle, and strategies
 - `src/modules/auth/socials`: social provider auth flows (Google), token refresh, and social metrics pull helpers
+- `src/modules/ingestion`: ingestion entry module for external platform pulls
+- `src/modules/ingestion/youtube`: YouTube ingestion routes and service
+- `src/modules/creator-insights`: creator audience/content insight endpoints
+- `src/modules/creator-discovery`: SME creator discovery + comparison endpoints
 - `src/modules/health`: health endpoints and DTOs
 - `src/modules/rbac`: role ability policy service and RBAC module wiring
 - `src/modules/sessions`: session persistence module for refresh lifecycle

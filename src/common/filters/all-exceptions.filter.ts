@@ -40,8 +40,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
       const formattedResponse = {
         statusCode,
-        message:
-          errorResponse.message || HttpStatus[statusCode] || 'Unknown Error',
+        message: String(
+          typeof errorResponse.message === 'string'
+            ? errorResponse.message
+            : HttpStatus[statusCode] || 'Unknown Error',
+        ),
         error: errorResponse.error || HttpStatus[statusCode],
         timestamp: errorResponse.timestamp || timestamp,
         path,
@@ -55,13 +58,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
       if (statusCode >= 500) {
         this.logger.error(
-          `${method} ${path} - ${statusCode}: ${formattedResponse.message}`,
+          `${method} ${path} - ${statusCode}: ${String(formattedResponse.message)}`,
           exception.stack,
         );
       } else {
         const detailsSuffix = details ? ` | details=${details}` : '';
         this.logger.warn(
-          `${method} ${path} - ${statusCode}: ${formattedResponse.message}${detailsSuffix}`,
+          `${method} ${path} - ${statusCode}: ${String(formattedResponse.message)}${detailsSuffix}`,
         );
       }
 

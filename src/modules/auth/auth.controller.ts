@@ -229,13 +229,13 @@ export class AuthController {
     status: 200,
     schema: {
       example: {
-        roles: ['admin', 'user', 'sme', 'creator'],
+        roles: ['admin', 'sme', 'creator'],
       },
     },
   })
   getRoles() {
     return {
-      roles: ['admin', 'user', 'sme', 'creator'],
+      roles: ['admin', 'sme', 'creator'],
     };
   }
 }

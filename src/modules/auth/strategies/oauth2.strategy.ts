@@ -11,14 +11,15 @@ export class Oauth2StrategyScaffold {
    * Implement with passport-oauth2 (or provider-specific passport strategies)
    * once provider credentials and callback flow requirements are finalized.
    */
-  getAuthorizationUrl(_provider: OAuth2Provider): string {
+  getAuthorizationUrl(provider: OAuth2Provider): string {
     throw new NotImplementedException(
-      'OAuth2 provider details are pending. Add provider client IDs, client secrets, callback URLs, and strategy mapping.',
+      `OAuth2 provider details are pending for ${provider}. Add provider client IDs, client secrets, callback URLs, and strategy mapping.`,
     );
   }
 
   getCallbackUrl(provider: OAuth2Provider): string {
-    const baseUrl = this.configService.get<string>('APP_BASE_URL') || 'http://localhost:3000';
+    const baseUrl =
+      this.configService.get<string>('APP_BASE_URL') || 'http://localhost:3000';
     return `${baseUrl}/auth/oauth2/${provider}/callback`;
   }
 }

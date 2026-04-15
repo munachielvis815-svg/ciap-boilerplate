@@ -1,8 +1,6 @@
 import {
-  Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   HttpStatus,
   Post,
@@ -11,8 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiExcludeEndpoint,
   ApiBearerAuth,
-  ApiHeader,
   ApiOperation,
   ApiQuery,
   ApiResponse,
@@ -24,8 +22,8 @@ import { Public, RequireAbilities, Roles } from '@decorators/index';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
 import type { AuthenticatedRequest } from '@/types/express';
 import { AuthResponseDto } from '@modules/auth/dto/auth-response.dto';
-import { GoogleAuthDto } from '@modules/auth/dto/google-auth.dto';
 import { YoutubeMetricsQueryDto } from './dto/youtube-metrics-query.dto';
+import { GoogleOauthLoginQueryDto } from './dto/google-oauth-login-query.dto';
 import { SocialsService } from './socials.service';
 
 @ApiTags('auth-socials')
@@ -34,44 +32,52 @@ export class SocialsController {
   constructor(private readonly socialsService: SocialsService) {}
 
   @Public()
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.GONE)
   @Post('google')
-  @ApiOperation({
-    summary: 'Sign in/up with Google ID token (social auth flow)',
-  })
-  @ApiResponse({
-    status: 200,
-    type: AuthResponseDto,
-  })
-  async googleAuth(
-    @Body() dto: GoogleAuthDto,
-    @Req() request: Request,
-  ): Promise<AuthResponseDto> {
-    return this.socialsService.loginWithGoogle(dto, request);
+  @ApiExcludeEndpoint()
+  async deprecatedGoogleIdTokenLogin() {
+    return {
+      message:
+        'Deprecated. Use /auth/socials/oauth2/google/login to sign in with Google OAuth.',
+    };
   }
 
   @Public()
-  @Get('oauth2/google')
+  @Get('oauth2/google/login')
   @ApiOperation({
-    summary: 'Prepare Google OAuth2 authorization flow with YouTube scopes',
+    summary: 'Prepare Google OAuth2 authorization flow for login',
+  })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    enum: ['sme', 'creator'],
+    example: 'creator',
   })
   @ApiResponse({
     status: 200,
     schema: {
       example: {
         provider: 'google',
-        redirectUri: 'http://localhost:3000/auth/socials/google/callback',
+        redirectUri: 'http://localhost:3000/auth/socials/google/login/callback',
         authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth?...',
+        purpose: 'login',
       },
     },
   })
-  async oauth2PrepareGoogle() {
-    return this.socialsService.prepareGoogleOauth2();
+  oauth2PrepareGoogleLogin(@Query() query: GoogleOauthLoginQueryDto) {
+    return this.socialsService.prepareGoogleOauth2Login(query.role);
   }
 
   @Public()
-  @Get('google/callback')
-  @ApiOperation({ summary: 'Google OAuth2 callback endpoint' })
+  @Get('oauth2/google')
+  @ApiExcludeEndpoint()
+  legacyOauth2PrepareGoogle() {
+    return this.socialsService.prepareGoogleOauth2Login();
+  }
+
+  @Public()
+  @Get('google/login/callback')
+  @ApiOperation({ summary: 'Google OAuth2 login callback endpoint' })
   @ApiResponse({
     status: 200,
     type: AuthResponseDto,
@@ -86,17 +92,41 @@ export class SocialsController {
   })
   async googleCallback(
     @Query('code') code: string,
+    @Query('state') state: string | undefined,
     @Req() request: Request,
   ): Promise<AuthResponseDto> {
+    return this.handleGoogleLoginCallback(code, state, request);
+  }
+
+  @Public()
+  @Get('google/callback')
+  @ApiExcludeEndpoint()
+  async legacyGoogleCallback(
+    @Query('code') code: string,
+    @Query('state') state: string | undefined,
+    @Req() request: Request,
+  ): Promise<AuthResponseDto> {
+    return this.handleGoogleLoginCallback(code, state, request);
+  }
+
+  private handleGoogleLoginCallback(
+    code: string,
+    state: string | undefined,
+    request: Request,
+  ) {
     if (!code?.trim()) {
       throw new MissingFieldException('code');
     }
 
-    return this.socialsService.loginWithGoogleAuthorizationCode(code, request);
+    return this.socialsService.loginWithGoogleAuthorizationCode(
+      code,
+      request,
+      state,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
-  @Roles('admin', 'user', 'sme', 'creator')
+  @Roles('admin', 'sme', 'creator')
   @RequireAbilities('socials:oauth:refresh:any', 'socials:oauth:refresh:self')
   @ApiBearerAuth('access-token')
   @HttpCode(HttpStatus.OK)
@@ -121,12 +151,12 @@ export class SocialsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
-  @Roles('admin', 'user', 'sme', 'creator')
+  @Roles('admin', 'sme', 'creator')
   @RequireAbilities('socials:youtube:read:any', 'socials:youtube:read:self')
   @ApiBearerAuth('access-token')
   @Get('google/youtube/metrics')
   @ApiOperation({
-    summary: 'Pull YouTube channel, latest video, and analytics metrics',
+    summary: 'Pull YouTube channel, latest 10 videos, and analytics metrics',
   })
   @ApiQuery({
     name: 'days',
@@ -138,13 +168,7 @@ export class SocialsController {
     name: 'maxVideos',
     required: false,
     type: Number,
-    example: 20,
-  })
-  @ApiHeader({
-    name: 'x-google-access-token',
-    required: false,
-    description:
-      'Optional Google OAuth access token. If omitted, stored token for the authenticated app user is used.',
+    example: 10,
   })
   @ApiResponse({
     status: 200,
@@ -174,7 +198,7 @@ export class SocialsController {
         },
         limits: {
           days: 30,
-          maxVideos: 20,
+          maxVideos: 10,
         },
         bullmq: {
           queue: 'youtube-metrics',
@@ -184,7 +208,7 @@ export class SocialsController {
             userId: 7,
             tenantId: 3,
             days: 30,
-            maxVideos: 20,
+            maxVideos: 10,
             requestedAt: '2026-04-09T10:00:00.000Z',
           },
         },
@@ -194,17 +218,12 @@ export class SocialsController {
   async getYoutubeMetrics(
     @Req() request: AuthenticatedRequest,
     @Query() query: YoutubeMetricsQueryDto,
-    @Headers('x-google-access-token') googleAccessToken?: string,
   ) {
-    return this.socialsService.getYoutubeMetrics(
-      request.user,
-      query,
-      googleAccessToken,
-    );
+    return this.socialsService.getYoutubeMetrics(request.user, query);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
-  @Roles('admin', 'user', 'sme', 'creator')
+  @Roles('admin', 'sme', 'creator')
   @RequireAbilities('socials:youtube:read:any', 'socials:youtube:read:self')
   @ApiBearerAuth('access-token')
   @Get('google/youtube/metrics/job-payload')
@@ -229,7 +248,7 @@ export class SocialsController {
       },
     },
   })
-  async getYoutubeMetricsJobPayload(
+  getYoutubeMetricsJobPayload(
     @Req() request: AuthenticatedRequest,
     @Query() query: YoutubeMetricsQueryDto,
   ) {

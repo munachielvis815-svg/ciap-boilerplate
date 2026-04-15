@@ -2,12 +2,14 @@ import { Injectable, Inject } from '@nestjs/common';
 import { and, count, eq } from 'drizzle-orm';
 import { DATABASE_PROVIDER } from '@database/database.module';
 import type { Database } from '@database/database.module';
-import { tenants, users } from '@database/drizzle/schema';
+import { tenants, users, userProfiles } from '@database/drizzle/schema';
 import type {
   NewTenant,
   NewUser,
   Tenant,
   User,
+  NewUserProfile,
+  UserProfile,
 } from '@database/drizzle/schema';
 
 @Injectable()
@@ -41,6 +43,14 @@ export class UsersRepository {
    */
   async create(data: NewUser): Promise<User> {
     const [created] = await this.db.insert(users).values(data).returning();
+    return created;
+  }
+
+  async createProfile(data: NewUserProfile): Promise<UserProfile> {
+    const [created] = await this.db
+      .insert(userProfiles)
+      .values(data)
+      .returning();
     return created;
   }
 

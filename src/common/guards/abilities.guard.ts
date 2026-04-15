@@ -1,8 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ABILITIES_KEY } from '@decorators/index';
 import { ROLE_ABILITIES } from '@constants/abilities.constant';
@@ -18,10 +14,10 @@ export class AbilitiesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredAbilities = this.reflector.getAllAndOverride<AppAbility[]>(ABILITIES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredAbilities = this.reflector.getAllAndOverride<AppAbility[]>(
+      ABILITIES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     if (!requiredAbilities || requiredAbilities.length === 0) {
       return true;

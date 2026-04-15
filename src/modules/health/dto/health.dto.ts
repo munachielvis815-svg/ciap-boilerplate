@@ -68,6 +68,41 @@ export class DatabaseHealthDto {
   error?: string;
 }
 
+export class CacheHealthDto {
+  @ApiProperty({
+    description: 'Cache health status',
+    enum: ['ok', 'error'],
+    example: 'ok',
+  })
+  status!: 'ok' | 'error';
+
+  @ApiProperty({
+    description: 'Timestamp of health check',
+    example: '2024-01-01T00:00:00.000Z',
+  })
+  timestamp!: string;
+
+  @ApiProperty({
+    description: 'Health message',
+    example: 'Redis cache connection successful',
+  })
+  message!: string;
+
+  @ApiProperty({
+    description: 'Cache connection status',
+    enum: ['connected', 'disconnected'],
+    example: 'connected',
+  })
+  cache!: 'connected' | 'disconnected';
+
+  @ApiProperty({
+    description: 'Error message when status is error',
+    required: false,
+    example: 'Connection timeout',
+  })
+  error?: string;
+}
+
 export class ReadinessHealthDto {
   @ApiProperty({
     description: 'Service readiness status',

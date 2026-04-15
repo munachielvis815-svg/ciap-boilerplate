@@ -33,9 +33,9 @@ export class SignupDto {
 
   @ApiPropertyOptional({
     enum: PUBLIC_ONBOARDING_ROLE_VALUES,
-    example: 'user',
+    example: 'sme',
     description:
-      'Allowed public onboarding roles. Admin must use the dedicated admin flow.',
+      'Allowed public onboarding roles (sme, creator). Admin must use the dedicated admin flow.',
   })
   @IsOptional()
   @IsIn(PUBLIC_ONBOARDING_ROLE_VALUES)

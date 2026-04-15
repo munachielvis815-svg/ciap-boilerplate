@@ -84,6 +84,60 @@ The repo workflow is schema-first: edit `schema.ts`, then generate migration SQL
   - action
   - created_at
 
+### `user_profiles`
+
+- Extended user profile data and creator influence score
+- Key fields:
+  - `user_id` (unique FK to users)
+  - `display_name`, `bio`, `location`, `industry`
+  - `audience_size`
+  - `influence_score`, `influence_score_updated_at`
+- Key indexes:
+  - unique `user_id`
+  - `influence_score`
+
+### `content_items`
+
+- Cross-platform content catalog for creators
+- Key fields:
+  - `user_id` (FK to users)
+  - `platform` enum: `youtube | tiktok | instagram | other`
+  - `external_id`
+  - `title`, `description`, `url`, `thumbnail_url`
+  - `published_at`, `duration_seconds`
+- Key indexes:
+  - `user_id`
+  - `platform`
+  - unique `(platform, external_id)`
+
+### `content_metrics`
+
+- Normalized metric values for creators/content items
+- Key fields:
+  - `user_id` (FK to users)
+  - `content_item_id` (nullable FK to content_items)
+  - `platform`, `metric_name`, `metric_value`
+  - `period_start`, `period_end`, `recorded_at`
+- Key indexes:
+  - `user_id`
+  - `content_item_id`
+  - `metric_name`
+  - `recorded_at`
+
+### `content_conversions`
+
+- Normalized conversion outcomes for creators/content items
+- Key fields:
+  - `user_id` (FK to users)
+  - `content_item_id` (nullable FK to content_items)
+  - `platform`, `conversion_type`, `conversion_count`
+  - `conversion_value`, `currency`
+  - `period_start`, `period_end`, `recorded_at`
+- Key indexes:
+  - `user_id`
+  - `content_item_id`
+  - `conversion_type`
+
 ## Migration Workflow
 
 1. Edit only `src/database/drizzle/schema.ts`.

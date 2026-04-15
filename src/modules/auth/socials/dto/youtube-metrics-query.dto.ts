@@ -19,15 +19,15 @@ export class YoutubeMetricsQueryDto {
 
   @ApiPropertyOptional({
     description: 'Maximum number of latest videos to pull.',
-    example: 20,
+    example: 10,
     minimum: 1,
-    maximum: 20,
-    default: 20,
+    maximum: 10,
+    default: 10,
   })
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
   @Min(1)
-  @Max(20)
+  @Max(10)
   maxVideos?: number;
 }

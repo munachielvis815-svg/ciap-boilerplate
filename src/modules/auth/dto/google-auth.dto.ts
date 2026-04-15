@@ -13,9 +13,9 @@ export class GoogleAuthDto {
 
   @ApiPropertyOptional({
     enum: PUBLIC_ONBOARDING_ROLE_VALUES,
-    example: 'user',
+    example: 'creator',
     description:
-      'Initial role for first-time social onboarding. Admin is not allowed here.',
+      'Initial role for first-time social onboarding (sme, creator only). Admin is not allowed here.',
   })
   @IsOptional()
   @IsIn(PUBLIC_ONBOARDING_ROLE_VALUES)

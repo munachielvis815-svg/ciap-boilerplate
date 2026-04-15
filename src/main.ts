@@ -51,7 +51,8 @@ function resolveHttpLogMode(value: string | undefined): HttpLogMode {
 async function bootstrap() {
   const bootstrapLogger = new Logger('Bootstrap');
   const port = Number(process.env.PORT || 3000);
-  const nodeEnv = (process.env.NODE_ENV as NodeEnv | undefined) || 'development';
+  const nodeEnv =
+    (process.env.NODE_ENV as NodeEnv | undefined) || 'development';
   const logFormat = resolveLogFormat(process.env.LOG_FORMAT);
   const logEnabled = parseBoolean(process.env.LOG_ENABLED, true);
   const logToFile = parseBoolean(process.env.LOG_TO_FILE, false);
@@ -112,7 +113,7 @@ async function bootstrap() {
         return;
       }
 
-      const message = `${method} ${url} status=${statusCode} duration=${responseTime}ms ip=${ip} bytes=${contentLength} ua="${userAgent}"`;
+      const message = `${method} ${url} status=${statusCode} duration=${responseTime}ms ip=${ip} bytes=${String(contentLength)} ua="${String(userAgent)}"`;
 
       if (statusCode >= 500) {
         if (pinoAccessLogger) {
@@ -176,7 +177,9 @@ async function bootstrap() {
 
   await app.listen(port, () => {
     bootstrapLogger.log(`Server running on http://localhost:${port}`);
-    bootstrapLogger.log(`Swagger docs available at http://localhost:${port}/api-docs`);
+    bootstrapLogger.log(
+      `Swagger docs available at http://localhost:${port}/api-docs`,
+    );
     bootstrapLogger.log(`Health check at http://localhost:${port}/health`);
     bootstrapLogger.log(`Environment: ${nodeEnv}`);
     bootstrapLogger.log(`Logger enabled: ${logEnabled}`);
@@ -189,4 +192,4 @@ async function bootstrap() {
   });
 }
 
-bootstrap();
+void bootstrap();

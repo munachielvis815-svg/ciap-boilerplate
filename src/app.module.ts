@@ -10,6 +10,11 @@ import { RbacModule } from '@modules/rbac/rbac.module';
 import { SessionsModule } from '@modules/sessions/sessions.module';
 import { DatabaseModule } from '@database/database.module';
 import { CommonModule } from '@common/common.module';
+import { IngestionModule } from '@modules/ingestion/ingestion.module';
+import { CacheModule } from '@modules/cache/cache.module';
+import { QueueModule } from '@modules/queue/queue.module';
+import { CreatorInsightsModule } from '@modules/creator-insights/creator-insights.module';
+import { CreatorDiscoveryModule } from '@modules/creator-discovery/creator-discovery.module';
 
 type LogFormat = 'pretty' | 'json';
 type LoggerBackend = 'pino' | 'nest' | 'winston';
@@ -101,22 +106,22 @@ function buildLoggerParams(): Params {
   }
 
   const pinoHttp = {
-      enabled: enabled && backend === 'pino',
-      level,
-      // Access logs are emitted manually in main.ts to keep concise winston-style lines.
-      autoLogging: false,
-      quietReqLogger: true,
-      quietResLogger: true,
-      transport: { targets } as unknown,
-      redact: {
-        paths: [
-          'req.headers.authorization',
-          'req.headers.cookie',
-          'res.headers["set-cookie"]',
-        ],
-        censor: '[REDACTED]',
-      },
-    } as Params['pinoHttp'];
+    enabled: enabled && backend === 'pino',
+    level,
+    // Access logs are emitted manually in main.ts to keep concise winston-style lines.
+    autoLogging: false,
+    quietReqLogger: true,
+    quietResLogger: true,
+    transport: { targets } as unknown,
+    redact: {
+      paths: [
+        'req.headers.authorization',
+        'req.headers.cookie',
+        'res.headers["set-cookie"]',
+      ],
+      censor: '[REDACTED]',
+    },
+  } as Params['pinoHttp'];
 
   return {
     pinoHttp,
@@ -134,11 +139,16 @@ function buildLoggerParams(): Params {
     LoggerModule.forRoot(buildLoggerParams()),
     CommonModule,
     DatabaseModule,
+    CacheModule,
+    QueueModule,
     SessionsModule,
     RbacModule,
     HealthModule,
     AuthModule,
     UsersModule,
+    IngestionModule,
+    CreatorInsightsModule,
+    CreatorDiscoveryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

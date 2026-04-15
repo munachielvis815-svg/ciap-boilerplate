@@ -52,6 +52,14 @@ Use this file as the default operating guide. Keep changes small, safe, typed, a
 - Prefer improving clarity and maintainability over cleverness.
 - Explain meaningful changes clearly at the end of the task.
 
+## Custom Guidance (Adapted)
+
+- Keep solutions aligned with security, maintainability, scalability, and readability.
+- If a decision is primarily for performance or to match an existing repo pattern, call it out in the task summary (add a short code comment only when the choice is non-obvious).
+- Provide concrete examples immediately when they clarify a recommendation.
+- This repo uses NestJS + Drizzle + PostgreSQL; do not import Prisma/Mongo conventions or folder layouts from other codebases.
+- Keep module layout aligned with `src/modules/<feature>/` (avoid introducing deep `controllers/`, `services/`, etc. folders unless the module already uses them).
+
 ## Research And Repo Search
 
 Before substantial work, search the repository for existing patterns:

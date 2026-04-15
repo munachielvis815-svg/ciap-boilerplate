@@ -44,6 +44,10 @@ src/
 |- modules/
 |  |- auth/
 |  |  `- socials/
+|  |- ingestion/
+|  |  `- youtube/
+|  |- creator-insights/
+|  |- creator-discovery/
 |  |- health/
 |  |- rbac/
 |  |- sessions/
@@ -55,6 +59,10 @@ src/
 
 - `auth`: local/public signup-login, admin signup-login, verify/logout, refresh
 - `auth/socials`: Google OAuth routes, stored social token refresh, YouTube metrics pull, BullMQ payload contract prep
+- `ingestion`: ingestion entry module for external platforms
+- `ingestion/youtube`: YouTube ingestion endpoints for channel + analytics pulls
+- `creator-insights`: creator audience/content insights
+- `creator-discovery`: SME creator discovery and comparison
 - `users`: protected user retrieval/list endpoints
 - `health`: API, DB, readiness checks
 - `sessions`: session lifecycle abstraction over session repository

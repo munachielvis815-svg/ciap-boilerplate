@@ -88,3 +88,9 @@ Append-only notes for discoveries, decisions, and gotchas.
 - Context: Auth flows were reviewed for role escalation risk, duplicated route responsibilities, and OAuth token lifecycle needs for YouTube API calls.
 - Finding: Google/social routes now live under `src/modules/auth/socials` and expose dedicated endpoints under `/auth/socials/*`; local auth routes remain in `AuthController`, with separate admin signup/login endpoints. `/users` list is now tenant-scoped (`sme`), while cross-tenant listing moved to `/users/admin/all` (`admin`).
 - Impact: API boundaries are clearer, role-safe onboarding is enforced (no public admin role assignment), and social OAuth token refresh/YouTube metrics pull can evolve independently without mixing local auth concerns.
+
+## YouTube Metrics Use Stored OAuth Tokens (2026-04-10)
+
+- Context: YouTube metrics endpoints needed to rely on Google OAuth tokens after onboarding without requiring client-supplied Google access tokens.
+- Finding: `GET /auth/socials/google/youtube/metrics` and `GET /ingestion/youtube/metrics` now resolve Google access/refresh tokens from `oauth_accounts` and return actionable `oauth2-link-required` details when missing.
+- Impact: Clients can use only the app JWT once OAuth is linked; YouTube calls no longer accept `x-google-access-token` headers.

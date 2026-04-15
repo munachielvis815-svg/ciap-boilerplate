@@ -44,7 +44,9 @@ Updated for the current runtime config on 2026-04-08.
 - `JWT_ACCESS_EXPIRES_IN` (default `15m`)
 - `JWT_REFRESH_EXPIRES_IN` (default `7d`)
 - `GOOGLE_CLIENT_SECRET`
-- `GOOGLE_REDIRECT_URI` (default fallback: `http://localhost:3000/auth/socials/google/callback`)
+- `GOOGLE_LOGIN_REDIRECT_URI` (default fallback: `http://localhost:3000/auth/socials/google/login/callback`)
+- `GOOGLE_YOUTUBE_REDIRECT_URI` (default fallback: `http://localhost:3000/ingestion/youtube/oauth2/callback`)
+- `GOOGLE_REDIRECT_URI` (legacy fallback for older OAuth flows)
 - Swagger metadata overrides:
   - `APP_NAME`
   - `APP_DESCRIPTION`

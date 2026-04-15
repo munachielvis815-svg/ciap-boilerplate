@@ -42,7 +42,7 @@ export class UserDto {
   @ApiProperty({
     description: 'User role for RBAC',
     enum: ROLE_VALUES,
-    example: 'user',
+    example: 'creator',
   })
   role!: AppRole;
 

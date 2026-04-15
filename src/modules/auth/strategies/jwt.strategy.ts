@@ -15,7 +15,9 @@ function normalizePem(value: string | undefined): string {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(configService: ConfigService) {
-    const publicKey = normalizePem(configService.get<string>('JWT_ACCESS_PUBLIC_KEY'));
+    const publicKey = normalizePem(
+      configService.get<string>('JWT_ACCESS_PUBLIC_KEY'),
+    );
 
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -25,7 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayload) {
+  validate(payload: JwtPayload) {
     return {
       id: payload.sub,
       email: payload.email,

@@ -7,7 +7,9 @@ export const ABILITIES_KEY = 'abilities';
 const ABILITY_SET: ReadonlySet<string> = new Set(ABILITY_VALUES);
 
 export const RequireAbilities = (...abilities: AppAbility[]) => {
-  const invalidValues = abilities.filter((ability) => !ABILITY_SET.has(ability));
+  const invalidValues = abilities.filter(
+    (ability) => !ABILITY_SET.has(ability),
+  );
 
   if (invalidValues.length > 0) {
     throw new InvalidEnumException('abilities', [...ABILITY_VALUES], {

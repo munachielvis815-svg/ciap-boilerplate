@@ -12,6 +12,14 @@ Use these instructions when coding in this repository. They complement `AGENTS.m
 - Avoid unnecessary refactors and avoid introducing new abstractions without a clear need.
 - If reality diverges from the plan, stop and re-plan immediately.
 
+## Custom Guidance (Adapted)
+
+- Prefer secure, maintainable, scalable, and readable solutions.
+- If you pick an approach primarily for performance or to match an existing repo pattern, state it explicitly (short comment or task summary).
+- Provide concrete examples immediately when they clarify a suggestion.
+- This repo uses NestJS + Drizzle + PostgreSQL; do not apply Prisma/Mongo conventions or folder layouts from other codebases.
+- Keep module layout aligned with `src/modules/<feature>/` unless a feature already uses deeper subfolders.
+
 ## Project Context
 
 - Framework: NestJS 11

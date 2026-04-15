@@ -61,7 +61,7 @@ This boilerplate currently focuses on:
 
 1. Node.js `>= 24.11.0`
 2. pnpm `>= 10.25.0`
-3. PostgreSQL database (Neon/Postgres-compatible)
+3. PostgreSQL database (local, Docker, or managed)
 4. Basic familiarity with NestJS, TypeScript, and SQL migrations
 
 ## Built With

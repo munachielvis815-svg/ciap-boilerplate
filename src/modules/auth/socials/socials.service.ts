@@ -21,9 +21,25 @@ import {
 type YoutubeChannelResponse = {
   items?: Array<{
     id?: string;
-    snippet?: Record<string, unknown>;
-    statistics?: Record<string, unknown>;
-    contentDetails?: Record<string, unknown>;
+    snippet?: {
+      title?: string;
+      description?: string;
+      thumbnails?: Record<string, { url?: string }>;
+      [key: string]: unknown;
+    };
+    statistics?: {
+      subscriberCount?: string;
+      viewCount?: string;
+      videoCount?: string;
+      [key: string]: unknown;
+    };
+    contentDetails?: {
+      relatedPlaylists?: {
+        uploads?: string;
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    };
   }>;
 };
 
@@ -36,12 +52,36 @@ type YoutubeSearchResponse = {
 };
 
 type YoutubeVideosResponse = {
-  items?: Array<Record<string, unknown>>;
+  items?: Array<{
+    id?: string;
+    snippet?: {
+      title?: string;
+      description?: string;
+      publishedAt?: string;
+      [key: string]: unknown;
+    };
+    statistics?: {
+      viewCount?: string;
+      likeCount?: string;
+      commentCount?: string;
+      [key: string]: unknown;
+    };
+    contentDetails?: {
+      duration?: string;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  }>;
 };
 
+type YoutubeAnalyticsRow = [string, ...number[]]; // date + metrics
 type YoutubeAnalyticsResponse = {
-  columnHeaders?: Array<Record<string, unknown>>;
-  rows?: Array<Array<string | number>>;
+  columnHeaders?: Array<{
+    name?: string;
+    columnType?: string;
+    dataType?: string;
+  }>;
+  rows?: YoutubeAnalyticsRow[];
 };
 
 @Injectable()
@@ -62,12 +102,66 @@ export class SocialsService {
   async loginWithGoogleAuthorizationCode(
     code: string,
     request: Request,
+    state?: string,
   ): Promise<AuthResponseDto> {
-    return this.authService.loginWithGoogleAuthorizationCode(code, request);
+    const role = this.resolveLoginRole(state);
+    return this.authService.loginWithGoogleAuthorizationCode(
+      code,
+      request,
+      role,
+    );
   }
 
-  prepareGoogleOauth2() {
-    return this.authService.prepareOauth2('google');
+  prepareGoogleOauth2Login(role?: 'sme' | 'creator') {
+    return this.authService.prepareGoogleOauth('google', {
+      purpose: 'login',
+      role,
+    });
+  }
+
+  prepareGoogleOauth2Youtube(actor: RequestUser) {
+    return this.authService.prepareGoogleOauth('google', {
+      purpose: 'youtube-connect',
+      actor,
+    });
+  }
+
+  async connectGoogleYoutubeAuthorizationCode(
+    code: string,
+    state: string,
+  ): Promise<RequestUser> {
+    const oauthState = this.authService.parseOauthState(state);
+
+    if (oauthState.purpose !== 'youtube-connect') {
+      throw new InvalidTokenException({ reason: 'invalid-oauth-purpose' });
+    }
+
+    const userId = Number(oauthState.sub || 0);
+    const tenantId = Number(oauthState.tenantId || 0);
+    if (!userId || !tenantId) {
+      throw new InvalidTokenException({ reason: 'invalid-oauth-state' });
+    }
+
+    const user = await this.usersRepository.findByIdOrNull(userId);
+    if (!user || user.tenantId !== tenantId) {
+      throw new InvalidTokenException({ reason: 'oauth-user-not-found' });
+    }
+
+    await this.authService.connectGoogleYoutubeAuthorizationCode(code, {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      sessionId: 'oauth-connect',
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      sessionId: 'oauth-connect',
+    };
   }
 
   async refreshGoogleOauthTokens(
@@ -82,23 +176,16 @@ export class SocialsService {
     };
   }
 
-  async getYoutubeMetrics(
-    actor: RequestUser,
-    query: YoutubeMetricsQueryDto,
-    providedGoogleAccessToken?: string,
-  ) {
+  async getYoutubeMetrics(actor: RequestUser, query: YoutubeMetricsQueryDto) {
     const actorRecord = await this.usersRepository.findByIdOrNull(actor.id);
     if (!actorRecord || actorRecord.tenantId !== actor.tenantId) {
       throw new InvalidTokenException({ reason: 'tenant-context-mismatch' });
     }
 
     const days = query.days ?? 30;
-    const maxVideos = query.maxVideos ?? 20;
+    const maxVideos = Math.min(query.maxVideos ?? 10, 10);
 
-    const accessToken = await this.resolveGoogleAccessToken(
-      actor,
-      providedGoogleAccessToken,
-    );
+    const accessToken = await this.resolveGoogleAccessToken(actor);
     const channel = await this.fetchGoogleJson<YoutubeChannelResponse>(
       'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&mine=true',
       accessToken,
@@ -148,7 +235,7 @@ export class SocialsService {
     query: YoutubeMetricsQueryDto,
   ) {
     const days = query.days ?? 30;
-    const maxVideos = query.maxVideos ?? 20;
+    const maxVideos = Math.min(query.maxVideos ?? 10, 10);
 
     return {
       queue: YOUTUBE_METRICS_QUEUE,
@@ -162,24 +249,17 @@ export class SocialsService {
     };
   }
 
-  private async resolveGoogleAccessToken(
-    actor: RequestUser,
-    providedGoogleAccessToken?: string,
-  ): Promise<string> {
-    if (providedGoogleAccessToken?.trim()) {
-      return providedGoogleAccessToken.trim();
-    }
-
+  private async resolveGoogleAccessToken(actor: RequestUser): Promise<string> {
     const oauthAccount =
       await this.authRepository.findOauthAccountByUserAndProvider(
         actor.id,
         'google',
       );
     if (!oauthAccount) {
-      throw new InvalidTokenException({
-        provider: 'google',
-        reason: 'oauth-account-not-found',
-      });
+      throw this.buildGoogleOauthRequiredException(
+        'oauth-account-not-found',
+        actor,
+      );
     }
 
     const now = Date.now();
@@ -190,6 +270,13 @@ export class SocialsService {
       (!tokenExpiresAt || tokenExpiresAt.getTime() - now > 30_000)
     ) {
       return currentAccessToken;
+    }
+
+    if (!oauthAccount.refreshToken) {
+      throw this.buildGoogleOauthRequiredException(
+        'missing-refresh-token',
+        actor,
+      );
     }
 
     const refreshed = await this.authService.refreshGoogleOauthTokensForUser(
@@ -215,7 +302,7 @@ export class SocialsService {
       startDate: start,
       endDate: end,
       metrics:
-        'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost',
+        'views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost,likes,comments,shares',
       dimensions: 'day',
       sort: 'day',
       maxResults: '90',
@@ -319,5 +406,33 @@ export class SocialsService {
     }
 
     return null;
+  }
+
+  private buildGoogleOauthRequiredException(
+    reason: string,
+    actor: RequestUser,
+  ): InvalidTokenException {
+    const oauthHint = this.prepareGoogleOauth2Youtube(actor);
+
+    return new InvalidTokenException({
+      provider: 'google',
+      reason,
+      action: 'oauth2-link-required',
+      authorizationUrl: oauthHint.authorizationUrl,
+      redirectUri: oauthHint.redirectUri,
+    });
+  }
+
+  private resolveLoginRole(state?: string): 'sme' | 'creator' {
+    if (!state) {
+      return 'creator';
+    }
+
+    const payload = this.authService.parseOauthState(state);
+    if (payload.purpose !== 'login') {
+      return 'creator';
+    }
+
+    return payload.role === 'sme' ? 'sme' : 'creator';
   }
 }

@@ -27,7 +27,7 @@ export class UsersService {
       throw new UserNotFoundException(id);
     }
 
-    if (actor.role === 'user' || actor.role === 'creator') {
+    if (actor.role === 'creator') {
       if (actor.id !== user.id) {
         throw new UnauthorizedUserActionException('access this user profile');
       }
