@@ -80,6 +80,7 @@ Updated for the current runtime config on 2026-04-08.
 - `POSTGRES_PORT`
 - `REDIS_PORT`
 - `REDIS_PASSWORD`
+- `REDIS_URL`
 - `BULLMQ_PREFIX`
 - `BULLBOARD_PORT`
 - `BULLBOARD_ROOT_PATH`

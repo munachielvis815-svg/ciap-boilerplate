@@ -51,11 +51,8 @@ export class QueueService implements OnModuleDestroy {
     const queue = new BullQueue(queueName, config);
 
     // Log queue events for monitoring
-    queue.on('error', () => {
-      this.logger.error(
-        `Queue '${queueName}' error:`,
-        new Error('Queue error'),
-      );
+    queue.on('error', (error) => {
+      this.logger.error(`Queue '${queueName}' error:`, error);
     });
 
     queue.on('waiting', (jobId) => {
@@ -81,8 +78,8 @@ export class QueueService implements OnModuleDestroy {
     const config = this.queueConfig.getBaseConfig();
     const dlq = new BullQueue(dlqName, config);
 
-    dlq.on('error', () => {
-      this.logger.error(`DLQ '${dlqName}' error:`, new Error('DLQ error'));
+    dlq.on('error', (error) => {
+      this.logger.error(`DLQ '${dlqName}' error:`, error);
     });
 
     this.dlqueues.set(dlqName, dlq);

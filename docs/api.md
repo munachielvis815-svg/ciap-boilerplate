@@ -61,6 +61,8 @@ Deprecated (excluded from Swagger):
 - `GET /ingestion/youtube/metrics` - pull authenticated user channel + latest 10 videos + analytics metrics (protected, no persistence)
 - `GET /ingestion/youtube/oauth2` - prepare Google OAuth flow for YouTube connect (protected)
 - `GET /ingestion/youtube/oauth2/callback` - Google OAuth callback for YouTube connect + immediate sync (public)
+- `POST /ingestion/youtube/permissions/approve` - approve YouTube permissions (protected)
+- `POST /ingestion/youtube/approve` - approve YouTube channel for analytics tracking (protected)
 
 ### Creator insights
 
@@ -169,7 +171,7 @@ GET http://localhost:3000/ingestion/youtube/oauth2
 Open the `authorizationUrl`. Google redirects to:
 
 ```text
-http://localhost:3000/ingestion/youtube/oauth2/callback?code=...&state=...
+http://localhost:3000/ingestion/youtube/oauth2/callback?code=...&state=...&iss=...&scope=...&authuser=...&prompt=...
 ```
 
 The callback immediately runs the YouTube ingestion sync and queues influence scoring.
@@ -199,11 +201,28 @@ curl "http://localhost:3000/ingestion/youtube/metrics?days=30&maxVideos=10" \
 
 Notes:
 
-- Uses the authenticated user's stored Google OAuth token (linked via `/auth/socials/oauth2/google`).
 - Uses the authenticated user's stored Google OAuth token (linked via `/ingestion/youtube/oauth2`).
 - Returns channel info including `statistics.viewCount` and a top-level `channelViews`.
 - Pulls analytics metrics for the requested date window (`days <= 90`).
 - Returns `401` with `oauth2-link-required` details if no Google OAuth token is available.
+
+### Approve YouTube permissions
+
+```bash
+curl -X POST http://localhost:3000/ingestion/youtube/permissions/approve \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{"youtubeChannelId":"UC123456789"}'
+```
+
+### Approve YouTube channel
+
+```bash
+curl -X POST http://localhost:3000/ingestion/youtube/approve \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{"youtubeChannelId":"UC123456789"}'
+```
 
 ### Protected users endpoint
 

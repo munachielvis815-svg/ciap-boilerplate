@@ -41,6 +41,21 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 - Result:
   - Completed. Auth token/OAuth logic now lives in dedicated services for readability.
 
+## Task: Update API docs for YouTube OAuth and approvals
+
+- Date: 2026-04-15
+- Request: Generate updated API documentation for YouTube OAuth callback and approval endpoints.
+- Plan:
+  - [x] Update docs/api.md with YouTube approval endpoints and callback query params.
+  - [x] Update docs/environment.md to include Redis URL in container stack section.
+- Progress:
+  - Updated docs to reflect YouTube OAuth callback parameters and approval endpoints.
+- Verification:
+  - Tests: not run (docs-only)
+  - Logs / errors: not checked
+- Result:
+  - Completed. API docs now reflect current YouTube OAuth and approval routes.
+
 ## Task: Add SME/creator endpoints, OAuth split, and schema updates
 
 - Date: 2026-04-15
