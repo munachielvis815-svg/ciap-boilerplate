@@ -1,0 +1,4 @@
+pnpm db:generate
+pnpm deadcode
+pnpm lint:staged
+NODE_ENV=test pnpm test
