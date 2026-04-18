@@ -24,6 +24,24 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Align Docker env defaults
+
+- Date: 2026-04-18
+- Request: Ensure Docker build context and env variables are consistent across .env.example and docker-compose.
+- Plan:
+  - [x] Align Redis defaults in .env.example with docker-compose host/password.
+  - [x] Add missing runtime env vars to docker-compose service.
+  - [x] Tighten .dockerignore to avoid shipping logs/uploads.
+- Progress:
+  - Updated docker-compose env wiring for Google redirect URIs, admin key, and redis password.
+  - Adjusted .env.example Redis defaults to match compose usage.
+  - Excluded logs/uploads from Docker build context.
+- Verification:
+  - Tests: not run (config-only)
+  - Logs / errors: not checked
+- Result:
+  - Completed env alignment and dockerignore cleanup.
+
 ## Task: Update README usage and setup
 
 - Date: 2026-04-16

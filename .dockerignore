@@ -8,6 +8,8 @@ coverage
 *.log
 npm-debug.log*
 pnpm-debug.log*
+logs
+uploads
 
 # Local environment and secrets
 .env
@@ -24,6 +26,10 @@ pnpm-debug.log*
 docs
 agent-docs
 tasks
+
+#individual files
+README.md
+REDIS_BULLMQ_SETUP.md
 
 # OS files
 .DS_Store

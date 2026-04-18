@@ -8,9 +8,7 @@ services:
   # Not needed for Redis + BullBoard-only local development
   # -----------------------------
   apis:
-    build:
-      context: .
-      dockerfile: dockerfile
+    image: sammythadev/ciap-apis:latest
     hostname: apis
     container_name: ciap-apis
     restart: on-failure
@@ -36,6 +34,7 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-ciap}:${POSTGRES_PASSWORD:-ciap_dev_password}@postgres:5432/${POSTGRES_DB:-ciap}?sslmode=disable
       - REDIS_HOST=redis
       - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_dev_password}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:${REDIS_PORT:-6379}
       - BULLMQ_PREFIX=${BULLMQ_PREFIX:-Queue}
       - JWT_ACCESS_PRIVATE_KEY=${JWT_ACCESS_PRIVATE_KEY:-}
@@ -44,7 +43,10 @@ services:
       - JWT_REFRESH_PUBLIC_KEY=${JWT_REFRESH_PUBLIC_KEY:-}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_LOGIN_REDIRECT_URI=${GOOGLE_LOGIN_REDIRECT_URI:-http://localhost:3000/auth/socials/google/login/callback}
+      - GOOGLE_YOUTUBE_REDIRECT_URI=${GOOGLE_YOUTUBE_REDIRECT_URI:-http://localhost:3000/ingestion/youtube/oauth2/callback}
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:3000/auth/google/callback}
+      - ADMIN_SIGNUP_KEY=${ADMIN_SIGNUP_KEY:-}
     ports:
       - "${APP_PORT:-3000}:3000"
     volumes:
@@ -53,8 +55,6 @@ services:
       - ciap_logs:/app/logs
     depends_on:
       redis:
-        condition: service_healthy
-      postgres:
         condition: service_healthy
     healthcheck:
       test:
@@ -165,48 +165,8 @@ services:
     networks:
       - app-network
 
-  # -----------------------------
-  # PostgreSQL database
-  # Run with: docker compose --profile db up
-  # Only needed when running the full stack (NestJS API)
-  # Not needed for Redis + BullBoard-only development
-  # -----------------------------
-  postgres:
-    image: postgres:17-alpine
-    hostname: postgres
-    container_name: ciap-postgres
-    restart: unless-stopped
-    profiles: ["db"]
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB:-ciap}
-      - POSTGRES_USER=${POSTGRES_USER:-ciap}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ciap_dev_password}
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ciap} -d ${POSTGRES_DB:-ciap}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          cpus: "0.75"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 128M
-    networks:
-      - app-network
 
 volumes:
-  # Persistent database storage
-  postgres_data:
-    name: ciap-postgres-data
 
   # Persistent Redis data storage
   redis_data:
