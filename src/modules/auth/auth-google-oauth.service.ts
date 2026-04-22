@@ -162,6 +162,21 @@ export class AuthGoogleOauthService {
         code,
         this.getGoogleYoutubeRedirectUri(),
       );
+
+      if (!tokens.accessToken) {
+        throw new InvalidTokenException({
+          provider: 'google',
+          reason: 'missing-access-token',
+        });
+      }
+
+      if (!tokens.refreshToken) {
+        throw new InvalidTokenException({
+          provider: 'google',
+          reason: 'missing-refresh-token',
+        });
+      }
+
       const identity = await this.resolveGoogleIdentity(tokens.idToken);
 
       await this.upsertGoogleOauthAccount(actor, identity, tokens);

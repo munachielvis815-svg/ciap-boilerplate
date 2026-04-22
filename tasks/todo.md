@@ -30,9 +30,11 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 - Request: Resolve 403 forbidden errors during YouTube OAuth connect for creators.
 - Plan:
   - [x] Ensure OAuth flow requests incremental YouTube scopes.
+  - [x] Require YouTube connect tokens to include access and refresh tokens.
   - [ ] Validate by retrying YouTube connect flow.
 - Progress:
   - Added `include_granted_scopes` for YouTube connect OAuth.
+  - Enforced access + refresh token presence on YouTube connect.
 - Verification:
   - Tests: not run (OAuth flow change)
   - Logs / errors: not checked
