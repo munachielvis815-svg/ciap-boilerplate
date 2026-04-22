@@ -107,6 +107,7 @@ export class AuthGoogleOauthService {
       scope: scopes,
       redirect_uri: redirectUri,
       prompt: 'consent',
+      include_granted_scopes: isYoutubeConnect,
       state,
     });
 

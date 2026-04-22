@@ -24,6 +24,21 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Fix YouTube OAuth scope errors
+
+- Date: 2026-04-22
+- Request: Resolve 403 forbidden errors during YouTube OAuth connect for creators.
+- Plan:
+  - [x] Ensure OAuth flow requests incremental YouTube scopes.
+  - [ ] Validate by retrying YouTube connect flow.
+- Progress:
+  - Added `include_granted_scopes` for YouTube connect OAuth.
+- Verification:
+  - Tests: not run (OAuth flow change)
+  - Logs / errors: not checked
+- Result:
+  - Pending user verification of YouTube connect flow.
+
 ## Task: Harden container + add CI build/push
 
 - Date: 2026-04-21
