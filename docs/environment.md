@@ -106,6 +106,7 @@ Updated for the current runtime config on 2026-04-08.
 - Admin onboarding flow validates `ADMIN_SIGNUP_KEY`.
 - Database connection uses `DATABASE_URL`.
 - BullMQ/Redis compose wiring uses `REDIS_HOST`, `REDIS_PORT`, and `REDIS_URL` values passed by Docker Compose.
+- `REDIS_URL` supports `redis://` and `rediss://` for BullMQ queue connections, including ACL usernames and `/db` path selection.
 
 ## Setup Checklist
 

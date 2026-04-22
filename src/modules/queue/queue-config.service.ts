@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { QueueOptions } from 'bullmq';
+import type { ConnectionOptions, QueueOptions } from 'bullmq';
 
 /**
  * BullMQ queue configuration provider.
@@ -81,19 +81,50 @@ export class QueueConfigService {
 
   /**
    * Parse Redis URL to connection options for BullMQ.
-   * Supports redis://:password@host:port format.
+   * Supports redis:// and rediss:// URLs, ACL usernames, and /db indexes.
    */
-  private parseRedisUrl() {
+  private parseRedisUrl(): ConnectionOptions {
     try {
       const url = new URL(this.redisUrl);
-      return {
+      if (url.protocol !== 'redis:' && url.protocol !== 'rediss:') {
+        throw new Error(`Unsupported Redis protocol: ${url.protocol}`);
+      }
+
+      const connection = {
         host: url.hostname,
-        port: parseInt(url.port, 10) || 6379,
+        port: url.port ? Number.parseInt(url.port, 10) : 6379,
+        username: url.username || undefined,
         password: url.password || undefined,
-        db: 0,
-      };
-    } catch {
-      throw new Error(`Invalid REDIS_URL format: ${this.redisUrl}`);
+        db: this.parseRedisDbIndex(url),
+        ...(url.protocol === 'rediss:'
+          ? {
+              tls: {
+                servername: url.hostname,
+              },
+            }
+          : {}),
+      } satisfies ConnectionOptions;
+
+      return connection;
+    } catch (error) {
+      throw new Error(
+        `Invalid REDIS_URL format: ${this.redisUrl}${error instanceof Error ? ` (${error.message})` : ''}`,
+      );
     }
+  }
+
+  private parseRedisDbIndex(url: URL): number {
+    const pathname = url.pathname.replace(/^\/+/, '');
+
+    if (!pathname) {
+      return 0;
+    }
+
+    const db = Number.parseInt(pathname, 10);
+    if (!Number.isInteger(db) || db < 0) {
+      throw new Error('Redis database index must be a non-negative integer');
+    }
+
+    return db;
   }
 }

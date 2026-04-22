@@ -120,3 +120,17 @@ Append-only notes for discoveries, decisions, and gotchas.
 - Context: Ownership checks on YouTube channels threw `NotFoundException` for wrong-user access.
 - Finding: Throwing `NotFoundException` leaks resource existence. For resources the caller has no right to, use `ForbiddenException`.
 - Impact: Changed in `approveChannel` and `approvePermissions`. `NotFoundException` is still correct when the resource genuinely does not exist.
+
+## BullMQ Queue Redis Parser Only Supports Plain redis:// + DB 0 (2026-04-22)
+
+- Context: Investigated repeated `QueueService` `ECONNRESET` errors while enqueueing `youtube-metrics`.
+- Finding: `QueueConfigService.parseRedisUrl()` maps `REDIS_URL` to `{ host, port, password, db: 0 }` and ignores URL protocol/path/query details. Current BullMQ wiring therefore supports simple `redis://:password@host:port` connections but does not propagate TLS settings for `rediss://` endpoints or honor non-zero DB paths.
+- Impact: Local Docker Redis works with the current config, but managed Redis deployments that require TLS can fail with socket resets during queue operations. The enqueue failure occurs after ingestion persistence, so data sync can succeed while queueing logs warnings/errors.
+- Follow-up: If a deployed Redis endpoint uses TLS, extend queue connection parsing to pass BullMQ/ioredis `tls` options when `REDIS_URL` uses `rediss:` and parse the DB index from the URL path instead of forcing `db: 0`.
+
+## BullMQ Queue REDIS_URL Now Supports rediss:// + ACL Username + /db (2026-04-22)
+
+- Context: Follow-up fix for the `youtube-metrics` queue `ECONNRESET` investigation.
+- Finding: `QueueConfigService` now parses both `redis://` and `rediss://`, forwards ACL usernames/passwords, enables TLS for `rediss:`, and reads the Redis DB index from the URL path.
+- Impact: Queue producers/workers can connect to managed TLS Redis endpoints without silently downgrading to plain TCP assumptions.
+- Follow-up: If queue errors continue after this fix, investigate infrastructure availability, firewall/proxy resets, and provider-specific TLS requirements rather than the app-side URL parser.

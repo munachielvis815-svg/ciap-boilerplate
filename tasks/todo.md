@@ -24,6 +24,47 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Add rediss support to BullMQ queue config
+
+- Date: 2026-04-22
+- Request: Patch the queue config to properly support `rediss://` Redis endpoints and confirm whether the app supported that before.
+- Plan:
+  - [x] Extend `QueueConfigService` to parse `rediss://`, ACL usernames, and `/db` indexes.
+  - [x] Add a focused unit test for queue Redis URL parsing.
+  - [x] Update env/docs examples and verify with tests + typecheck.
+- Progress:
+  - Updated `QueueConfigService.parseRedisUrl()` to validate protocol, propagate ACL username/password, parse the DB index from the URL path, and enable TLS when `REDIS_URL` uses `rediss:`.
+  - Added `queue-config.service.spec.ts` covering `redis://`, `rediss://`, default DB handling, and unsupported protocol rejection.
+  - Updated `.env.example`, `README.md`, and `docs/environment.md` to document `rediss://` support for BullMQ.
+- Verification:
+  - Tests: `cmd /c pnpm exec jest --config test/jest-e2e.json --runInBand --runTestsByPath src/modules/queue/queue-config.service.spec.ts` (pass)
+  - Tests: `cmd /c pnpm run typecheck` (pass)
+  - Logs / errors: `cmd /c pnpm exec eslint src/modules/queue/queue-config.service.ts` (pass)
+  - Logs / errors: linting the new spec with `--no-ignore` still fails because the repo ESLint project service excludes `*.spec.ts` from `tsconfig.json`; Jest verification was used instead.
+- Result:
+  - Completed. BullMQ queue connections now support `rediss://` endpoints instead of assuming plain `redis://` with DB 0 only.
+  - Confirmed the previous queue implementation did not truly support `rediss://`; it ignored TLS, ACL usernames, and non-zero DB indexes.
+
+## Task: Diagnose BullMQ ECONNRESET on youtube-metrics queue
+
+- Date: 2026-04-22
+- Request: Consume `AGENTS.md` and `.github/copilot-instructions.md`, then identify the repeated `QueueService` `ECONNRESET` error for `youtube-metrics`.
+- Plan:
+  - [x] Read repo instruction entry points and relevant agent docs.
+  - [x] Trace the enqueue path for `youtube-metrics` and inspect BullMQ/Redis configuration.
+  - [x] Summarize the concrete failure point and record any durable repo finding.
+- Progress:
+  - Confirmed the error is emitted by BullMQ/ioredis from `QueueService`, not by the YouTube processor or logger.
+  - Traced the failing path: `YoutubeIngestionService.enqueueIngestionJobs()` calls `QueueService.addYoutubeMetricsJob()`, which calls `queue.count()` and `queue.add()` against Redis.
+  - Confirmed the in-process worker is disabled in `YoutubeIngestionModule`; this API instance is acting as a producer, while a separate ML service is expected to consume the queue.
+  - Confirmed `QueueConfigService.parseRedisUrl()` only maps `host`, `port`, `password`, and hard-coded `db: 0`, so BullMQ only supports a plain `redis://` style connection in the current code.
+- Verification:
+  - Tests: not run (debugging task)
+  - Logs / errors: provided stack trace shows `ioredis` socket-level `write ECONNRESET` and `read ECONNRESET` errors while `QueueService` is connected to `youtube-metrics`
+- Result:
+  - Identified as a Redis/BullMQ connectivity reset, not an application logic failure in the YouTube ingestion flow.
+  - Most likely causes are deployment Redis availability/network interruption, or a managed Redis endpoint requiring settings this parser does not pass through, especially TLS for `rediss://`.
+
 ## Task: Fix winston logger pre-commit lint failure
 
 - Date: 2026-04-22
