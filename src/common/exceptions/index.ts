@@ -50,5 +50,6 @@ export {
   EmailSendingException,
   FileUploadException,
   IntegrationException,
+  YoutubeChannelNotFoundException,
   RateLimitExceededException,
 } from './external.exceptions';

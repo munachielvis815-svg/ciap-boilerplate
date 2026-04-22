@@ -101,6 +101,20 @@ export class IntegrationException extends BaseException {
 }
 
 /**
+ * Thrown when a YouTube channel is missing for the authenticated account
+ */
+export class YoutubeChannelNotFoundException extends BaseException {
+  constructor(details?: Record<string, unknown>) {
+    super(
+      'No YouTube channel found for this account',
+      HttpStatus.NOT_FOUND,
+      'YOUTUBE_CHANNEL_NOT_FOUND',
+      details,
+    );
+  }
+}
+
+/**
  * Thrown when rate limit is exceeded
  */
 export class RateLimitExceededException extends BaseException {

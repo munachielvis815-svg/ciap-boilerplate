@@ -4,6 +4,10 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import {
+  ValidationException,
+  YoutubeChannelNotFoundException,
+} from '@common/exceptions';
 import type { RequestUser } from '@/types';
 import type { YoutubeMetricsQueryDto } from '@modules/auth/socials/dto/youtube-metrics-query.dto';
 import { SocialsService } from '@modules/auth/socials/socials.service';
@@ -155,6 +159,10 @@ export class YoutubeIngestionService {
     videos: YoutubeVideo[];
     videosCount: number;
     analyticsCount: number;
+    analyticsStatus: 'success' | 'warning';
+    analyticsWarning: string | null;
+    ingestionStatus: 'success' | 'warning';
+    ingestionWarning: string | null;
     cacheStatus: CacheStatus;
     jobId: string | null;
     jobStatus: JobStatus;
@@ -170,18 +178,91 @@ export class YoutubeIngestionService {
       );
 
       // 1. FETCH: Get raw data from YouTube API
-      const raw = await this.socialsService.getYoutubeMetrics(actor, query);
+      let raw: Awaited<ReturnType<SocialsService['getYoutubeMetrics']>>;
+      try {
+        raw = await this.socialsService.getYoutubeMetrics(actor, query);
+      } catch (error) {
+        if (error instanceof YoutubeChannelNotFoundException) {
+          return {
+            channel: null,
+            videos: [],
+            videosCount: 0,
+            analyticsCount: 0,
+            analyticsStatus: 'warning',
+            analyticsWarning: null,
+            ingestionStatus: 'warning',
+            ingestionWarning:
+              'No YouTube channel found for this account. Connect a channel before ingestion can run.',
+            cacheStatus: 'warning',
+            jobId: null,
+            jobStatus: 'warning',
+            syncedAt: new Date().toISOString(),
+            contentItemsCount: 0,
+            metricsCount: 0,
+          };
+        }
+
+        if (error instanceof ValidationException) {
+          return {
+            channel: null,
+            videos: [],
+            videosCount: 0,
+            analyticsCount: 0,
+            analyticsStatus: 'warning',
+            analyticsWarning: null,
+            ingestionStatus: 'warning',
+            ingestionWarning:
+              'YouTube channel ID is missing. Reconnect Google OAuth to continue.',
+            cacheStatus: 'warning',
+            jobId: null,
+            jobStatus: 'warning',
+            syncedAt: new Date().toISOString(),
+            contentItemsCount: 0,
+            metricsCount: 0,
+          };
+        }
+
+        throw error;
+      }
 
       if (!raw.channel) {
-        throw new Error(
-          'No YouTube channel found for user; ensure Google OAuth is linked',
-        );
+        return {
+          channel: null,
+          videos: [],
+          videosCount: 0,
+          analyticsCount: 0,
+          analyticsStatus: 'warning',
+          analyticsWarning: null,
+          ingestionStatus: 'warning',
+          ingestionWarning:
+            'No YouTube channel found for this account. Connect a channel before ingestion can run.',
+          cacheStatus: 'warning',
+          jobId: null,
+          jobStatus: 'warning',
+          syncedAt: new Date().toISOString(),
+          contentItemsCount: 0,
+          metricsCount: 0,
+        };
       }
 
       if (!raw.channel.id) {
-        throw new Error(
-          'YouTube channel ID is missing; ensure Google OAuth includes channel scope',
-        );
+        return {
+          channel: null,
+          videos: [],
+          videosCount: 0,
+          analyticsCount: 0,
+          analyticsStatus: 'warning',
+          analyticsWarning: null,
+          ingestionStatus: 'warning',
+          ingestionWarning:
+            'YouTube channel ID is missing. Reconnect Google OAuth to continue.',
+          cacheStatus: 'warning',
+          jobId: null,
+          jobStatus: 'warning',
+          syncedAt: new Date().toISOString(),
+          contentItemsCount: 0,
+          metricsCount: 0,
+        };
       }
 
       this.logger.log(
@@ -231,6 +312,10 @@ export class YoutubeIngestionService {
         videos: persisted.videos as unknown as YoutubeVideo[],
         videosCount: persisted.videos.length,
         analyticsCount: persisted.analytics.length,
+        analyticsStatus: raw.analyticsStatus ?? 'success',
+        analyticsWarning: raw.analyticsWarning ?? null,
+        ingestionStatus: 'success',
+        ingestionWarning: null,
         cacheStatus,
         jobId,
         jobStatus,

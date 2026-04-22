@@ -27,7 +27,14 @@ function resolveWinstonFormat(mode: 'pretty' | 'json') {
       const contextPart = contextStr ? ` [${contextStr}]` : '';
       const stackPart = stackStr ? `\n${stackStr}` : '';
       const msgStr = String(message);
-      return `${timestamp} ${level.toUpperCase()}${contextPart}: ${msgStr}${stackPart}`;
+      const timestampStr =
+        typeof timestamp === 'string'
+          ? timestamp
+          : timestamp instanceof Date
+            ? timestamp.toISOString()
+            : '';
+      const levelStr = String(level ?? '').toUpperCase();
+      return `${timestampStr} ${levelStr}${contextPart}: ${msgStr}${stackPart}`;
     }),
   );
 }

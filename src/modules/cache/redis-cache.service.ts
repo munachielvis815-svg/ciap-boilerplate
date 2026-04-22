@@ -110,16 +110,16 @@ export class RedisCacheService {
    * @param pattern Redis glob pattern (e.g., "youtube:video:*")
    * @returns 0 (pattern matching not available through cache-manager)
    */
-  async deletePattern(pattern: string): Promise<number> {
+  deletePattern(pattern: string): Promise<number> {
     if (!this.isAvailable) {
       this.logger.debug('Pattern deletion unavailable; cache not enabled');
-      return 0;
+      return Promise.resolve(0);
     }
 
     this.logger.debug(
       `Pattern deletion for '${pattern}' not supported by cache-manager; returning 0`,
     );
-    return 0;
+    return Promise.resolve(0);
   }
 
   /**

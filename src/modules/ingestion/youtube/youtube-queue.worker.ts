@@ -37,7 +37,9 @@ export class YoutubeQueueWorker implements OnModuleInit, OnModuleDestroy {
         queueName,
         async (job: Job<YoutubeMetricsJobPayload>) => {
           // Delegate to processor
-          return this.processor.process(job);
+          return this.processor.process(
+            job as Job<YoutubeMetricsJobPayload, void, string>,
+          );
         },
         {
           ...config,
@@ -59,7 +61,9 @@ export class YoutubeQueueWorker implements OnModuleInit, OnModuleDestroy {
       });
 
       this.worker.on('failed', (job, error) => {
-        this.logger.error(`[Worker] Job ${job?.id} failed: ${error.message}`);
+        this.logger.error(
+          `[Worker] Job ${String(job?.id ?? 'unknown')} failed: ${error.message}`,
+        );
       });
 
       this.worker.on('error', (error) => {

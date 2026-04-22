@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthRepository } from '@modules/auth/auth.repository';
 import { AuthService } from '@modules/auth/auth.service';
@@ -7,6 +7,8 @@ import {
   ExternalApiException,
   InsufficientPermissionsException,
   InvalidTokenException,
+  ValidationException,
+  YoutubeChannelNotFoundException,
 } from '@common/exceptions';
 import type { RequestUser } from '@/types';
 import type { AuthResponseDto } from '@modules/auth/dto/auth-response.dto';
@@ -86,6 +88,8 @@ type YoutubeAnalyticsResponse = {
 
 @Injectable()
 export class SocialsService {
+  private readonly logger = new Logger(SocialsService.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly authRepository: AuthRepository,
@@ -190,6 +194,16 @@ export class SocialsService {
       'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&mine=true',
       accessToken,
     );
+    const channelItem = channel.items?.[0] ?? null;
+    if (!channelItem) {
+      throw new YoutubeChannelNotFoundException({ reason: 'no-channel' });
+    }
+    if (!channelItem.id) {
+      throw new ValidationException(
+        'YouTube channel ID is missing; reconnect Google OAuth.',
+        { reason: 'missing-channel-id' },
+      );
+    }
     const searchResult = await this.fetchGoogleJson<YoutubeSearchResponse>(
       `https://www.googleapis.com/youtube/v3/search?part=id&forMine=true&type=video&order=date&maxResults=${maxVideos}`,
       accessToken,
@@ -206,12 +220,28 @@ export class SocialsService {
         )
       : { items: [] };
 
-    const analytics = await this.fetchAnalyticsReport(accessToken, days);
+    let analytics = { columnHeaders: [], rows: [] } as YoutubeAnalyticsResponse;
+    let analyticsStatus: 'success' | 'warning' = 'success';
+    let analyticsWarning: string | null = null;
+
+    try {
+      analytics = await this.fetchAnalyticsReport(accessToken, days);
+    } catch (error) {
+      if (error instanceof InsufficientPermissionsException) {
+        analyticsStatus = 'warning';
+        analyticsWarning =
+          'YouTube Analytics data is unavailable for this account. Channel analytics access may be missing.';
+      } else {
+        throw error;
+      }
+    }
 
     return {
-      channel: channel.items?.[0] || null,
+      channel: channelItem,
       videos: videos.items || [],
       analytics,
+      analyticsStatus,
+      analyticsWarning,
       limits: {
         days,
         maxVideos,
@@ -327,12 +357,17 @@ export class SocialsService {
 
     if (!response.ok) {
       const errorBody = await this.parseGoogleErrorBody(response);
+      const reason =
+        this.resolveGoogleErrorReason(errorBody) ||
+        `google-api-${response.status}`;
+
+      this.logger.warn(
+        `Google API request failed: ${response.status} ${reason} (${url})`,
+      );
       if (response.status === 401) {
         throw new InvalidTokenException({
           provider: 'google',
-          reason:
-            this.resolveGoogleErrorReason(errorBody) ||
-            `google-api-${response.status}`,
+          reason,
           googleError: errorBody,
         });
       }
@@ -342,9 +377,7 @@ export class SocialsService {
           'youtube.readonly + yt-analytics.readonly',
           {
             provider: 'google',
-            reason:
-              this.resolveGoogleErrorReason(errorBody) ||
-              `google-api-${response.status}`,
+            reason,
             googleError: errorBody,
           },
         );
@@ -352,9 +385,7 @@ export class SocialsService {
 
       throw new ExternalApiException('Google APIs', {
         status: response.status,
-        reason:
-          this.resolveGoogleErrorReason(errorBody) ||
-          `google-api-${response.status}`,
+        reason,
         googleError: errorBody,
       });
     }

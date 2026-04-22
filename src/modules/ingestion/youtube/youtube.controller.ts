@@ -82,6 +82,10 @@ export class YoutubeIngestionController {
       },
     },
   })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'No YouTube channel found for this account',
+  })
   async getYoutubeMetrics(
     @Req() request: AuthenticatedRequest,
     @Query() query: YoutubeMetricsQueryDto,
@@ -131,6 +135,10 @@ export class YoutubeIngestionController {
         },
         videosCount: 10,
         analyticsCount: 30,
+        ingestionStatus: 'success',
+        ingestionWarning: null,
+        analyticsStatus: 'success',
+        analyticsWarning: null,
         cacheStatus: 'success',
         jobId: 'job-123',
         jobStatus: 'queued',

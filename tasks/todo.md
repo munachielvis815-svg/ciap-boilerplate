@@ -24,6 +24,41 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Fix winston logger pre-commit lint failure
+
+- Date: 2026-04-22
+- Request: Fix the Husky pre-commit ESLint failure in `src/common/logging/winston.logger.ts`.
+- Plan:
+  - [x] Inspect the logger file and staged diff to confirm the exact lint trigger.
+  - [x] Replace unsafe string coercion with an explicit timestamp type guard.
+  - [x] Verify ESLint passes for the logger file.
+- Progress:
+  - Confirmed the staged logger formatter used `String(timestamp ?? '')`, which triggers `@typescript-eslint/no-base-to-string` because `timestamp` can be typed as an object in the formatter callback.
+  - Narrowed `timestamp` to `string | Date` before formatting and fall back to an empty string for other cases.
+- Verification:
+  - Tests: `cmd /c pnpm exec eslint src/common/logging/winston.logger.ts` (pass)
+  - Logs / errors: initial verification exposed Prettier CRLF normalization errors after the patch; `cmd /c pnpm exec eslint --fix src/common/logging/winston.logger.ts` resolved them.
+- Result:
+  - Completed. The logger formatter now avoids unsafe object stringification for `timestamp`, and the staged file passes ESLint for the Husky pre-commit path.
+
+## Task: Fix socials controller pre-commit lint failure
+
+- Date: 2026-04-22
+- Request: Consume `AGENTS.md` and Copilot instructions, then fix the Husky pre-commit ESLint failure in `src/modules/auth/socials/socials.controller.ts`.
+- Plan:
+  - [x] Read repo instruction entry points and inspect the failing controller.
+  - [x] Compare staged vs working-tree versions to confirm the exact lint trigger.
+  - [x] Reconcile the controller so the staged file matches the fixed implementation.
+  - [x] Verify ESLint passes for the controller path.
+- Progress:
+  - Confirmed `src/modules/auth/socials/socials.controller.ts` was `MM`: the staged copy still had `async deprecatedGoogleIdTokenLogin()`, while the working tree had already removed `async`.
+  - Confirmed the hook failure was caused by linting the staged version, not the current working-tree file.
+- Verification:
+  - Tests: `cmd /c pnpm exec eslint src/modules/auth/socials/socials.controller.ts` (pass)
+  - Logs / errors: Husky failure mapped to staged file state; no controller ESLint errors remain after reconciling index/work tree.
+- Result:
+  - Fixed the pre-commit lint issue by aligning the staged controller with the non-`async` implementation already present in the working tree.
+
 ## Task: Fix YouTube OAuth scope errors
 
 - Date: 2026-04-22
@@ -31,10 +66,18 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 - Plan:
   - [x] Ensure OAuth flow requests incremental YouTube scopes.
   - [x] Require YouTube connect tokens to include access and refresh tokens.
+  - [x] Add debug logging for Google API 4xx failures.
+  - [x] Treat analytics 403 as warning (allow connect).
+  - [x] Return user-facing error when no channel exists.
+  - [x] Allow ingestion endpoints to return warning on no-channel.
   - [ ] Validate by retrying YouTube connect flow.
 - Progress:
   - Added `include_granted_scopes` for YouTube connect OAuth.
   - Enforced access + refresh token presence on YouTube connect.
+  - Added Google API failure logs with endpoint + reason.
+  - Added analytics warning metadata for 403 responses.
+  - Added typed 404 when account has no YouTube channel.
+  - Updated ingestion endpoints to return 200 with warning on no-channel.
 - Verification:
   - Tests: not run (OAuth flow change)
   - Logs / errors: not checked

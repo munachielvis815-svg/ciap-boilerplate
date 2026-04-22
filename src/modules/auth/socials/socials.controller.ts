@@ -35,7 +35,7 @@ export class SocialsController {
   @HttpCode(HttpStatus.GONE)
   @Post('google')
   @ApiExcludeEndpoint()
-  async deprecatedGoogleIdTokenLogin() {
+  deprecatedGoogleIdTokenLogin() {
     return {
       message:
         'Deprecated. Use /auth/socials/oauth2/google/login to sign in with Google OAuth.',
@@ -196,6 +196,8 @@ export class SocialsController {
             ['2026-04-02', 145],
           ],
         },
+        analyticsStatus: 'success',
+        analyticsWarning: null,
         limits: {
           days: 30,
           maxVideos: 10,
@@ -214,6 +216,10 @@ export class SocialsController {
         },
       },
     },
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'No YouTube channel found for this account',
   })
   async getYoutubeMetrics(
     @Req() request: AuthenticatedRequest,

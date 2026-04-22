@@ -48,6 +48,8 @@ Authorization: Bearer <access_token>
 - `GET /auth/socials/google/login/callback` - Google OAuth login callback endpoint (public)
 - `POST /auth/socials/google/token/refresh` - refresh stored Google OAuth token for current user (protected)
 - `GET /auth/socials/google/youtube/metrics` - pull channel + latest 10 videos + analytics metrics (protected, no persistence)
+  - Response may include `analyticsStatus` and `analyticsWarning` when analytics access is unavailable.
+  - Returns `404` when the authenticated account has no YouTube channel.
 - `GET /auth/socials/google/youtube/metrics/job-payload` - prepare BullMQ job payload contract (protected, no enqueue)
 
 Deprecated (excluded from Swagger):
@@ -59,6 +61,8 @@ Deprecated (excluded from Swagger):
 ### Ingestion
 
 - `GET /ingestion/youtube/metrics` - pull authenticated user channel + latest 10 videos + analytics metrics (protected, no persistence)
+  - Response may include `analyticsStatus` and `analyticsWarning` when analytics access is unavailable.
+  - Returns `200` with `ingestionStatus=warning` when the authenticated account has no YouTube channel.
 - `GET /ingestion/youtube/oauth2` - prepare Google OAuth flow for YouTube connect (protected)
 - `GET /ingestion/youtube/oauth2/callback` - Google OAuth callback for YouTube connect + immediate sync (public)
 - `POST /ingestion/youtube/permissions/approve` - approve YouTube permissions (protected)
@@ -190,6 +194,7 @@ Notes:
 - Metrics are returned directly and are not persisted.
 - Response includes BullMQ queue/job payload contract for later queue integration.
 - Requires a linked Google OAuth token for the authenticated user; otherwise returns `401` with `oauth2-link-required` details.
+- Returns `404` when the authenticated account has no YouTube channel.
 - Use `/ingestion/youtube/oauth2` to connect YouTube if missing.
 
 ### Ingest YouTube metrics
@@ -205,6 +210,7 @@ Notes:
 - Returns channel info including `statistics.viewCount` and a top-level `channelViews`.
 - Pulls analytics metrics for the requested date window (`days <= 90`).
 - Returns `401` with `oauth2-link-required` details if no Google OAuth token is available.
+- Returns `200` with `ingestionStatus=warning` when the authenticated account has no YouTube channel.
 
 ### Approve YouTube permissions
 
