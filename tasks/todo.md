@@ -24,6 +24,25 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Fix runtime missing safer-buffer during POST body parsing
+
+- Date: 2026-04-23
+- Request: Fix the reported `/auth/refresh` production failure and check whether `package.json` is missing a required dependency.
+- Plan:
+  - [x] Trace the stack to confirm whether the failure is in refresh logic or lower-level request parsing.
+  - [x] Check `package.json`/lockfile for the missing module and add the smallest safe runtime fix.
+  - [x] Verify the dependency resolves locally and summarize the actual root cause.
+- Progress:
+  - Confirmed the stack fails inside `body-parser -> raw-body -> iconv-lite`, before auth refresh logic executes.
+  - Confirmed `safer-buffer` existed only as a transitive dependency of `iconv-lite`, not as a direct runtime dependency in `package.json`.
+  - Added `safer-buffer@2.1.2` as an explicit dependency using offline pnpm install with the existing store path.
+- Verification:
+  - Tests: `node -e "console.log(require.resolve('safer-buffer'))"` (pass)
+  - Logs / errors: `pnpm add safer-buffer@^2.1.2 --offline --store-dir C:\\Users\\USER\\AppData\\Local\\pnpm\\store\\v10` updated `package.json` and `pnpm-lock.yaml`
+- Result:
+  - Completed. The immediate runtime failure was a missing module in request body parsing, not a refresh-token implementation bug.
+  - `package.json` now declares `safer-buffer` explicitly so production images do not rely on that transitive dependency being laid out correctly.
+
 ## Task: Add rediss support to BullMQ queue config
 
 - Date: 2026-04-22

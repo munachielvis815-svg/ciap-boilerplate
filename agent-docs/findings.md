@@ -134,3 +134,10 @@ Append-only notes for discoveries, decisions, and gotchas.
 - Finding: `QueueConfigService` now parses both `redis://` and `rediss://`, forwards ACL usernames/passwords, enables TLS for `rediss:`, and reads the Redis DB index from the URL path.
 - Impact: Queue producers/workers can connect to managed TLS Redis endpoints without silently downgrading to plain TCP assumptions.
 - Follow-up: If queue errors continue after this fix, investigate infrastructure availability, firewall/proxy resets, and provider-specific TLS requirements rather than the app-side URL parser.
+
+## Missing Runtime Module May Surface On First POST Body Parse, Not On Startup (2026-04-23)
+
+- Context: Investigated a reported `/auth/refresh` 500 that logged `Cannot find module 'safer-buffer'`.
+- Finding: The error occurred in `body-parser -> raw-body -> iconv-lite` while parsing the request body, before refresh-token logic ran. `safer-buffer` was only present as a transitive dependency.
+- Impact: A broken production install can appear as an endpoint-specific auth bug even when the real failure is lower-level request parsing. Making the runtime module explicit in `package.json` reduces that risk.
+- Follow-up: If the deployed container still throws the same error after rebuild, inspect the image build/install process for incomplete pnpm dependency layout rather than the auth module.
