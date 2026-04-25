@@ -148,3 +148,9 @@ Append-only notes for discoveries, decisions, and gotchas.
 - Finding: The repo stores one Google `oauth_accounts` record per linked Google identity/provider, and both Google login and YouTube connect were updating that same row. Because login only requests `openid email profile`, it could overwrite the YouTube grant with a token that lacks `youtube.readonly` and `yt-analytics.readonly`.
 - Impact: YouTube API endpoints that rely on stored Google tokens can fail with Google `insufficientPermissions` even when the user previously completed YouTube connect. The safe current pattern is: Google login uses the ID token for app auth only; only the YouTube connect flow persists Google access/refresh tokens for API calls.
 - Follow-up: If the product later needs multiple Google grants for different purposes, model them as separate records keyed by purpose/grant type rather than separate token columns on one shared row.
+
+## Creator Onboarding State Lives In user_profiles (2026-04-25)
+
+- Context: Finished the partial creator onboarding work that had already been scaffolded in the users module.
+- Finding: Creator onboarding state is stored on `user_profiles` via `creator_types` and `is_onboarded`, and `POST /users/me/onboard` updates that profile record with an upsert.
+- Impact: `/users/me` should treat `user_profiles` as the source of truth for `profile.isOnboarded` and `profile.creatorTypes`, and onboarding changes should invalidate the cached `/users/me` response.

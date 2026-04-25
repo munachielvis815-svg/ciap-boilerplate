@@ -92,6 +92,12 @@ export class UsersRepository {
 - Add explicit return types on exported functions and public methods.
 - Check third-party method signatures before using them.
 
+## Commenting Guidance
+
+- Add short, clear comments only for non-obvious logic.
+- Prefer intent-focused comments over narrating syntax.
+- Avoid inline notes that repeat the code or drift quickly.
+
 ## Dependency Injection
 
 - Inject collaborators through constructors.

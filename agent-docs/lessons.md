@@ -67,3 +67,10 @@ Reusable lessons, mistakes, debugging notes, and tooling cautions.
 - Mistake: Calling `googleClient.setCredentials(refreshToken)` on a singleton OAuth2Client instance.
 - Lesson: Concurrent requests sharing one client overwrite each other's credentials.
 - Rule: Create a fresh `OAuth2Client` per request when calling `setCredentials()`.
+
+## Repo Supplemental Instructions May Live In .github/copilot-instructions.md (2026-04-25)
+
+- Situation: I looked for a `custom-instructions.md` file when the repo's supplemental coding guidance actually lived at `.github/copilot-instructions.md`.
+- Lesson: When loading repo-specific instruction files, check both the repo root docs and `.github/copilot-instructions.md` before concluding the extra instructions are missing.
+- Avoid: Assuming the supplemental instruction filename from memory instead of verifying the actual repo path.
+- Apply: For future instruction-loading requests in this repo, read `AGENTS.md` and `.github/copilot-instructions.md` together.

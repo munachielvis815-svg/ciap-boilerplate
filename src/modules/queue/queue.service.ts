@@ -56,7 +56,9 @@ export class QueueService implements OnModuleDestroy {
     });
 
     queue.on('waiting', (jobId) => {
-      this.logger.debug(`Queue '${queueName}': job ${String(jobId)} waiting`);
+      this.logger.debug(
+        `Queue '${queueName}': job ${this.formatJobId(jobId)} waiting`,
+      );
     });
 
     this.queues.set(queueName, queue);
@@ -266,6 +268,22 @@ export class QueueService implements OnModuleDestroy {
       this.logger.log('Queue module destroyed: all queues paused and closed');
     } catch (error) {
       this.logger.error('Error during queue shutdown:', error);
+    }
+  }
+
+  private formatJobId(jobId: unknown): string {
+    if (typeof jobId === 'string') {
+      return jobId;
+    }
+
+    if (typeof jobId === 'number') {
+      return String(jobId);
+    }
+
+    try {
+      return JSON.stringify(jobId) ?? '[unserializable-job-id]';
+    } catch {
+      return '[unserializable-job-id]';
     }
   }
 }

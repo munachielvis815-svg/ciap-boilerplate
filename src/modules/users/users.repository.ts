@@ -2,7 +2,12 @@ import { Injectable, Inject } from '@nestjs/common';
 import { and, count, eq } from 'drizzle-orm';
 import { DATABASE_PROVIDER } from '@database/database.module';
 import type { Database } from '@database/database.module';
-import { tenants, users, userProfiles } from '@database/drizzle/schema';
+import {
+  oauthAccounts,
+  tenants,
+  users,
+  userProfiles,
+} from '@database/drizzle/schema';
 import type {
   NewTenant,
   NewUser,
@@ -52,6 +57,37 @@ export class UsersRepository {
       .values(data)
       .returning();
     return created;
+  }
+
+  async upsertProfile(data: NewUserProfile): Promise<UserProfile> {
+    const [updated] = await this.db
+      .insert(userProfiles)
+      .values(data)
+      .onConflictDoUpdate({
+        target: userProfiles.userId,
+        set: {
+          displayName: data.displayName,
+          bio: data.bio,
+          location: data.location,
+          industry: data.industry,
+          websiteUrl: data.websiteUrl,
+          avatarUrl: data.avatarUrl,
+          creatorTypes: data.creatorTypes,
+          isOnboarded: data.isOnboarded,
+          audienceSize: data.audienceSize,
+        },
+      })
+      .returning();
+
+    return updated;
+  }
+
+  async getProfileByUserId(userId: number): Promise<UserProfile | null> {
+    const result = await this.db.query.userProfiles.findFirst({
+      where: eq(userProfiles.userId, userId),
+    });
+
+    return result || null;
   }
 
   /**
@@ -126,6 +162,20 @@ export class UsersRepository {
     return tenant || null;
   }
 
+  async findOauthAccountByUserAndProvider(
+    userId: number,
+    provider: 'google' | 'github' | 'linkedin',
+  ) {
+    const result = await this.db.query.oauthAccounts.findFirst({
+      where: and(
+        eq(oauthAccounts.userId, userId),
+        eq(oauthAccounts.provider, provider),
+      ),
+    });
+
+    return result || null;
+  }
+
   async createTenant(data: NewTenant): Promise<Tenant> {
     const [created] = await this.db.insert(tenants).values(data).returning();
     return created;
@@ -136,6 +186,17 @@ export class UsersRepository {
    */
   async count(): Promise<number> {
     const result = await this.db.select({ value: count() }).from(users);
+    return Number(result[0]?.value ?? 0);
+  }
+
+  async countByRole(
+    role: 'admin' | 'user' | 'sme' | 'creator',
+  ): Promise<number> {
+    const result = await this.db
+      .select({ value: count() })
+      .from(users)
+      .where(eq(users.role, role));
+
     return Number(result[0]?.value ?? 0);
   }
 }

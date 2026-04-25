@@ -24,6 +24,104 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Finish creator onboarding + search query handling
+
+- Date: 2026-04-25
+- Request: Finish the creator onboarding endpoint and onboarded boolean flow, support multiple creator types, ignore empty `bioQuery` on creator search endpoints, and fix the current ESLint errors in creator discovery and queue service.
+- Plan:
+  - [x] Audit the partial onboarding implementation in `users` and existing creator-discovery search flow.
+  - [x] Implement the missing users service/controller/repository wiring for creator onboarding and onboarded profile fields.
+  - [x] Normalize empty `bioQuery` handling in creator search/discovery, fix lint errors, and update docs/tests.
+  - [x] Run lint/typecheck/tests for touched areas and record the outcome.
+- Progress:
+  - Confirmed `user_profiles` already stores `creatorTypes` and `isOnboarded`, and `POST /users/me/onboard` is already scaffolded in `UsersController`.
+  - Confirmed `UsersService` is missing the onboarding and platform-status methods referenced by the controller, so the feature is only partially wired.
+  - Confirmed creator search already supports `bioQuery`, but the service/controller path does not normalize empty-string input before cache/repository calls.
+  - Completed the creator onboarding service flow, cache invalidation, `/users/me` onboarded fields, and `GET /users/:id/platform-status` service wiring.
+  - Normalized blank search text in `CreatorDiscoveryService` so empty `bioQuery` is ignored consistently before cache/repository use.
+  - Updated unit tests for `users` and `creator-discovery`, and tightened DTO/service typing where lint and typecheck exposed gaps.
+- Verification:
+  - Tests: `cmd /c pnpm exec jest --config test/jest-e2e.json --runInBand --runTestsByPath src/modules/users/users.service.spec.ts src/modules/creator-discovery/creator-discovery.service.spec.ts` (pass)
+  - Logs / errors: `cmd /c pnpm run lint-fix` (pass)
+  - Logs / errors: `cmd /c pnpm run typecheck` (pass)
+- Result:
+  - Completed. Creator onboarding now persists multiple `creatorTypes`, sets `isOnboarded`, invalidates cached `/users/me`, and exposes onboarding state in the dashboard response.
+  - Blank `bioQuery` values no longer narrow creator search results, and the reported ESLint failures in creator discovery and queue service are resolved.
+
+## Task: Add /me and expand insights
+
+- Date: 2026-04-25
+- Request: Expand creator insights (content performance, growth, engagement, summaries, time series), add /me endpoint for creators and SMEs, add SME creator profile endpoint, and expose platform connected status.
+- Plan:
+  - [x] Audit existing insights/creator discovery modules and define DTOs + response shapes.
+  - [x] Implement /me endpoint with role-based response and platform connected status.
+  - [x] Add creator insights additions + SME creator profile endpoint with cached data and placeholders.
+  - [x] Update docs/api.md and any related docs; add tests where logic changes.
+- Progress:
+  - Added creator performance insights endpoint and caching.
+  - Added /users/me dashboard response with platform status.
+  - Added SME creator profile endpoint with placeholders for demographics and sentiment.
+  - Updated API docs with new routes.
+  - Cached /users/me responses in Redis to reduce repeated lookups.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Implemented /me dashboard and expanded creator insights + SME creator profile responses with consistent caching.
+
+## Task: Open creator search to all roles + optimize
+
+- Date: 2026-04-25
+- Request: Allow all roles to search creators, improve efficiency/caching, document Swagger, and update roadmap + agent comment guidance.
+- Plan:
+  - [x] Adjust creator search auth rules and response shape for usefulness.
+  - [x] Tighten repository query efficiency and confirm index coverage.
+  - [x] Update docs (Swagger/API docs, README roadmap, agent-docs comment guidance).
+- Progress:
+  - Updated creator search to allow any authenticated role and clarified Swagger.
+  - Coalesced audience size to avoid nulls and added deterministic ordering for pagination.
+  - Updated API docs, README roadmap, and agent comment guidance.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Creator search is open to all roles, uses stable ordering with cached results, and docs reflect the new behavior.
+
+## Task: Add creator search endpoint + stateful scan
+
+- Date: 2026-04-25
+- Request: Implement a creator search endpoint using direct DB queries with an external search placeholder, then scan the repo for stateful services and Redis candidates.
+- Plan:
+  - [x] Add a creator search endpoint + service method wired to repository queries and placeholder external search hook.
+  - [x] Update Swagger + docs/api.md for the new endpoint contract.
+  - [x] Scan repo for stateful services and list Redis migration candidates.
+- Progress:
+  - Added search endpoint + service logic with external search placeholder and cache.
+  - Added unit tests for search caching behavior.
+  - Documented endpoint and prepared stateful services scan summary.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Added `GET /sme/creators/search` with MVP DB search and external search placeholder; updated API docs and tests.
+  - Reviewed stateful services and Redis migration candidates.
+
+## Task: Diagnose creator discovery + compare empty results
+
+- Date: 2026-04-23
+- Request: Investigate why creator discovery/compare returns empty results and identify logic flaws.
+- Plan:
+  - [x] Trace discovery + compare query flow (controller -> service -> repository) and identify filters.
+  - [x] Validate schema expectations (profiles, influenceScore, content items) and compare with likely data states.
+  - [x] Summarize root causes and propose fixes or experiments to confirm.
+- Progress:
+  - Located discovery/compare controller, service, repository, DTOs, and schema definitions.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Likely causes for empty results: influenceScore is nullable and filtered by strict min/max; platform filter requires content_items rows; search only checks displayName/bio; user_profiles inner join excludes creators without profiles; results are cached for 1 hour.
+
 ## Task: Stop Google login from overwriting YouTube OAuth grants
 
 - Date: 2026-04-23

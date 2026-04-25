@@ -14,5 +14,6 @@ import { CreatorInsightsCacheService } from './creator-insights-cache.service';
     CreatorInsightsRepository,
     CreatorInsightsCacheService,
   ],
+  exports: [CreatorInsightsService],
 })
 export class CreatorInsightsModule {}

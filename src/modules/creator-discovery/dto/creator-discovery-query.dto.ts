@@ -16,8 +16,22 @@ export class CreatorDiscoveryQueryDto {
     example: 'gaming',
   })
   @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined,
+  )
   @IsString()
   query?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter creators by bio keywords only.',
+    example: 'lifestyle',
+  })
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined,
+  )
+  @IsString()
+  bioQuery?: string;
 
   @ApiPropertyOptional({
     description: 'Filter by platform presence.',

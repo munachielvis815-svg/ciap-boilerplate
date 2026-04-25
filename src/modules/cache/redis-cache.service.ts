@@ -86,6 +86,10 @@ export class RedisCacheService {
     }
   }
 
+  async getTyped<T>(key: string): Promise<T | null> {
+    return this.get<T>(key);
+  }
+
   /**
    * Delete a key from cache.
    */

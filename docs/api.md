@@ -72,14 +72,20 @@ Deprecated (excluded from Swagger):
 
 - `GET /creators/insights/audience` - audience insights (protected, creator only)
 - `GET /creators/insights/content` - content insights (protected, creator only)
+- `GET /creators/insights/performance` - performance insights (protected, creator only)
 
 ### SME creator discovery
 
 - `GET /sme/creators/discovery` - creator discovery (protected, sme only)
+- `GET /sme/creators/search` - creator search (protected, any role; MVP database search)
+  - If `bioQuery` is blank or omitted, the endpoint still searches using the other provided filters.
 - `GET /sme/creators/compare` - compare creators by IDs or search (protected, sme only)
+- `GET /sme/creators/:id/profile` - creator profile for SME dashboard (protected, sme only)
 
 ### Users
 
+- `GET /users/me` - current user dashboard data (protected)
+- `POST /users/me/onboard` - onboard the authenticated creator profile and set creator types (protected, `creator` only)
 - `GET /users/:id` - get user by id (protected + RBAC + abilities)
 - `GET /users?limit=10&offset=0` - list tenant users (protected, `sme` only)
 - `GET /users/admin/all?limit=10&offset=0` - list users across tenants (protected, `admin` only)
@@ -242,6 +248,33 @@ curl -X POST http://localhost:3000/ingestion/youtube/approve \
 curl http://localhost:3000/users/1 \
   -H "Authorization: Bearer <access_token>"
 ```
+
+### Creator onboarding
+
+```bash
+curl -X POST http://localhost:3000/users/me/onboard \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{
+    "creatorTypes": ["gaming", "lifestyle"],
+    "displayName": "Creator Name",
+    "bio": "Variety creator"
+  }'
+```
+
+Response shape:
+
+```json
+{
+  "isOnboarded": true,
+  "creatorTypes": ["gaming", "lifestyle"]
+}
+```
+
+Notes:
+
+- `creatorTypes` accepts multiple values.
+- `/users/me` now returns `profile.isOnboarded` and `profile.creatorTypes` from the creator profile record.
 
 ## RBAC and Ability Enforcement
 

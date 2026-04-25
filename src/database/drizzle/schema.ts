@@ -374,6 +374,8 @@ export const userProfiles = pgTable(
     industry: text('industry'),
     websiteUrl: text('website_url'),
     avatarUrl: text('avatar_url'),
+    creatorTypes: text('creator_types').array().notNull().default([]),
+    isOnboarded: boolean('is_onboarded').notNull().default(false),
     audienceSize: integer('audience_size').default(0),
     influenceScore: real('influence_score'),
     influenceScoreUpdatedAt: timestamp('influence_score_updated_at', {
