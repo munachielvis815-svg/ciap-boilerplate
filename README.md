@@ -305,6 +305,7 @@ Note: `pnpm run test` uses `test/jest-e2e.json` and detects open handles.
 - Add stronger tenant policy boundaries for additional modules
 - Add auth and policy focused integration/e2e tests
 - Introduce rate-limit and abuse-control defaults for auth endpoints
+- Add external search engine for creator lookup (OpenSearch/Meilisearch/Elastic)
 
 ## Contributing
 

@@ -1,4 +1,11 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -12,6 +19,8 @@ import { CreatorDiscoveryQueryDto } from './dto/creator-discovery-query.dto';
 import { CreatorDiscoveryResponseDto } from './dto/creator-discovery-response.dto';
 import { CreatorCompareQueryDto } from './dto/creator-compare-query.dto';
 import { CreatorCompareResponseDto } from './dto/creator-compare-response.dto';
+import { CreatorProfileResponseDto } from './dto/creator-profile-response.dto';
+import { CreatorProfileQueryDto } from './dto/creator-profile-query.dto';
 
 @ApiTags('sme-creators')
 @Controller('sme/creators')
@@ -46,6 +55,7 @@ export class CreatorDiscoveryController {
   async discover(@Query() query: CreatorDiscoveryQueryDto) {
     return this.discoveryService.discoverCreators({
       query: query.query,
+      bioQuery: query.bioQuery,
       platform: query.platform,
       minInfluenceScore: query.minInfluenceScore,
       maxInfluenceScore: query.maxInfluenceScore,
@@ -96,6 +106,64 @@ export class CreatorDiscoveryController {
       creatorIds: ids?.length ? ids : undefined,
       query: query.query,
       limit: query.limit ?? 5,
+    });
+  }
+
+  @Get('search')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Search creators (any authenticated role; MVP database query)',
+  })
+  @ApiResponse({
+    status: 200,
+    type: CreatorDiscoveryResponseDto,
+    schema: {
+      example: {
+        creators: [
+          {
+            userId: 12,
+            displayName: 'Creator Name',
+            bio: 'Gaming creator',
+            influenceScore: 75.4,
+            audienceSize: 120000,
+          },
+        ],
+        limit: 10,
+        offset: 0,
+      },
+    },
+  })
+  async search(@Query() query: CreatorDiscoveryQueryDto) {
+    return this.discoveryService.searchCreators({
+      query: query.query,
+      bioQuery: query.bioQuery,
+      platform: query.platform,
+      minInfluenceScore: query.minInfluenceScore,
+      maxInfluenceScore: query.maxInfluenceScore,
+      limit: query.limit ?? 10,
+      offset: query.offset ?? 0,
+    });
+  }
+
+  @Get(':id/profile')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get creator profile for SME dashboard' })
+  @ApiResponse({
+    status: 200,
+    type: CreatorProfileResponseDto,
+  })
+  @Roles('admin', 'sme')
+  @RequireAbilities('sme:creator:discover:any')
+  async getCreatorProfile(
+    @Param('id', ParseIntPipe) creatorId: number,
+    @Query() query: CreatorProfileQueryDto,
+  ) {
+    const days = query.days ?? 30;
+    const limit = query.limit ?? 10;
+    return this.discoveryService.getCreatorProfileForSme({
+      creatorId,
+      days,
+      limit,
     });
   }
 }

@@ -15,4 +15,14 @@ export class CreatorDiscoveryCacheService {
   async set(key: string, value: unknown) {
     await this.cache.set(`${this.prefix}:${key}`, value, this.ttlHours);
   }
+
+  async getProfile(key: string) {
+    return this.cache.get<Record<string, unknown>>(
+      `${this.prefix}:profile:${key}`,
+    );
+  }
+
+  async setProfile(key: string, value: unknown) {
+    await this.cache.set(`${this.prefix}:profile:${key}`, value, this.ttlHours);
+  }
 }

@@ -1,6 +1,8 @@
 import { UsersService } from './users.service';
 import type { UsersRepository } from './users.repository';
-import type { User } from '@database/drizzle/schema';
+import type { CreatorInsightsService } from '@modules/creator-insights/creator-insights.service';
+import type { UsersCacheService } from './users-cache.service';
+import type { User, UserProfile } from '@database/drizzle/schema';
 import type { RequestUser } from '@/types';
 import {
   InvalidTokenException,
@@ -15,7 +17,23 @@ describe('UsersService', () => {
     findByEmail: jest.fn(),
     findAllByTenant: jest.fn(),
     findAll: jest.fn(),
-  } as unknown as UsersRepository;
+    findByIdOrNull: jest.fn(),
+    getProfileByUserId: jest.fn(),
+    findOauthAccountByUserAndProvider: jest.fn(),
+    upsertProfile: jest.fn(),
+    countByRole: jest.fn(),
+  };
+
+  const creatorInsightsService = {
+    getAudienceInsights: jest.fn(),
+    getPerformanceInsights: jest.fn(),
+  };
+
+  const usersCache = {
+    getMe: jest.fn(),
+    setMe: jest.fn(),
+    deleteMe: jest.fn(),
+  };
 
   const baseUser: User = {
     id: 1,
@@ -33,11 +51,33 @@ describe('UsersService', () => {
     updatedAt: new Date('2026-04-16T00:00:00.000Z'),
   };
 
+  const baseProfile: UserProfile = {
+    id: 1,
+    userId: 1,
+    displayName: 'User One',
+    bio: 'Gaming creator',
+    location: null,
+    industry: null,
+    websiteUrl: null,
+    avatarUrl: null,
+    creatorTypes: [],
+    isOnboarded: false,
+    audienceSize: 0,
+    influenceScore: null,
+    influenceScoreUpdatedAt: null,
+    createdAt: new Date('2026-04-16T00:00:00.000Z'),
+    updatedAt: new Date('2026-04-16T00:00:00.000Z'),
+  };
+
   let service: UsersService;
 
   beforeEach(() => {
     jest.resetAllMocks();
-    service = new UsersService(repository);
+    service = new UsersService(
+      repository as unknown as UsersRepository,
+      creatorInsightsService as unknown as CreatorInsightsService,
+      usersCache as unknown as UsersCacheService,
+    );
   });
 
   it('returns user for admin lookup', async () => {
@@ -144,5 +184,75 @@ describe('UsersService', () => {
 
     expect(repository.findAll).toHaveBeenCalledWith(10, 0);
     expect(result).toHaveLength(1);
+  });
+
+  it('onboards creators with normalized creator types and clears the me cache', async () => {
+    repository.findByIdOrNull.mockResolvedValue(baseUser);
+    repository.getProfileByUserId.mockResolvedValue(baseProfile);
+    repository.upsertProfile.mockResolvedValue({
+      ...baseProfile,
+      creatorTypes: ['gaming', 'lifestyle'],
+      isOnboarded: true,
+    });
+
+    const actor: RequestUser = {
+      id: 1,
+      email: 'creator@example.com',
+      role: 'creator',
+      tenantId: 10,
+      sessionId: 'session-1',
+    };
+
+    const result = await service.onboardCreator(actor, {
+      creatorTypes: [' Gaming ', 'lifestyle', 'gaming'],
+      bio: '  Variety creator  ',
+    });
+
+    expect(repository.upsertProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 1,
+        bio: 'Variety creator',
+        creatorTypes: ['gaming', 'lifestyle'],
+        isOnboarded: true,
+      }),
+    );
+    expect(usersCache.deleteMe).toHaveBeenCalledWith(1);
+    expect(result).toEqual({
+      isOnboarded: true,
+      creatorTypes: ['gaming', 'lifestyle'],
+    });
+  });
+
+  it('includes onboarded fields in creator me dashboard responses', async () => {
+    repository.findByIdOrNull.mockResolvedValue(baseUser);
+    repository.getProfileByUserId.mockResolvedValue({
+      ...baseProfile,
+      creatorTypes: ['gaming', 'lifestyle'],
+      isOnboarded: true,
+      audienceSize: 120000,
+      influenceScore: 78.5,
+    });
+    repository.findOauthAccountByUserAndProvider.mockResolvedValue(null);
+    creatorInsightsService.getAudienceInsights.mockResolvedValue({
+      audienceSize: 120000,
+    });
+    creatorInsightsService.getPerformanceInsights.mockResolvedValue({
+      topVideos: [],
+    });
+    usersCache.getMe.mockResolvedValue(null);
+
+    const actor: RequestUser = {
+      id: 1,
+      email: 'creator@example.com',
+      role: 'creator',
+      tenantId: 10,
+      sessionId: 'session-1',
+    };
+
+    const result = await service.getMeDashboard(actor);
+
+    expect(result.profile.isOnboarded).toBe(true);
+    expect(result.profile.creatorTypes).toEqual(['gaming', 'lifestyle']);
+    expect(usersCache.setMe).toHaveBeenCalledWith(1, result);
   });
 });

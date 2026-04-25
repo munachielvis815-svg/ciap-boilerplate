@@ -12,6 +12,7 @@ import { CreatorInsightsService } from './creator-insights.service';
 import { CreatorInsightsQueryDto } from './dto/creator-insights-query.dto';
 import { CreatorAudienceInsightDto } from './dto/creator-audience-insight.dto';
 import { CreatorContentInsightDto } from './dto/creator-content-insight.dto';
+import { CreatorPerformanceInsightDto } from './dto/creator-performance-insight.dto';
 
 @ApiTags('creator-insights')
 @Controller('creators/insights')
@@ -94,5 +95,74 @@ export class CreatorInsightsController {
   ) {
     const limit = query.limit ?? 10;
     return this.insightsService.getContentInsights(request.user, limit);
+  }
+
+  @Get('performance')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get performance insights for creator' })
+  @ApiResponse({
+    status: 200,
+    type: CreatorPerformanceInsightDto,
+    schema: {
+      example: {
+        windowDays: 30,
+        weeklyGrowth: {
+          windowDays: 7,
+          followerGrowth: 120,
+          views: 12000,
+          estimatedMinutesWatched: 34000,
+        },
+        monthlyGrowth: {
+          windowDays: 30,
+          followerGrowth: 420,
+          views: 52000,
+          estimatedMinutesWatched: 154000,
+        },
+        platforms: [
+          {
+            platform: 'youtube',
+            followerGrowth: 420,
+            views: 52000,
+            engagementRate: 0.045,
+          },
+        ],
+        engagementRate: 0.045,
+        topContent: [
+          {
+            youtubeVideoId: 'dQw4w9WgXcQ',
+            title: 'How to grow your channel',
+            viewCount: 12000,
+            likeCount: 520,
+            commentCount: 85,
+            engagementRate: 0.05,
+            performanceRank: 3,
+          },
+        ],
+        timeSeries: [
+          {
+            date: '2026-04-01',
+            views: 120,
+            subscribersGained: 15,
+            subscribersLost: 2,
+            estimatedMinutesWatched: 340,
+          },
+        ],
+        summary: null,
+      },
+    },
+  })
+  @Roles('admin', 'creator')
+  @RequireAbilities('creator:insights:read:any', 'creator:insights:read:self')
+  async getPerformanceInsights(
+    @Req() request: AuthenticatedRequest,
+    @Query() query: CreatorInsightsQueryDto,
+  ) {
+    const days = query.days ?? 30;
+    const limit = query.limit ?? 10;
+    return this.insightsService.getPerformanceInsights(
+      request.user,
+      days,
+      limit,
+    );
   }
 }

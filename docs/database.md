@@ -90,6 +90,9 @@ The repo workflow is schema-first: edit `schema.ts`, then generate migration SQL
 - Key fields:
   - `user_id` (unique FK to users)
   - `display_name`, `bio`, `location`, `industry`
+  - `website_url`, `avatar_url`
+  - `creator_types` (text array)
+  - `is_onboarded` (boolean)
   - `audience_size`
   - `influence_score`, `influence_score_updated_at`
 - Key indexes:

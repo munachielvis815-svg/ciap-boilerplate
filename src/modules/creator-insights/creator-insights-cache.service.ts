@@ -35,4 +35,23 @@ export class CreatorInsightsCacheService {
       this.ttlHours,
     );
   }
+
+  async getPerformance(userId: number, days: number, limit: number) {
+    return this.cache.get<Record<string, unknown>>(
+      `${this.prefix}:performance:${userId}:${days}:${limit}`,
+    );
+  }
+
+  async setPerformance(
+    userId: number,
+    days: number,
+    limit: number,
+    value: unknown,
+  ) {
+    await this.cache.set(
+      `${this.prefix}:performance:${userId}:${days}:${limit}`,
+      value,
+      this.ttlHours,
+    );
+  }
 }
