@@ -151,29 +151,37 @@ export class YoutubeRepository {
 
   /**
    * Get all daily analytics for a channel within a date range.
+   * @param channelId The channel to fetch analytics for
+   * @param limit Maximum number of rows to return (default: 90 days of data)
    */
   async getAnalyticsForDateRange(
     channelId: number,
+    limit = 90,
   ): Promise<YoutubeDailyAnalytics[]> {
     return this.db
       .select()
       .from(youtubeDailyAnalytics)
       .where(eq(youtubeDailyAnalytics.channelId, channelId))
       .orderBy(desc(youtubeDailyAnalytics.analyticsDate))
+      .limit(limit)
       .execute();
   }
 
   /**
    * Get videos with engagement metrics for channel.
+   * @param channelId The channel to fetch videos for
+   * @param limit Maximum number of videos to return (default: 50)
    */
   async getChannelVideosWithEngagement(
     channelId: number,
+    limit = 50,
   ): Promise<YoutubeVideo[]> {
     return this.db
       .select()
       .from(youtubeVideos)
       .where(eq(youtubeVideos.channelId, channelId))
-      .orderBy(desc(youtubeVideos.viewCount));
+      .orderBy(desc(youtubeVideos.viewCount))
+      .limit(limit);
   }
 
   /**

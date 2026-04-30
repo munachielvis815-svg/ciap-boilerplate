@@ -181,11 +181,6 @@ export class SocialsService {
   }
 
   async getYoutubeMetrics(actor: RequestUser, query: YoutubeMetricsQueryDto) {
-    const actorRecord = await this.usersRepository.findByIdOrNull(actor.id);
-    if (!actorRecord || actorRecord.tenantId !== actor.tenantId) {
-      throw new InvalidTokenException({ reason: 'tenant-context-mismatch' });
-    }
-
     const days = query.days ?? 30;
     const maxVideos = Math.min(query.maxVideos ?? 10, 10);
 

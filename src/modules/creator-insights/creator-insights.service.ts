@@ -29,8 +29,10 @@ export class CreatorInsightsService {
       return cached as unknown as CreatorAudienceInsightDto;
     }
 
-    const profile = await this.repository.getUserProfile(actor.id);
-    const channel = await this.repository.getLatestChannelForUser(actor.id);
+    const [profile, channel] = await Promise.all([
+      this.repository.getUserProfile(actor.id),
+      this.repository.getLatestChannelForUser(actor.id),
+    ]);
 
     if (!channel) {
       const emptyResponse: CreatorAudienceInsightDto = {

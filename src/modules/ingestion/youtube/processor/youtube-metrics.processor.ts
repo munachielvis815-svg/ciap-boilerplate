@@ -62,9 +62,12 @@ export class YoutubeMetricsProcessor {
 
       // 3. Run ML scoring pipeline on each video
       // Placeholder: In production, this would call an external ML service or embedded model
+      const avgViews =
+        videos.reduce((sum, v) => sum + (v.viewCount || 0), 0) /
+        (videos.length || 1);
       const scores = videos.map((video: YoutubeVideo, index) => {
         const engagementScore = this.computeEngagementScore(video);
-        const growthScore = this.computeGrowthScore(video, videos);
+        const growthScore = this.computeGrowthScore(video, avgViews);
         const recommendationScore = this.computeRecommendationScore(
           engagementScore,
           growthScore,
@@ -116,19 +119,12 @@ export class YoutubeMetricsProcessor {
   /**
    * Compute growth score based on relative engagement compared to channel average.
    * Score: 0-100, higher = video performs better than average.
+   * Accepts a pre-computed avgViews to avoid O(n²) recalculation per video.
    */
-  private computeGrowthScore(
-    video: YoutubeVideo,
-    allVideos: YoutubeVideo[],
-  ): number {
-    if (allVideos.length === 0) return 50;
-
-    const avgViews =
-      allVideos.reduce((sum, v) => sum + (v.viewCount || 0), 0) /
-      allVideos.length;
-    const videoViews = video.viewCount || 0;
-
+  private computeGrowthScore(video: YoutubeVideo, avgViews: number): number {
     if (avgViews === 0) return 50;
+
+    const videoViews = video.viewCount || 0;
 
     // Ratio: 2x avg = 100, 0.5x avg = 0
     const ratio = videoViews / avgViews;

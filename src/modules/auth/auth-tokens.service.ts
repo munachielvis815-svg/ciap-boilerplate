@@ -36,10 +36,42 @@ export type RefreshTokenPayload = {
 
 @Injectable()
 export class AuthTokensService {
+  private readonly accessPrivateKey: string;
+  private readonly accessPublicKey: string;
+  private readonly refreshPrivateKey: string;
+  private readonly refreshPublicKey: string;
+  private readonly accessExpiresIn: string;
+  private readonly refreshExpiresIn: string;
+
   constructor(
     private readonly sessionsService: SessionsService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    this.accessPrivateKey = this.normalizePemKey(
+      this.configService.get<string>('JWT_ACCESS_PRIVATE_KEY'),
+      'JWT_ACCESS_PRIVATE_KEY',
+    );
+    this.accessPublicKey = this.normalizePemKey(
+      this.configService.get<string>('JWT_ACCESS_PUBLIC_KEY'),
+      'JWT_ACCESS_PUBLIC_KEY',
+    );
+    this.refreshPrivateKey = this.normalizePemKey(
+      this.configService.get<string>('JWT_REFRESH_PRIVATE_KEY'),
+      'JWT_REFRESH_PRIVATE_KEY',
+    );
+    this.refreshPublicKey = this.normalizePemKey(
+      this.configService.get<string>('JWT_REFRESH_PUBLIC_KEY'),
+      'JWT_REFRESH_PUBLIC_KEY',
+    );
+    this.accessExpiresIn =
+      this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') ||
+      this.configService.get<string>('JWT_EXPIRES_IN') ||
+      '15m';
+    this.refreshExpiresIn =
+      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ||
+      this.configService.get<string>('JWT_REFRESH_EXPIRATION') ||
+      '7d';
+  }
 
   async issueTokens(user: User, request: Request): Promise<AuthResponseDto> {
     const sessionId = randomUUID();
@@ -56,19 +88,15 @@ export class AuthTokensService {
       sid: sessionId,
     };
 
-    const accessToken = sign(accessTokenPayload, this.getAccessPrivateKey(), {
+    const accessToken = sign(accessTokenPayload, this.accessPrivateKey, {
       algorithm: 'ES256',
-      expiresIn: this.getAccessExpiresIn() as SignOptions['expiresIn'],
+      expiresIn: this.accessExpiresIn as SignOptions['expiresIn'],
     });
 
-    const refreshToken = sign(
-      refreshTokenPayload,
-      this.getRefreshPrivateKey(),
-      {
-        algorithm: 'ES512',
-        expiresIn: this.getRefreshExpiresIn() as SignOptions['expiresIn'],
-      },
-    );
+    const refreshToken = sign(refreshTokenPayload, this.refreshPrivateKey, {
+      algorithm: 'ES512',
+      expiresIn: this.refreshExpiresIn as SignOptions['expiresIn'],
+    });
 
     await this.sessionsService.createSession({
       id: sessionId,
@@ -77,7 +105,7 @@ export class AuthTokensService {
       userAgent: request.headers['user-agent'] || null,
       ipAddress: getRequestIp(request),
       expiresAt: new Date(
-        Date.now() + this.parseDurationToMs(this.getRefreshExpiresIn()),
+        Date.now() + this.parseDurationToMs(this.refreshExpiresIn),
       ),
       revokedAt: null,
     });
@@ -87,14 +115,14 @@ export class AuthTokensService {
       accessToken,
       refreshToken,
       expiresIn: Math.floor(
-        this.parseDurationToMs(this.getAccessExpiresIn()) / 1000,
+        this.parseDurationToMs(this.accessExpiresIn) / 1000,
       ),
     };
   }
 
   verifyRefreshToken(token: string): RefreshTokenPayload {
     try {
-      const decoded = verify(token, this.getRefreshPublicKey(), {
+      const decoded = verify(token, this.refreshPublicKey, {
         algorithms: ['ES512' satisfies Algorithm],
       });
 
@@ -129,47 +157,27 @@ export class AuthTokensService {
   }
 
   getAccessPublicKey(): string {
-    return this.normalizePemKey(
-      this.configService.get<string>('JWT_ACCESS_PUBLIC_KEY'),
-      'JWT_ACCESS_PUBLIC_KEY',
-    );
+    return this.accessPublicKey;
   }
 
   getAccessPrivateKey(): string {
-    return this.normalizePemKey(
-      this.configService.get<string>('JWT_ACCESS_PRIVATE_KEY'),
-      'JWT_ACCESS_PRIVATE_KEY',
-    );
+    return this.accessPrivateKey;
   }
 
   getRefreshPublicKey(): string {
-    return this.normalizePemKey(
-      this.configService.get<string>('JWT_REFRESH_PUBLIC_KEY'),
-      'JWT_REFRESH_PUBLIC_KEY',
-    );
+    return this.refreshPublicKey;
   }
 
   getRefreshPrivateKey(): string {
-    return this.normalizePemKey(
-      this.configService.get<string>('JWT_REFRESH_PRIVATE_KEY'),
-      'JWT_REFRESH_PRIVATE_KEY',
-    );
+    return this.refreshPrivateKey;
   }
 
   getAccessExpiresIn(): string {
-    return (
-      this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') ||
-      this.configService.get<string>('JWT_EXPIRES_IN') ||
-      '15m'
-    );
+    return this.accessExpiresIn;
   }
 
   getRefreshExpiresIn(): string {
-    return (
-      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ||
-      this.configService.get<string>('JWT_REFRESH_EXPIRATION') ||
-      '7d'
-    );
+    return this.refreshExpiresIn;
   }
 
   private mapUser(user: User): AuthUserDto {

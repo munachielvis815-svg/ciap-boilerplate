@@ -43,12 +43,10 @@ export class YoutubeQueueWorker implements OnModuleInit, OnModuleDestroy {
         },
         {
           ...config,
-          // Worker-specific options
           concurrency: parseInt(
             process.env.BULLMQ_WORKER_CONCURRENCY || '2',
             10,
           ),
-          useWorkerThreads: true,
           autorun: true,
         },
       );

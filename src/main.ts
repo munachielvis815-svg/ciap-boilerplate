@@ -93,12 +93,12 @@ async function bootstrap() {
       : null;
 
   app.use((req: Request, res: Response, next: NextFunction) => {
+    if (!logEnabled || !httpLogEnabled || httpLogMode === 'off') {
+      return next();
+    }
+
     const startedAt = Date.now();
     res.on('finish', () => {
-      if (!logEnabled || !httpLogEnabled) {
-        return;
-      }
-
       const responseTime = Date.now() - startedAt;
       const method = req.method;
       const url = req.originalUrl || req.url;
@@ -106,9 +106,6 @@ async function bootstrap() {
       const ip = req.ip || req.socket.remoteAddress || '-';
       const userAgent = req.get('user-agent') || '-';
       const contentLength = res.getHeader('content-length') || '-';
-      if (httpLogMode === 'off') {
-        return;
-      }
       if (httpLogMode === 'errors' && statusCode < 400) {
         return;
       }
@@ -141,7 +138,7 @@ async function bootstrap() {
         }
       }
     });
-    next();
+    return next();
   });
 
   // Security headers

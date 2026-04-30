@@ -29,6 +29,11 @@ export type Database = NodePgDatabase<typeof schema>;
 
         const pool = new Pool({
           connectionString,
+          max: Number(process.env.DB_POOL_MAX || 20),
+          idleTimeoutMillis: Number(process.env.DB_POOL_IDLE_TIMEOUT_MS || 30_000),
+          connectionTimeoutMillis: Number(
+            process.env.DB_POOL_CONNECTION_TIMEOUT_MS || 5_000,
+          ),
         });
 
         // Test connection
