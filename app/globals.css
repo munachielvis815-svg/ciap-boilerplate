@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-neon-purple: #A855F7;
+  --color-electric-green: #22C55E;
+  --color-naples-yellow: #FACC15;
+  --color-pastel-pink: #F472B6;
+  --color-pastel-blue: #60A5FA;
+}
+
+/* Base Light Layout Styles for the Dashboard */
+body {
+  overflow-x: hidden;
+  margin: 0;
+}
+
+/* Light dashboard elements (Pill shape and pastel) */
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0px 8px 30px rgba(0, 0, 0, 0.04);
+}
+
+.gradient-text-neon {
+  background: linear-gradient(90deg, #A855F7, #60A5FA);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
