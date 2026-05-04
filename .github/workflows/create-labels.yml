@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Create automation label
+      - name: Create repository labels
         uses: actions/github-script@v7
         with:
           script: |
