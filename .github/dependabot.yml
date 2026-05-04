@@ -10,8 +10,7 @@ updates:
     allow:
       - dependency-type: "all"
     reviewers:
-      - "owner"
-    assign-reviewers: true
+      - "sammythadev"
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -20,7 +19,6 @@ updates:
     labels:
       - "dependencies"
       - "automation"
-    milestone: 1
     open-pull-requests-limit: 10
     rebase-strategy: "auto"
 
@@ -32,8 +30,7 @@ updates:
       day: "monday"
       time: "04:00"
     reviewers:
-      - "owner"
-    assign-reviewers: true
+      - "sammythadev"
     commit-message:
       prefix: "ci"
       include: "scope"
