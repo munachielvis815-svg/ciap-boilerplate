@@ -111,8 +111,7 @@ export class HealthService {
   async readiness(): Promise<ReadinessHealthDto> {
     const dbHealth = await this.checkDatabase();
     const cacheHealth = await this.checkCache();
-    const isReady =
-      dbHealth.status === 'ok' && cacheHealth.status !== 'error';
+    const isReady = dbHealth.status === 'ok' && cacheHealth.status !== 'error';
 
     return {
       status: isReady ? 'ok' : 'unavailable',

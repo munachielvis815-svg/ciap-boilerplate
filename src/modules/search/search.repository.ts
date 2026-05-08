@@ -122,7 +122,9 @@ export class SearchRepository {
       const result = await this.db.execute(
         sql`SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm') AS is_available`,
       );
-      const rows = result as unknown as { rows?: Array<{ is_available?: boolean }> };
+      const rows = result as unknown as {
+        rows?: Array<{ is_available?: boolean }>;
+      };
       const available = rows.rows?.[0]?.is_available === true;
       this.pgTrgmAvailable = available;
       return available;

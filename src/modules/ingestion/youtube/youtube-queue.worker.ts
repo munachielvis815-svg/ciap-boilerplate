@@ -26,12 +26,12 @@ export class YoutubeQueueWorker implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Initialize and register the BullMQ worker when module loads.
-  * Worker will start consuming jobs from the youtube queue.
+   * Worker will start consuming jobs from the youtube queue.
    */
   onModuleInit(): void {
     try {
       const config = this.queueConfig.getBaseConfig();
-    const queueName = 'youtube';
+      const queueName = 'youtube';
 
       this.worker = new BullWorker(
         queueName,

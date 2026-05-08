@@ -209,8 +209,6 @@ export class QueueService implements OnModuleDestroy {
     }
   }
 
-  
-
   /**
    * Move job to DLQ with failure reason and metadata.
    * Called by job processor when job exhausts retries or hits unrecoverable error.

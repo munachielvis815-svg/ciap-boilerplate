@@ -62,18 +62,16 @@ export class ContentRepository {
         const userId = metrics[0].userId;
         const platform = metrics[0].platform;
 
-        await tx
-          .delete(contentMetrics)
-          .where(
-            and(
-              eq(contentMetrics.userId, userId),
-              eq(contentMetrics.platform, platform),
-              inArray(
-                contentMetrics.periodStart,
-                coveredDates.map((d) => new Date(d)),
-              ),
+        await tx.delete(contentMetrics).where(
+          and(
+            eq(contentMetrics.userId, userId),
+            eq(contentMetrics.platform, platform),
+            inArray(
+              contentMetrics.periodStart,
+              coveredDates.map((d) => new Date(d)),
             ),
-          );
+          ),
+        );
       }
 
       await tx.insert(contentMetrics).values(metrics);

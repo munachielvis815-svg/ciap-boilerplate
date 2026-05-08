@@ -10,10 +10,7 @@ export class SearchService {
     private readonly cache: SearchCacheService,
   ) {}
 
-  async searchCreators(params: {
-    query: string;
-    limit: number;
-  }): Promise<{
+  async searchCreators(params: { query: string; limit: number }): Promise<{
     creators: Array<{
       userId: number;
       displayName: string | null;
