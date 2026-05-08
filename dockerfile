@@ -20,7 +20,7 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 # Install production-only dependencies
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 COPY --from=build /app/dist ./dist
 
