@@ -154,12 +154,10 @@ export class CreatorDiscoveryService {
       return cached as unknown as SmeCreatorProfileResponse;
     }
 
-    const profile = await this.repository.getUserProfileByUserId(
-      params.creatorId,
-    );
-    const channel = await this.repository.getLatestChannelForUser(
-      params.creatorId,
-    );
+    const [profile, channel] = await Promise.all([
+      this.repository.getUserProfileByUserId(params.creatorId),
+      this.repository.getLatestChannelForUser(params.creatorId),
+    ]);
 
     let contentPerformance: SmeCreatorProfileResponse['contentPerformance'] =
       null;

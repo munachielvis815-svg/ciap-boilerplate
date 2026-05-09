@@ -37,7 +37,7 @@ describe('AuthService', () => {
     const sessionsService = {} as never;
 
     const authRepository = {
-      findOauthAccount: jest.fn().mockResolvedValue(oauthAccount),
+      findOauthAccounts: jest.fn().mockResolvedValue([oauthAccount]),
       createOauthAccount: jest.fn(),
       createAuditLog: jest.fn().mockResolvedValue(undefined),
       updateOauthAccountTokens: jest.fn(),

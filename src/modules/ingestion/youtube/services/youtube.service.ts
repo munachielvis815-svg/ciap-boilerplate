@@ -21,8 +21,10 @@ import { ContentRepository } from '../repository/content.repository';
 import type {
   NewContentItem,
   NewContentMetric,
-  YoutubeChannel as YoutubeChannelRecord,
-  YoutubeDailyAnalytics as YoutubeDailyAnalyticsRecord,
+  NewYoutubeAudienceDemographic,
+  NewYoutubeVideoComment,
+  YoutubeAudienceDemographic,
+  YoutubeVideoComment,
   YoutubeVideo as YoutubeVideoRecord,
 } from '@database/drizzle/schema';
 
@@ -92,6 +94,34 @@ type YoutubeAnalytics = {
   rows?: YoutubeAnalyticsRow[];
 };
 
+type YoutubeDemographics = {
+  ageGroups: Array<{ ageGroup: string; viewerPercentage: number }>;
+  genders: Array<{ gender: string; viewerPercentage: number }>;
+  countries: Array<{ country: string; viewerPercentage: number }>;
+  startDate: string;
+  endDate: string;
+};
+
+type YoutubeComment = {
+  commentId: string;
+  textDisplay: string | null;
+  textOriginal: string | null;
+  authorDisplayName: string | null;
+  authorChannelId: string | null;
+  likeCount: number;
+  publishedAt: string | null;
+  updatedAt: string | null;
+  commentType: 'top' | 'latest';
+};
+
+type YoutubeCommentsByVideo = {
+  videoId: string;
+  commentCount: number;
+  topComments: YoutubeComment[];
+  latestComments: YoutubeComment[];
+  sampleComments: YoutubeComment[];
+};
+
 type CacheStatus = 'success' | 'warning' | 'error';
 type JobStatus = 'queued' | 'warning' | 'error';
 
@@ -105,6 +135,8 @@ export type YoutubeIngestionResponse = {
   channelSubscribers: string | null;
   channelVideoCount: string | null;
   videos: YoutubeVideo[];
+  comments: YoutubeCommentsByVideo[];
+  demographics: YoutubeDemographics | null;
   analytics: YoutubeAnalytics;
   limits: {
     days: number;
@@ -146,9 +178,9 @@ export class YoutubeIngestionService {
 
   /**
    * Full orchestration pipeline for YouTube metrics ingestion.
-   * Flow: Fetch → Normalize → Persist → Cache → Invalidate → Queue
+   * Flow: Fetch → Normalize → Persist → Queue
    *
-   * Cache and queue failures are logged but don't fail the sync;
+   * Queue failures are logged but don't fail the sync;
    * data is already persisted to DB.
    */
   async getYoutubeMetrics(
@@ -158,6 +190,8 @@ export class YoutubeIngestionService {
     channel: YoutubeChannel | null;
     videos: YoutubeVideo[];
     videosCount: number;
+    comments: YoutubeCommentsByVideo[];
+    demographics: YoutubeDemographics | null;
     analyticsCount: number;
     analyticsStatus: 'success' | 'warning';
     analyticsWarning: string | null;
@@ -169,6 +203,8 @@ export class YoutubeIngestionService {
     syncedAt: string;
     contentItemsCount: number;
     metricsCount: number;
+    commentsCount: number;
+    demographicsCount: number;
   }> {
     const syncStartTime = Date.now();
 
@@ -187,6 +223,8 @@ export class YoutubeIngestionService {
             channel: null,
             videos: [],
             videosCount: 0,
+            comments: [],
+            demographics: null,
             analyticsCount: 0,
             analyticsStatus: 'warning',
             analyticsWarning: null,
@@ -199,6 +237,8 @@ export class YoutubeIngestionService {
             syncedAt: new Date().toISOString(),
             contentItemsCount: 0,
             metricsCount: 0,
+            commentsCount: 0,
+            demographicsCount: 0,
           };
         }
 
@@ -207,6 +247,8 @@ export class YoutubeIngestionService {
             channel: null,
             videos: [],
             videosCount: 0,
+            comments: [],
+            demographics: null,
             analyticsCount: 0,
             analyticsStatus: 'warning',
             analyticsWarning: null,
@@ -219,6 +261,8 @@ export class YoutubeIngestionService {
             syncedAt: new Date().toISOString(),
             contentItemsCount: 0,
             metricsCount: 0,
+            commentsCount: 0,
+            demographicsCount: 0,
           };
         }
 
@@ -230,6 +274,8 @@ export class YoutubeIngestionService {
           channel: null,
           videos: [],
           videosCount: 0,
+          comments: [],
+          demographics: null,
           analyticsCount: 0,
           analyticsStatus: 'warning',
           analyticsWarning: null,
@@ -242,6 +288,8 @@ export class YoutubeIngestionService {
           syncedAt: new Date().toISOString(),
           contentItemsCount: 0,
           metricsCount: 0,
+          commentsCount: 0,
+          demographicsCount: 0,
         };
       }
 
@@ -250,6 +298,8 @@ export class YoutubeIngestionService {
           channel: null,
           videos: [],
           videosCount: 0,
+          comments: [],
+          demographics: null,
           analyticsCount: 0,
           analyticsStatus: 'warning',
           analyticsWarning: null,
@@ -262,6 +312,8 @@ export class YoutubeIngestionService {
           syncedAt: new Date().toISOString(),
           contentItemsCount: 0,
           metricsCount: 0,
+          commentsCount: 0,
+          demographicsCount: 0,
         };
       }
 
@@ -286,18 +338,30 @@ export class YoutubeIngestionService {
         `[Sync ${actor.id}] Normalized data: 1 channel, ${normalized.videos.length} videos, ${normalized.analytics.length} analytics records`,
       );
 
-      const { persisted, contentItemsCount, metricsCount } =
-        await this.persistNormalizedData(actor, normalized, raw);
+      const {
+        persisted,
+        contentItemsCount,
+        metricsCount,
+        commentsCount,
+        demographicsCount,
+      } = await this.persistNormalizedData(actor, normalized, raw);
 
       this.logger.log(
         `[Sync ${actor.id}] Persisted to DB: channel ${persisted.channel.youtubeChannelId}, ${persisted.videos.length} videos, ${persisted.analytics.length} analytics`,
       );
 
-      const cacheStatus = await this.cachePersistedData(actor.id, persisted);
+      const cacheStatus: CacheStatus = 'warning';
       const { jobId, jobStatus } = await this.enqueueIngestionJobs(
         actor,
         query,
         persisted,
+        raw,
+        {
+          contentItemsCount,
+          metricsCount,
+          commentsCount,
+          demographicsCount,
+        },
       );
 
       const syncTimeMs = Date.now() - syncStartTime;
@@ -311,6 +375,15 @@ export class YoutubeIngestionService {
         channel: persisted.channel as unknown as YoutubeChannel,
         videos: persisted.videos as unknown as YoutubeVideo[],
         videosCount: persisted.videos.length,
+        commentsCount,
+        demographicsCount,
+        comments:
+          raw.comments?.map((comment) => ({
+            ...comment,
+            topComments: [],
+            latestComments: [],
+          })) ?? [],
+        demographics: raw.demographics ?? null,
         analyticsCount: persisted.analytics.length,
         analyticsStatus: raw.analyticsStatus ?? 'success',
         analyticsWarning: raw.analyticsWarning ?? null,
@@ -449,6 +522,8 @@ export class YoutubeIngestionService {
     },
     raw: {
       analytics: { rows?: YoutubeAnalyticsRow[] };
+      comments?: YoutubeCommentsByVideo[];
+      demographics?: YoutubeDemographics | null;
     },
   ) {
     if (!normalized.channel) {
@@ -477,6 +552,16 @@ export class YoutubeIngestionService {
       ),
     };
 
+    const commentsCount = await this.persistVideoComments(
+      persisted,
+      raw.comments || [],
+    );
+
+    const demographicsCount = await this.persistAudienceDemographics(
+      persistedChannel.id,
+      raw.demographics,
+    );
+
     const contentItems = this.mapVideosToContentItems(
       actor.id,
       normalized.videos,
@@ -493,47 +578,9 @@ export class YoutubeIngestionService {
       persisted,
       contentItemsCount: persistedContentItems.length,
       metricsCount: normalizedMetrics.length,
+      commentsCount,
+      demographicsCount,
     };
-  }
-
-  private async cachePersistedData(
-    actorId: number,
-    persisted: {
-      channel: YoutubeChannelRecord;
-      videos: YoutubeVideoRecord[];
-      analytics: YoutubeDailyAnalyticsRecord[];
-    },
-  ): Promise<CacheStatus> {
-    let cacheStatus: CacheStatus = 'success';
-
-    try {
-      await this.cache.setChannel(persisted.channel);
-      await this.cache.setVideos(
-        persisted.channel.youtubeChannelId,
-        persisted.videos,
-      );
-      await this.cache.setAnalytics(
-        persisted.channel.youtubeChannelId,
-        persisted.analytics,
-      );
-      this.logger.log(`[Sync ${actorId}] Cached normalized data`);
-    } catch (cacheError) {
-      this.logger.warn(
-        `[Sync ${actorId}] Cache operation failed (continuing with sync): ${cacheError instanceof Error ? cacheError.message : String(cacheError)}`,
-      );
-      cacheStatus = 'warning';
-    }
-
-    try {
-      await this.cache.invalidateChannel(persisted.channel.youtubeChannelId);
-      this.logger.log(`[Sync ${actorId}] Invalidated stale cache entries`);
-    } catch (invalidateError) {
-      this.logger.warn(
-        `[Sync ${actorId}] Cache invalidation failed: ${invalidateError instanceof Error ? invalidateError.message : String(invalidateError)}`,
-      );
-    }
-
-    return cacheStatus;
   }
 
   private async enqueueIngestionJobs(
@@ -542,59 +589,252 @@ export class YoutubeIngestionService {
     persisted: {
       channel: {
         youtubeChannelId: string;
+        channelTitle?: string | null;
         subscriberCount: number | null;
         totalViewCount: number | null;
+        videoCount?: number | null;
       };
-      videos: Array<{ youtubeVideoId: string }>;
+      videos: Array<{
+        youtubeVideoId: string;
+        videoTitle: string | null;
+        viewCount: number | null;
+        likeCount: number | null;
+        commentCount: number | null;
+        publishedAt: Date | null;
+      }>;
       analytics: Array<unknown>;
+    },
+    raw: {
+      comments?: YoutubeCommentsByVideo[];
+      demographics?: YoutubeDemographics | null;
+      analyticsStatus?: 'success' | 'warning';
+      analyticsWarning?: string | null;
+    },
+    summary: {
+      contentItemsCount: number;
+      metricsCount: number;
+      commentsCount: number;
+      demographicsCount: number;
     },
   ): Promise<{ jobId: string | null; jobStatus: JobStatus }> {
     let jobId: string | null = null;
     let jobStatus: JobStatus = 'queued';
 
     try {
+      const videos = persisted.videos.map((video) => {
+        const views = video.viewCount ?? 0;
+        const likes = video.likeCount ?? 0;
+        const comments = video.commentCount ?? 0;
+        const engagementRate = views > 0 ? (likes + comments) / views : 0;
+
+        return {
+          youtubeVideoId: video.youtubeVideoId,
+          title: video.videoTitle ?? null,
+          viewCount: views,
+          likeCount: likes,
+          commentCount: comments,
+          engagementRate,
+          publishedAt: video.publishedAt
+            ? video.publishedAt.toISOString()
+            : null,
+        };
+      });
+
+      const commentsSummary = raw.comments?.reduce(
+        (acc, entry) => {
+          acc.topCount += entry.topComments.length;
+          acc.latestCount += entry.latestComments.length;
+          acc.sampleCount += entry.sampleComments.length;
+          return acc;
+        },
+        { topCount: 0, latestCount: 0, sampleCount: 0 },
+      ) ?? { topCount: 0, latestCount: 0, sampleCount: 0 };
+
+      const totalCommentsCount =
+        raw.comments?.reduce((count, entry) => count + entry.commentCount, 0) ??
+        0;
+
+      const demographics = raw.demographics
+        ? {
+            ageGroups: raw.demographics.ageGroups,
+            genders: raw.demographics.genders,
+            countries: raw.demographics.countries,
+            startDate: raw.demographics.startDate,
+            endDate: raw.demographics.endDate,
+          }
+        : {
+            ageGroups: [],
+            genders: [],
+            countries: [],
+            startDate: null,
+            endDate: null,
+          };
+
       jobId = await this.queueService.addYoutubeMetricsJob(
         {
           provider: 'google',
           userId: actor.id,
           tenantId: actor.tenantId,
-          channelId: persisted.channel.youtubeChannelId,
-          days: query.days ?? 30,
-          maxVideos: query.maxVideos ?? 10,
           requestedAt: new Date().toISOString(),
+          sync: {
+            analyticsStatus: raw.analyticsStatus ?? 'success',
+            analyticsWarning: raw.analyticsWarning ?? null,
+            ingestionStatus: 'success',
+            ingestionWarning: null,
+            cacheStatus: 'warning',
+            syncedAt: new Date().toISOString(),
+          },
+          summary: {
+            videosCount: persisted.videos.length,
+            commentsCount: totalCommentsCount,
+            demographicsCount: summary.demographicsCount,
+            contentItemsCount: summary.contentItemsCount,
+            metricsCount: summary.metricsCount,
+          },
+          channel: {
+            youtubeChannelId: persisted.channel.youtubeChannelId,
+            channelTitle: persisted.channel.channelTitle ?? null,
+            subscriberCount: persisted.channel.subscriberCount ?? 0,
+            totalViewCount: Number(persisted.channel.totalViewCount ?? 0),
+            videoCount: persisted.channel.videoCount ?? 0,
+          },
+          analytics: {
+            windowDays: query.days ?? 30,
+            rowsCount: persisted.analytics.length,
+          },
+          demographics,
+          commentsSummary,
+          commentsByVideo: raw.comments ?? [],
+          videos: videos.slice(0, query.maxVideos ?? 10),
         },
         'user-requested-sync',
       );
-      this.logger.log(`[Sync ${actor.id}] Enqueued ML job ${jobId}`);
+      this.logger.log(
+        `[Sync ${actor.id}] Enqueued YouTube queue job ${jobId} for user ${actor.id}`,
+      );
     } catch (queueError) {
       this.logger.error(
-        `[Sync ${actor.id}] Failed to enqueue ML job (data persisted, scoring deferred): ${queueError instanceof Error ? queueError.message : String(queueError)}`,
+        `[Sync ${actor.id}] Failed to enqueue YouTube queue job (data persisted, scoring deferred): ${queueError instanceof Error ? queueError.message : String(queueError)}`,
       );
       jobStatus = 'warning';
     }
 
-    try {
-      await this.queueService.addCreatorInfluenceJob(
-        {
-          source: 'youtube',
-          userId: actor.id,
-          tenantId: actor.tenantId,
-          channelId: persisted.channel.youtubeChannelId,
-          subscriberCount: persisted.channel.subscriberCount ?? 0,
-          totalViewCount: Number(persisted.channel.totalViewCount ?? 0),
-          videoIds: persisted.videos.map((video) => video.youtubeVideoId),
-          analyticsCount: persisted.analytics.length,
-          requestedAt: new Date().toISOString(),
-        },
-        'youtube-ingestion-sync',
-      );
-    } catch (queueError) {
-      this.logger.warn(
-        `[Sync ${actor.id}] Failed to enqueue influence scoring job: ${queueError instanceof Error ? queueError.message : String(queueError)}`,
-      );
+    return { jobId, jobStatus };
+  }
+
+  private async persistVideoComments(
+    persisted: {
+      videos: YoutubeVideoRecord[];
+    },
+    comments: YoutubeCommentsByVideo[],
+  ): Promise<number> {
+    if (!comments.length) {
+      return 0;
     }
 
-    return { jobId, jobStatus };
+    const videoMap = new Map(
+      persisted.videos.map((video) => [video.youtubeVideoId, video]),
+    );
+    const records: NewYoutubeVideoComment[] = comments.flatMap((entry) => {
+      const video = videoMap.get(entry.videoId);
+      if (!video) {
+        return [];
+      }
+
+      const uniqueComments = this.dedupeCommentsById([
+        ...entry.topComments,
+        ...entry.latestComments,
+      ]);
+      return uniqueComments.map((comment) => ({
+        videoId: video.id,
+        youtubeCommentId: comment.commentId,
+        commentType: comment.commentType,
+        authorDisplayName: comment.authorDisplayName,
+        authorChannelId: comment.authorChannelId,
+        textDisplay: comment.textDisplay,
+        textOriginal: comment.textOriginal,
+        likeCount: comment.likeCount,
+        publishedAt: comment.publishedAt ? new Date(comment.publishedAt) : null,
+        updatedAt: comment.updatedAt ? new Date(comment.updatedAt) : null,
+      }));
+    });
+
+    if (!records.length) {
+      return 0;
+    }
+
+    const saved: YoutubeVideoComment[] =
+      await this.repository.upsertVideoComments(records);
+    return saved.length;
+  }
+
+  private async persistAudienceDemographics(
+    channelId: number,
+    demographics: YoutubeDemographics | null | undefined,
+  ): Promise<number> {
+    if (!demographics) {
+      return 0;
+    }
+
+    const startDate = new Date(demographics.startDate);
+    const endDate = new Date(demographics.endDate);
+    const records: NewYoutubeAudienceDemographic[] = [
+      ...demographics.ageGroups.map((entry) => ({
+        channelId,
+        dimensionType: 'ageGroup',
+        dimensionValue: entry.ageGroup,
+        viewerPercentage: entry.viewerPercentage,
+        startDate,
+        endDate,
+      })),
+      ...demographics.genders.map((entry) => ({
+        channelId,
+        dimensionType: 'gender',
+        dimensionValue: entry.gender,
+        viewerPercentage: entry.viewerPercentage,
+        startDate,
+        endDate,
+      })),
+      ...demographics.countries.map((entry) => ({
+        channelId,
+        dimensionType: 'country',
+        dimensionValue: entry.country,
+        viewerPercentage: entry.viewerPercentage,
+        startDate,
+        endDate,
+      })),
+    ];
+
+    if (!records.length) {
+      return 0;
+    }
+
+    const saved: YoutubeAudienceDemographic[] =
+      await this.repository.upsertAudienceDemographics(records);
+    return saved.length;
+  }
+
+  private dedupeCommentsById(
+    comments: Array<{
+      commentId: string;
+      commentType: 'top' | 'latest';
+      authorDisplayName: string | null;
+      authorChannelId: string | null;
+      textDisplay: string | null;
+      textOriginal: string | null;
+      likeCount: number;
+      publishedAt: string | null;
+      updatedAt: string | null;
+    }>,
+  ) {
+    const seen = new Set<string>();
+    return comments.filter((comment) => {
+      if (seen.has(comment.commentId)) {
+        return false;
+      }
+      seen.add(comment.commentId);
+      return true;
+    });
   }
 
   /**

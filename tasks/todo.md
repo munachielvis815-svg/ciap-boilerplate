@@ -24,6 +24,136 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Add universal creator search module
+
+- Date: 2026-05-08
+- Request: Implement a universal search module with fuzzy search (pg_trgm/Levenshtein), limit 50, minimal query params; move existing search endpoints into the module.
+- Plan:
+  - [ ] Add search module (controller/service/repository/DTO) with a single query field and limit capped at 50.
+  - [ ] Implement pg_trgm-based search with ranked results across name, niche, and bio; add indexes via migration.
+  - [ ] Update existing creator search endpoint to route through the new module (or replace it), update docs, and add unit tests.
+- Progress:
+  - Added search module/controller/service/repository/DTOs and unit tests.
+  - Added pg_trgm migration and wired creator search to the universal search service.
+  - Updated docs and project structure notes for the new search module.
+  - Added search cache responses and improved cache health fallback messaging.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Pending.
+
+## Task: Expand YouTube queue payload for ML
+
+- Date: 2026-05-08
+- Request: Include all fetched comments, demographics details, and other relevant data in the YouTube queue payload; issue job IDs and log user/job ties.
+- Plan:
+  - [x] Extend the YouTube queue payload type to carry full comments and demographics details plus sync/summary metadata.
+  - [x] Update ingestion enqueue logic to pass full comments, demographics, and counts into the queue payload.
+  - [ ] Verify logs and job payload shape where the ML consumer reads the data.
+- Progress:
+  - Expanded the BullMQ job payload shape to include full comment sets, demographics details, and sync/summary metadata.
+  - Updated enqueue logic to pass full comments, demographics, and accurate counts; logs include user/job.
+  - Fixed typecheck issues by aligning cache module typing and updating legacy ingestion queue payload to the new shape.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Pending.
+
+## Task: Fix duplicate YouTube comment persistence
+
+- Date: 2026-05-08
+- Request: Stop YouTube ingestion from repeating the same comments, keep only the first few unique comments when there are few available, and debug the current `youtube_video_comments` insert failure.
+- Plan:
+  - [x] Trace the comment fetch/sample/persist flow to confirm why the same comment ID appears multiple times in one batch.
+  - [x] Patch comment handling so sample comments and persisted comments are deduplicated by `commentId`.
+  - [x] Add focused tests, update task/docs memory, and verify the touched comment paths.
+- Progress:
+  - Confirmed the same top-level comment can appear in both the `relevance` and `time` commentThreads queries for a video.
+  - Confirmed the current code concatenates `topComments` and `latestComments` directly for both sample display and persistence, which duplicates `youtube_comment_id` values in a single insert.
+  - Deduplicated merged comment lists in the socials fetch layer before building `sampleComments`, preserving first-seen order so small comment sets just show the first unique comments returned.
+  - Added a second defensive dedupe in ingestion persistence before `upsertVideoComments`, so duplicate `youtube_comment_id` values cannot be sent in the same insert batch even if upstream callers regress.
+  - Added focused tests covering duplicate top/latest comment IDs in both the response sample path and the persistence path.
+- Verification:
+  - Tests: `cmd /c pnpm exec jest --config test/jest-e2e.json --runInBand --runTestsByPath src/modules/auth/socials/socials.service.spec.ts src/modules/ingestion/youtube/youtube.service.spec.ts` (pass)
+  - Logs / errors: `cmd /c pnpm exec eslint src/modules/auth/socials/socials.service.ts src/modules/ingestion/youtube/services/youtube.service.ts` (pass)
+  - Logs / errors: `cmd /c pnpm exec prettier --check src/modules/auth/socials/socials.service.spec.ts src/modules/ingestion/youtube/youtube.service.spec.ts tasks/todo.md` (pass)
+- Result:
+  - Fixed the duplicate comment insert failure by deduplicating repeated `commentId` values before sampling and before persistence.
+  - Root cause was not the repository upsert itself; it was a single SQL insert batch containing the same `youtube_comment_id` twice, once from `topComments` and once from `latestComments`.
+
+## Task: Fix YouTube demographics query failure
+
+- Date: 2026-05-07
+- Request: Debug the remaining `/ingestion/youtube/oauth2/callback` failure after the OAuth fixes, explain the `commentsDisabled` warnings, and fix the `400 badRequest` from the YouTube Analytics demographics query.
+- Plan:
+  - [x] Inspect the audience demographics query and verify the failing `country` report shape against the API.
+  - [x] Patch country demographics fetching and make optional demographics failures degrade to warnings instead of failing the whole sync.
+  - [x] Add focused tests, update task/docs memory, and verify the touched behavior.
+- Progress:
+  - Confirmed the `commentsDisabled` warnings are non-auth video-level comment fetch results and no longer the main failure.
+  - Confirmed the remaining hard failure is `metrics=viewerPercentage&dimensions=country`, which returns `400 badRequest` from YouTube Analytics.
+  - Switched country demographics to a valid `metrics=views&dimensions=country` analytics report, sorted by view count, and derived `viewerPercentage` locally from each country's share of the returned total.
+  - Changed demographics fetching to tolerate recoverable optional-slice failures and return a warning instead of failing the whole OAuth callback/sync.
+  - Added focused tests for country-share derivation and for downgrading recoverable demographics query failures.
+- Verification:
+  - Tests: `cmd /c pnpm exec jest --config test/jest-e2e.json --runInBand --runTestsByPath src/modules/auth/socials/socials.service.spec.ts` (pass)
+  - Logs / errors: `cmd /c pnpm exec eslint src/modules/auth/socials/socials.service.ts` (pass)
+  - Logs / errors: `cmd /c pnpm exec prettier --check src/modules/auth/socials/socials.service.spec.ts tasks/todo.md agent-docs/findings.md docs/api.md docs/database.md` (pass)
+- Result:
+  - Fixed the remaining callback failure by replacing the invalid country demographics query and treating optional demographics slices as non-fatal.
+  - `commentsDisabled` is now just a warning-level per-video condition, and the `400 badRequest` was caused by an invalid YouTube Analytics metrics/dimensions combination rather than OAuth state or token problems.
+
+## Task: Fix YouTube OAuth callback grant lookup + comment error handling
+
+- Date: 2026-05-07
+- Request: Debug the Google OAuth callback/state flow for YouTube connect after users hit `401 Invalid or malformed token` during `/ingestion/youtube/oauth2/callback`, make ingestion read only the `youtube-connect` grant, and explain the `commentsDisabled` errors.
+- Plan:
+  - [x] Trace the callback, state parsing, token persistence, and immediate sync path against the reported logs.
+  - [x] Patch the YouTube connect grant lookup/storage so ingestion refreshes only a dedicated `youtube-connect` OAuth record.
+  - [x] Fix comment-fetch error handling so `commentsDisabled` does not become `oauth2-link-required`.
+  - [x] Add focused tests, update docs/memory, and record verification.
+- Progress:
+  - Confirmed the callback `state` is being parsed successfully and used to resolve the correct user/tenant.
+  - Confirmed the failure happens after token exchange, during the immediate sync call to `commentThreads.list`.
+  - Confirmed the first logged Google error was `ACCESS_TOKEN_SCOPE_INSUFFICIENT`, so the original failure was a scope mismatch in the post-connect fetch path rather than a malformed `state` token.
+  - Added `youtube.force-ssl` to the YouTube connect scope set and reused the same scope list in reconnect metadata returned by `oauth2-link-required` responses.
+  - Confirmed the later error payload already contained the full YouTube scope set, and the real Google reason had changed to `commentsDisabled` for a specific video.
+  - Added `oauth_accounts.purpose` with migration backfill so existing token-bearing Google rows become `youtube-connect`, and changed Google token lookup/refresh to read only that purpose.
+  - Changed comment-thread fetching to treat `commentsDisabled` as a per-video skip instead of an OAuth reconnect failure.
+  - Added focused unit tests for YouTube OAuth scope preparation, `youtube-connect` grant persistence, `youtube-connect` grant lookup during ingestion, and disabled-comment handling.
+  - Generated Drizzle migration `20260507100607_old_meltdown.sql` and patched its backfill so existing token-bearing Google rows are migrated to `youtube-connect` instead of `login`.
+- Verification:
+  - Tests: `cmd /c pnpm exec jest --config test/jest-e2e.json --runInBand --runTestsByPath src/modules/auth/auth.service.spec.ts src/modules/auth/auth-google-oauth.service.spec.ts src/modules/auth/socials/socials.service.spec.ts src/modules/ingestion/youtube/youtube.service.spec.ts` (pass)
+  - Logs / errors: `cmd /c pnpm exec eslint src/modules/auth/auth.repository.ts src/modules/auth/auth.service.ts src/modules/auth/auth-google-oauth.service.ts src/modules/auth/socials/socials.service.ts src/database/drizzle/schema.ts` (pass)
+  - Logs / errors: `cmd /c pnpm exec prettier --check docs/api.md docs/database.md agent-docs/findings.md tasks/todo.md` (pass)
+  - Logs / errors: `cmd /c pnpm run typecheck` still fails in pre-existing unrelated files: `src/modules/cache/cache.module.ts` generic cache typing and `src/modules/ingestion/youtube/youtube.service.ts` `YoutubeMetricsJobPayload` mismatch from ongoing ingestion changes.
+- Result:
+  - Fixed the misleading callback failure path by aligning the YouTube connect scope set, separating stored Google login vs `youtube-connect` grants, and stopping `commentsDisabled` videos from failing the whole sync.
+  - Root cause was not malformed OAuth `state`. The two concrete failures were: `ACCESS_TOKEN_SCOPE_INSUFFICIENT` before the scope fix, and later `commentsDisabled` being misclassified as an OAuth scope problem.
+
+## Task: Expand YouTube ingestion data + queue
+
+- Date: 2026-05-07
+- Request: Pull YouTube comments and audience demographics, ensure access token refresh after expiry, cache fetched data in Redis with TTL, persist to DB, and consolidate BullMQ to one youtube queue carrying latest data + 10 video stats.
+- Plan:
+  - [x] Confirm required demographics fields, comment volume, cache TTL, and cache-first behavior; align response/queue payload expectations.
+  - [x] Add schema + repository support for comments and demographics; normalize and persist alongside existing channel/video/analytics flow.
+  - [x] Update ingestion/socials flow to refresh tokens reliably, use cache when valid, and cache new data.
+  - [x] Consolidate BullMQ to single youtube queue/job payload and adjust worker/processor + tests.
+  - [x] Update docs/tests for changed contracts.
+- Progress:
+  - Confirmed: TTL 2h, pull top 20 + latest 50 comments, demographics ageGroup/gender/country, no cache read for ingestion, and return only 5 comment samples.
+  - Implemented YouTube comments + demographics fetch, persistence, and queue payload consolidation.
+  - Updated ingestion response to include comment samples, counts, and demographics; disabled cache writes for ingestion.
+  - Updated queue worker/processor names and Swagger examples; refreshed docs and tests.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Pending.
+
 ## Task: Finish creator onboarding + search query handling
 
 - Date: 2026-04-25
@@ -631,7 +761,6 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 - Custom Agent Instructions:
   - See `.github/copilot-instructions-youtube-metrics.md` for domain-specific guidance on ingestion, normalization, caching, and queueing patterns for this task.
 
-
 - Plan:
   - [x] Inspect current pino + filter logging behavior.
   - [x] Add env-driven logger backend switch (`nest` or `pino`).
@@ -906,15 +1035,17 @@ the SQL `EXCLUDED` pseudo-table. This caused every conflicting row in a batch to
 updated with the **first item's values**, silently overwriting all other rows with wrong data.
 
 Files fixed:
+
 - `youtube.repository.ts` — `upsertVideos()` and `upsertDailyAnalytics()`
 - `content.repository.ts` — `upsertContentItems()`
 - `youtube-metrics.repository.ts` — `upsertMlScores()`
 
-Fix: Use `sql\`excluded.<column_name>\`` for each field in the `set` clause.
+Fix: Use `sql\`excluded.<column_name>\``for each field in the`set` clause.
 
 **2. Missing unique constraints for conflict targets** (severity: critical, runtime crash)
 
 Two tables had `onConflictDoUpdate` targets that referenced columns without unique indexes:
+
 - `youtubeDailyAnalytics`: upsert used `(channelId, analyticsDate)` but only had
   separate single-column indexes. Without a composite unique index Postgres throws an error.
 - `youtubeMlScores`: upsert used `videoId` but only had a regular (non-unique) index.
@@ -958,7 +1089,7 @@ is not a secret in this context).
 
 When a user requested approval for a YouTube channel they do not own, the service threw
 `NotFoundException('channel does not belong to authenticated user')`. This tells the caller the
-channel *exists*, leaking resource existence for arbitrary channel IDs.
+channel _exists_, leaking resource existence for arbitrary channel IDs.
 
 Fix: Changed to `ForbiddenException` in both `approveChannel()` and `approvePermissions()` in
 `services/youtube.service.ts`, and in the legacy `youtube.service.ts`.

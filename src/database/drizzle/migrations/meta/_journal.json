@@ -64,6 +64,20 @@
       "when": 1777132257373,
       "tag": "20260425155057_purple_tag",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1778145315518,
+      "tag": "20260507091515_hot_nightshade",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778148367318,
+      "tag": "20260507100607_old_meltdown",
+      "breakpoints": true
     }
   ]
 }

@@ -24,7 +24,7 @@ import { QueueService } from './queue.service';
  * const jobId = await this.queue.addYoutubeMetricsJob(payload);
  *
  * // Get stats
- * const stats = await this.queue.getQueueStats('youtube-metrics');
+ * const stats = await this.queue.getQueueStats('youtube');
  * ```
  */
 @Module({

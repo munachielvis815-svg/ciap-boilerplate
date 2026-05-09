@@ -15,12 +15,14 @@ export class RedisCacheService {
   private readonly logger = new Logger(RedisCacheService.name);
   private readonly defaultTtlHours: number;
   private readonly isAvailable: boolean;
+  private readonly redisUrl: string | null;
 
   constructor(
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly configService: ConfigService,
   ) {
     const redisUrl = this.configService.get<string>('REDIS_URL');
+    this.redisUrl = redisUrl ?? null;
     this.defaultTtlHours =
       this.configService.get<number>('CACHE_DEFAULT_TTL_HOURS') || 1;
 
@@ -129,15 +131,37 @@ export class RedisCacheService {
   /**
    * Verify cache is operational.
    */
-  async healthCheck(): Promise<boolean> {
+  async healthCheck(): Promise<{
+    connected: boolean;
+    mode: 'redis' | 'memory';
+    message: string;
+    error?: string;
+  }> {
+    if (!this.redisUrl) {
+      return {
+        connected: false,
+        mode: 'memory',
+        message: 'Redis not configured; defaulting to in-memory cache',
+      };
+    }
+
     try {
       const testKey = 'cache:health';
-      await this.set(testKey, { ok: true }, 1);
-      await this.delete(testKey);
-      return true;
+      await this.cacheManager.set(testKey, { ok: true }, 1000);
+      await this.cacheManager.del(testKey);
+      return {
+        connected: true,
+        mode: 'redis',
+        message: 'Redis cache connection successful',
+      };
     } catch (error) {
       this.logger.error(`Cache health check failed: ${String(error)}`);
-      return false;
+      return {
+        connected: false,
+        mode: 'memory',
+        message: 'Redis unavailable; defaulting to in-memory cache',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   }
 }

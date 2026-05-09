@@ -24,6 +24,12 @@ import type { RequestUser } from '@/types';
 
 export type GoogleOauthPurpose = 'login' | 'youtube-connect';
 
+export const GOOGLE_YOUTUBE_CONNECT_SCOPES = [
+  'https://www.googleapis.com/auth/youtube.readonly',
+  'https://www.googleapis.com/auth/youtube.force-ssl',
+  'https://www.googleapis.com/auth/yt-analytics.readonly',
+] as const;
+
 export type GoogleOauthStatePayload = {
   purpose: GoogleOauthPurpose;
   role?: PublicOnboardingRole;
@@ -79,13 +85,7 @@ export class AuthGoogleOauthService {
       : this.getGoogleLoginRedirectUri();
 
     const scopes = isYoutubeConnect
-      ? [
-          'openid',
-          'email',
-          'profile',
-          'https://www.googleapis.com/auth/youtube.readonly',
-          'https://www.googleapis.com/auth/yt-analytics.readonly',
-        ]
+      ? ['openid', 'email', 'profile', ...GOOGLE_YOUTUBE_CONNECT_SCOPES]
       : ['openid', 'email', 'profile'];
 
     const state = this.buildOauthState({
@@ -223,6 +223,7 @@ export class AuthGoogleOauthService {
       await this.authRepository.findOauthAccountByUserAndProvider(
         targetUserId,
         'google',
+        'youtube-connect',
       );
     if (!oauthAccount) {
       throw new InvalidTokenException({
@@ -409,12 +410,16 @@ export class AuthGoogleOauthService {
       expiresAt: Date | null;
     },
   ): Promise<void> {
-    const existingAccount = await this.authRepository.findOauthAccount(
+    const existingAccounts = await this.authRepository.findOauthAccounts(
       'google',
       identity.providerUserId,
     );
 
-    if (existingAccount && existingAccount.userId !== actor.id) {
+    const conflictingAccount = existingAccounts.find(
+      (account) => account.userId !== actor.id,
+    );
+
+    if (conflictingAccount) {
       throw new InvalidTokenException({
         provider: 'google',
         reason: 'oauth-account-already-linked',
@@ -422,10 +427,13 @@ export class AuthGoogleOauthService {
     }
 
     const oauthAccount =
-      existingAccount ||
+      existingAccounts.find(
+        (account) => account.purpose === 'youtube-connect',
+      ) ||
       (await this.authRepository.findOauthAccountByUserAndProvider(
         actor.id,
         'google',
+        'youtube-connect',
       ));
 
     if (oauthAccount) {
@@ -441,6 +449,7 @@ export class AuthGoogleOauthService {
     await this.authRepository.createOauthAccount({
       userId: actor.id,
       provider: 'google',
+      purpose: 'youtube-connect',
       providerUserId: identity.providerUserId,
       email: identity.email,
       accessToken: tokens.accessToken,

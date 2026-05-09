@@ -6,12 +6,18 @@ import {
   youtubeChannels,
   youtubeVideos,
   youtubeDailyAnalytics,
+  youtubeVideoComments,
+  youtubeAudienceDemographics,
   NewYoutubeChannel,
   NewYoutubeVideo,
   NewYoutubeDailyAnalytics,
   YoutubeChannel,
   YoutubeVideo,
   YoutubeDailyAnalytics,
+  NewYoutubeVideoComment,
+  NewYoutubeAudienceDemographic,
+  YoutubeVideoComment,
+  YoutubeAudienceDemographic,
 } from '@database/drizzle/schema';
 
 /**
@@ -103,6 +109,61 @@ export class YoutubeRepository {
   }
 
   /**
+   * Upsert top-level comments for videos.
+   * Uses SQL EXCLUDED to update each row with its own incoming values.
+   */
+  async upsertVideoComments(
+    comments: NewYoutubeVideoComment[],
+  ): Promise<YoutubeVideoComment[]> {
+    if (comments.length === 0) return [];
+
+    return this.db
+      .insert(youtubeVideoComments)
+      .values(comments)
+      .onConflictDoUpdate({
+        target: youtubeVideoComments.youtubeCommentId,
+        set: {
+          commentType: sql`excluded.comment_type`,
+          authorDisplayName: sql`excluded.author_display_name`,
+          authorChannelId: sql`excluded.author_channel_id`,
+          textDisplay: sql`excluded.text_display`,
+          textOriginal: sql`excluded.text_original`,
+          likeCount: sql`excluded.like_count`,
+          publishedAt: sql`excluded.published_at`,
+          updatedAt: sql`excluded.updated_at`,
+        },
+      })
+      .returning();
+  }
+
+  /**
+   * Upsert audience demographics for a channel and window.
+   * Uses SQL EXCLUDED to update each row with its own incoming values.
+   */
+  async upsertAudienceDemographics(
+    demographics: NewYoutubeAudienceDemographic[],
+  ): Promise<YoutubeAudienceDemographic[]> {
+    if (demographics.length === 0) return [];
+
+    return this.db
+      .insert(youtubeAudienceDemographics)
+      .values(demographics)
+      .onConflictDoUpdate({
+        target: [
+          youtubeAudienceDemographics.channelId,
+          youtubeAudienceDemographics.dimensionType,
+          youtubeAudienceDemographics.dimensionValue,
+          youtubeAudienceDemographics.startDate,
+          youtubeAudienceDemographics.endDate,
+        ],
+        set: {
+          viewerPercentage: sql`excluded.viewer_percentage`,
+        },
+      })
+      .returning();
+  }
+
+  /**
    * Get a channel by YouTubeChannelId.
    */
   async getChannelByYoutubeId(
@@ -151,29 +212,37 @@ export class YoutubeRepository {
 
   /**
    * Get all daily analytics for a channel within a date range.
+   * @param channelId The channel to fetch analytics for
+   * @param limit Maximum number of rows to return (default: 90 days of data)
    */
   async getAnalyticsForDateRange(
     channelId: number,
+    limit = 90,
   ): Promise<YoutubeDailyAnalytics[]> {
     return this.db
       .select()
       .from(youtubeDailyAnalytics)
       .where(eq(youtubeDailyAnalytics.channelId, channelId))
       .orderBy(desc(youtubeDailyAnalytics.analyticsDate))
+      .limit(limit)
       .execute();
   }
 
   /**
    * Get videos with engagement metrics for channel.
+   * @param channelId The channel to fetch videos for
+   * @param limit Maximum number of videos to return (default: 50)
    */
   async getChannelVideosWithEngagement(
     channelId: number,
+    limit = 50,
   ): Promise<YoutubeVideo[]> {
     return this.db
       .select()
       .from(youtubeVideos)
       .where(eq(youtubeVideos.channelId, channelId))
-      .orderBy(desc(youtubeVideos.viewCount));
+      .orderBy(desc(youtubeVideos.viewCount))
+      .limit(limit);
   }
 
   /**

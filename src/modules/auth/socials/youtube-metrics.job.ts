@@ -1,5 +1,5 @@
-export const YOUTUBE_METRICS_QUEUE = 'youtube-metrics';
-export const YOUTUBE_METRICS_PULL_JOB = 'youtube-metrics.pull';
+export const YOUTUBE_QUEUE = 'youtube';
+export const YOUTUBE_PULL_JOB = 'youtube.ingestion';
 
 export type YoutubeMetricsPullJobPayload = {
   provider: 'google';

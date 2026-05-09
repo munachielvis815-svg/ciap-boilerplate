@@ -49,13 +49,15 @@ The repo workflow is schema-first: edit `schema.ts`, then generate migration SQL
 - Key fields:
   - `user_id` FK (`on delete cascade`)
   - `provider`, `provider_user_id`
+  - `purpose` enum: `login | youtube-connect`
   - `email`
   - `access_token`, `refresh_token`, `token_expires_at`
   - timestamps
 - Key indexes:
   - user_id
   - provider
-  - unique `(provider, provider_user_id)`
+  - unique `(user_id, provider, purpose)`
+  - unique `(provider, provider_user_id, purpose)`
 
 ### `sessions`
 
@@ -141,6 +143,33 @@ The repo workflow is schema-first: edit `schema.ts`, then generate migration SQL
   - `content_item_id`
   - `conversion_type`
 
+### `youtube_video_comments`
+
+- Top-level comments pulled per YouTube video during ingestion
+- Key fields:
+  - `video_id` (FK to youtube_videos)
+  - `youtube_comment_id`
+  - `comment_type` (`top` or `latest`)
+  - `author_display_name`, `author_channel_id`
+  - `text_display`, `text_original`
+  - `like_count`, `published_at`, `updated_at`
+- Key indexes:
+  - `video_id`
+  - unique `youtube_comment_id`
+
+### `youtube_audience_demographics`
+
+- Audience breakdowns by age group, gender, and country
+- Key fields:
+  - `channel_id` (FK to youtube_channels)
+  - `dimension_type` (`ageGroup | gender | country`)
+  - `dimension_value`
+  - `viewer_percentage`
+  - `start_date`, `end_date`
+- Key indexes:
+  - `channel_id`
+  - unique `(channel_id, dimension_type, dimension_value, start_date, end_date)`
+
 ## Migration Workflow
 
 1. Edit only `src/database/drizzle/schema.ts`.
@@ -158,6 +187,12 @@ pnpm run db:migrate
 ```
 
 5. Validate with app startup or tests.
+
+## Search Indexing
+
+- Creator search uses PostgreSQL `pg_trgm` for fuzzy matching.
+- Trigram indexes are created on `users.name` and `user_profiles.display_name`, `bio`, `industry`, plus a text expression over `creator_types`.
+- Ensure `CREATE EXTENSION IF NOT EXISTS pg_trgm;` is applied before running search queries.
 
 ## Seed Workflow
 

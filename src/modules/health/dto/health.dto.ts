@@ -71,10 +71,10 @@ export class DatabaseHealthDto {
 export class CacheHealthDto {
   @ApiProperty({
     description: 'Cache health status',
-    enum: ['ok', 'error'],
+    enum: ['ok', 'warning', 'error'],
     example: 'ok',
   })
-  status!: 'ok' | 'error';
+  status!: 'ok' | 'warning' | 'error';
 
   @ApiProperty({
     description: 'Timestamp of health check',

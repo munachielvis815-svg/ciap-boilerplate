@@ -24,32 +24,30 @@ export class YoutubeMetricsProcessor {
    * Should throw or return, not resolve with error.
    */
   async process(job: BullJob<YoutubeMetricsJobPayload, void>): Promise<void> {
-    const { userId, channelId, maxVideos } = job.data;
+    const { userId, channel, videos } = job.data;
 
     try {
       this.logger.log(
-        `[Job ${job.id}] Processing YouTube metrics for user ${userId}, channel ${channelId || 'any'}`,
+        `[Job ${job.id}] Processing YouTube metrics for user ${userId}, channel ${channel.youtubeChannelId}`,
       );
 
       // 1. Fetch channel and recent videos from DB (assume they exist from ingestion)
-      const channel = channelId
-        ? await this.youtubeRepository.getChannelByYoutubeId(channelId)
-        : await this.youtubeRepository.getLatestChannelForUser(userId);
+      const channelRecord = await this.youtubeRepository.getChannelByYoutubeId(
+        channel.youtubeChannelId,
+      );
 
-      if (!channel) {
-        const reason = channelId
-          ? `Channel ${channelId} not found`
-          : `No YouTube channel found for user ${userId}`;
+      if (!channelRecord) {
+        const reason = `Channel ${channel.youtubeChannelId} not found`;
         throw new Error(reason);
       }
 
       // 2. Fetch recent videos for this channel
-      const videos = await this.youtubeRepository.getRecentVideos(
-        channel.id,
-        maxVideos,
+      const recentVideos = await this.youtubeRepository.getRecentVideos(
+        channelRecord.id,
+        videos.length || 10,
       );
 
-      if (!videos.length) {
+      if (!recentVideos.length) {
         this.logger.log(
           `[Job ${job.id}] No videos to score for channel ${channel.youtubeChannelId}`,
         );
@@ -57,14 +55,17 @@ export class YoutubeMetricsProcessor {
       }
 
       this.logger.log(
-        `[Job ${job.id}] Fetched ${videos.length} videos for scoring`,
+        `[Job ${job.id}] Fetched ${recentVideos.length} videos for scoring`,
       );
 
       // 3. Run ML scoring pipeline on each video
       // Placeholder: In production, this would call an external ML service or embedded model
-      const scores = videos.map((video: YoutubeVideo, index) => {
+      const avgViews =
+        recentVideos.reduce((sum, v) => sum + (v.viewCount || 0), 0) /
+        (recentVideos.length || 1);
+      const scores = recentVideos.map((video: YoutubeVideo, index) => {
         const engagementScore = this.computeEngagementScore(video);
-        const growthScore = this.computeGrowthScore(video, videos);
+        const growthScore = this.computeGrowthScore(video, avgViews);
         const recommendationScore = this.computeRecommendationScore(
           engagementScore,
           growthScore,
@@ -116,19 +117,12 @@ export class YoutubeMetricsProcessor {
   /**
    * Compute growth score based on relative engagement compared to channel average.
    * Score: 0-100, higher = video performs better than average.
+   * Accepts a pre-computed avgViews to avoid O(n²) recalculation per video.
    */
-  private computeGrowthScore(
-    video: YoutubeVideo,
-    allVideos: YoutubeVideo[],
-  ): number {
-    if (allVideos.length === 0) return 50;
-
-    const avgViews =
-      allVideos.reduce((sum, v) => sum + (v.viewCount || 0), 0) /
-      allVideos.length;
-    const videoViews = video.viewCount || 0;
-
+  private computeGrowthScore(video: YoutubeVideo, avgViews: number): number {
     if (avgViews === 0) return 50;
+
+    const videoViews = video.viewCount || 0;
 
     // Ratio: 2x avg = 100, 0.5x avg = 0
     const ratio = videoViews / avgViews;

@@ -74,23 +74,24 @@ export class HealthService {
    */
   async checkCache(): Promise<CacheHealthDto> {
     try {
-      const isHealthy = await this.cache.healthCheck();
+      const cacheHealth = await this.cache.healthCheck();
 
-      if (isHealthy) {
+      if (cacheHealth.connected) {
         this.logger.log('Redis cache health verified');
         return {
           status: 'ok',
           timestamp: new Date().toISOString(),
-          message: 'Redis cache connection successful',
+          message: cacheHealth.message,
           cache: 'connected',
         };
       }
 
       return {
-        status: 'error',
+        status: 'warning',
         timestamp: new Date().toISOString(),
-        message: 'Redis cache health check failed',
+        message: cacheHealth.message,
         cache: 'disconnected',
+        error: cacheHealth.error,
       };
     } catch (error) {
       this.logger.error('Cache health check failed', error);
@@ -110,7 +111,7 @@ export class HealthService {
   async readiness(): Promise<ReadinessHealthDto> {
     const dbHealth = await this.checkDatabase();
     const cacheHealth = await this.checkCache();
-    const isReady = dbHealth.status === 'ok' && cacheHealth.status === 'ok';
+    const isReady = dbHealth.status === 'ok' && cacheHealth.status !== 'error';
 
     return {
       status: isReady ? 'ok' : 'unavailable',

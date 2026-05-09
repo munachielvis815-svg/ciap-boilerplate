@@ -45,7 +45,7 @@ export class SocialsController {
   @Public()
   @Get('oauth2/google/login')
   @ApiOperation({
-    summary: 'Prepare Google OAuth2 authorization flow for login',
+    summary: 'Prepare Google OAuth2 authorization flow for login(Client)',
   })
   @ApiQuery({
     name: 'role',
@@ -77,7 +77,7 @@ export class SocialsController {
 
   @Public()
   @Get('google/login/callback')
-  @ApiOperation({ summary: 'Google OAuth2 login callback endpoint' })
+  @ApiOperation({ summary: 'Google OAuth2 login callback endpoint (Internal)' })
   @ApiResponse({
     status: 200,
     type: AuthResponseDto,
@@ -132,7 +132,7 @@ export class SocialsController {
   @HttpCode(HttpStatus.OK)
   @Post('google/token/refresh')
   @ApiOperation({
-    summary: 'Refresh stored Google OAuth access token for current user',
+    summary: 'Refresh stored Google OAuth access token for current user(Dev)',
   })
   @ApiResponse({
     status: 200,
@@ -156,7 +156,7 @@ export class SocialsController {
   @ApiBearerAuth('access-token')
   @Get('google/youtube/metrics')
   @ApiOperation({
-    summary: 'Pull YouTube channel, latest 10 videos, and analytics metrics',
+    summary: 'Pull YouTube channel, latest 10 videos, and analytics metrics(Dev)',
   })
   @ApiQuery({
     name: 'days',
@@ -198,13 +198,38 @@ export class SocialsController {
         },
         analyticsStatus: 'success',
         analyticsWarning: null,
+        demographicsStatus: 'success',
+        demographicsWarning: null,
         limits: {
           days: 30,
           maxVideos: 10,
         },
+        comments: [
+          {
+            videoId: 'abc123',
+            commentCount: 42,
+            sampleComments: [
+              {
+                commentId: 'comment-1',
+                textDisplay: 'Great video!',
+                authorDisplayName: 'Viewer One',
+                likeCount: 3,
+                publishedAt: '2026-04-01T12:00:00.000Z',
+                commentType: 'top',
+              },
+            ],
+          },
+        ],
+        demographics: {
+          ageGroups: [{ ageGroup: '18-24', viewerPercentage: 0.32 }],
+          genders: [{ gender: 'female', viewerPercentage: 0.48 }],
+          countries: [{ country: 'US', viewerPercentage: 0.22 }],
+          startDate: '2026-03-10',
+          endDate: '2026-04-08',
+        },
         bullmq: {
-          queue: 'youtube-metrics',
-          jobName: 'youtube-metrics.pull',
+          queue: 'youtube',
+          jobName: 'youtube.ingestion',
           payload: {
             provider: 'google',
             userId: 7,
@@ -225,7 +250,20 @@ export class SocialsController {
     @Req() request: AuthenticatedRequest,
     @Query() query: YoutubeMetricsQueryDto,
   ) {
-    return this.socialsService.getYoutubeMetrics(request.user, query);
+    const result = await this.socialsService.getYoutubeMetrics(
+      request.user,
+      query,
+    );
+
+    if (Array.isArray(result.comments)) {
+      result.comments = result.comments.map((entry) => ({
+        ...entry,
+        topComments: [],
+        latestComments: [],
+      }));
+    }
+
+    return result;
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
@@ -235,14 +273,14 @@ export class SocialsController {
   @Get('google/youtube/metrics/job-payload')
   @ApiOperation({
     summary:
-      'Prepare BullMQ payload contract for YouTube metrics pull (no enqueue)',
+      'Prepare BullMQ payload contract for YouTube metrics pull (no enqueue, Internal)',
   })
   @ApiResponse({
     status: 200,
     schema: {
       example: {
-        queue: 'youtube-metrics',
-        jobName: 'youtube-metrics.pull',
+        queue: 'youtube',
+        jobName: 'youtube.ingestion',
         payload: {
           provider: 'google',
           userId: 7,

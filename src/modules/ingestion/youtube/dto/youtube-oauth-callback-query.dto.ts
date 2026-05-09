@@ -63,7 +63,8 @@ export class YoutubeOauthCallbackQueryDto {
 
   @ApiPropertyOptional({
     description: 'Granted scopes from Google OAuth.',
-    example: 'email profile https://www.googleapis.com/auth/youtube.readonly',
+    example:
+      'email profile https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/yt-analytics.readonly',
   })
   @IsOptional()
   @IsString()

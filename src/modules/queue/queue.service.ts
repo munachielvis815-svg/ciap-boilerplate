@@ -6,23 +6,91 @@ export type YoutubeMetricsJobPayload = {
   provider: 'google';
   userId: number;
   tenantId: number;
-  days: number;
-  maxVideos: number;
   requestedAt: string;
-  channelId?: string;
-  cacheKey?: string;
-};
-
-export type CreatorInfluenceJobPayload = {
-  source: 'youtube';
-  userId: number;
-  tenantId: number;
-  channelId?: string;
-  subscriberCount?: number;
-  totalViewCount?: number;
-  videoIds?: string[];
-  analyticsCount?: number;
-  requestedAt: string;
+  sync: {
+    analyticsStatus: 'success' | 'warning';
+    analyticsWarning: string | null;
+    ingestionStatus: 'success' | 'warning';
+    ingestionWarning: string | null;
+    cacheStatus: 'success' | 'warning' | 'error';
+    syncedAt: string;
+  };
+  summary: {
+    videosCount: number;
+    commentsCount: number;
+    demographicsCount: number;
+    contentItemsCount: number;
+    metricsCount: number;
+  };
+  channel: {
+    youtubeChannelId: string;
+    channelTitle: string | null;
+    subscriberCount: number;
+    totalViewCount: number;
+    videoCount: number;
+  };
+  analytics: {
+    windowDays: number;
+    rowsCount: number;
+  };
+  demographics: {
+    ageGroups: Array<{ ageGroup: string; viewerPercentage: number }>;
+    genders: Array<{ gender: string; viewerPercentage: number }>;
+    countries: Array<{ country: string; viewerPercentage: number }>;
+    startDate: string | null;
+    endDate: string | null;
+  };
+  commentsSummary: {
+    topCount: number;
+    latestCount: number;
+    sampleCount: number;
+  };
+  commentsByVideo: Array<{
+    videoId: string;
+    commentCount: number;
+    topComments: Array<{
+      commentId: string;
+      textDisplay: string | null;
+      textOriginal: string | null;
+      authorDisplayName: string | null;
+      authorChannelId: string | null;
+      likeCount: number;
+      publishedAt: string | null;
+      updatedAt: string | null;
+      commentType: 'top' | 'latest';
+    }>;
+    latestComments: Array<{
+      commentId: string;
+      textDisplay: string | null;
+      textOriginal: string | null;
+      authorDisplayName: string | null;
+      authorChannelId: string | null;
+      likeCount: number;
+      publishedAt: string | null;
+      updatedAt: string | null;
+      commentType: 'top' | 'latest';
+    }>;
+    sampleComments: Array<{
+      commentId: string;
+      textDisplay: string | null;
+      textOriginal: string | null;
+      authorDisplayName: string | null;
+      authorChannelId: string | null;
+      likeCount: number;
+      publishedAt: string | null;
+      updatedAt: string | null;
+      commentType: 'top' | 'latest';
+    }>;
+  }>;
+  videos: Array<{
+    youtubeVideoId: string;
+    title: string | null;
+    viewCount: number;
+    likeCount: number;
+    commentCount: number;
+    engagementRate: number;
+    publishedAt: string | null;
+  }>;
 };
 
 /**
@@ -33,8 +101,8 @@ export type CreatorInfluenceJobPayload = {
 @Injectable()
 export class QueueService implements OnModuleDestroy {
   private readonly logger = new Logger(QueueService.name);
-  private queues: Map<string, BullQueue> = new Map();
-  private dlqueues: Map<string, BullQueue> = new Map();
+  private readonly queues: Map<string, BullQueue> = new Map();
+  private readonly dlqueues: Map<string, BullQueue> = new Map();
 
   constructor(private readonly queueConfig: QueueConfigService) {}
 
@@ -91,11 +159,11 @@ export class QueueService implements OnModuleDestroy {
   }
 
   /**
-   * Add job to YouTube metrics queue.
+   * Add job to the unified YouTube queue.
    * Job will be retried with exponential backoff if it fails.
    * After max retries, job moves to DLQ.
    *
-   * @param payload YouTube metrics job data
+   * @param payload YouTube ingestion job data
    * @param reason Optional description of why job was enqueued (for logging)
    * @returns Job ID
    */
@@ -103,7 +171,7 @@ export class QueueService implements OnModuleDestroy {
     payload: YoutubeMetricsJobPayload,
     reason?: string,
   ): Promise<string> {
-    const queueName = 'youtube-metrics';
+    const queueName = 'youtube';
 
     // Check queue backpressure
     const queue = await this.getQueue(queueName);
@@ -120,7 +188,7 @@ export class QueueService implements OnModuleDestroy {
       // Option 2: Allow but log warning (current behavior)
     }
 
-    const jobName = 'youtube-metrics.pull';
+    const jobName = 'youtube.ingestion';
     const retryConfig = this.queueConfig.getRetryConfig();
 
     try {
@@ -129,42 +197,14 @@ export class QueueService implements OnModuleDestroy {
         jobId: undefined, // Let BullMQ generate ID automatically
       });
 
+      const reasonSuffix = reason ? ` (${reason})` : '';
       this.logger.log(
-        `Enqueued YouTube metrics job ${job.id} for user ${payload.userId}${reason ? ` (${reason})` : ''}`,
+        `Enqueued YouTube ingestion job ${job.id} for user ${payload.userId}${reasonSuffix}`,
       );
 
       return job.id!;
     } catch (error) {
-      this.logger.error(`Failed to enqueue YouTube metrics job:`, error);
-      throw error;
-    }
-  }
-
-  async addCreatorInfluenceJob(
-    payload: CreatorInfluenceJobPayload,
-    reason?: string,
-  ): Promise<string> {
-    const queueName = 'creator-influence';
-    const queue = await this.getQueue(queueName);
-    const retryConfig = this.queueConfig.getRetryConfig();
-
-    try {
-      const job = await queue.add(
-        'creator-influence.score',
-        payload as Record<string, unknown>,
-        {
-          ...retryConfig,
-          jobId: undefined,
-        },
-      );
-
-      this.logger.log(
-        `Enqueued creator influence job ${job.id} for user ${payload.userId}${reason ? ` (${reason})` : ''}`,
-      );
-
-      return job.id!;
-    } catch (error) {
-      this.logger.error(`Failed to enqueue creator influence job:`, error);
+      this.logger.error(`Failed to enqueue YouTube ingestion job:`, error);
       throw error;
     }
   }
@@ -206,8 +246,9 @@ export class QueueService implements OnModuleDestroy {
       // Mark original job as processed (remove from queue)
       await job.remove();
 
+      const errorSuffix = error ? ` - Error: ${error}` : '';
       this.logger.error(
-        `Moved job ${jobId} to DLQ '${dlqName}' - Reason: ${reason}${error ? ` - Error: ${error}` : ''}`,
+        `Moved job ${jobId} to DLQ '${dlqName}' - Reason: ${reason}${errorSuffix}`,
       );
     } catch (err) {
       this.logger.error(`Failed to move job ${jobId} to DLQ:`, err);

@@ -8,6 +8,7 @@ import type {
   NewAuditLog,
   NewOauthAccount,
   OauthAccount,
+  OauthGrantPurpose,
 } from '@database/drizzle/schema';
 
 @Injectable()
@@ -22,15 +23,34 @@ export class AuthRepository {
   async findOauthAccount(
     provider: 'google' | 'github' | 'linkedin',
     providerUserId: string,
+    purpose?: OauthGrantPurpose,
   ): Promise<OauthAccount | null> {
     const oauthAccount = await this.db.query.oauthAccounts.findFirst({
+      where: purpose
+        ? and(
+            eq(oauthAccounts.provider, provider),
+            eq(oauthAccounts.providerUserId, providerUserId),
+            eq(oauthAccounts.purpose, purpose),
+          )
+        : and(
+            eq(oauthAccounts.provider, provider),
+            eq(oauthAccounts.providerUserId, providerUserId),
+          ),
+    });
+
+    return oauthAccount || null;
+  }
+
+  async findOauthAccounts(
+    provider: 'google' | 'github' | 'linkedin',
+    providerUserId: string,
+  ): Promise<OauthAccount[]> {
+    return this.db.query.oauthAccounts.findMany({
       where: and(
         eq(oauthAccounts.provider, provider),
         eq(oauthAccounts.providerUserId, providerUserId),
       ),
     });
-
-    return oauthAccount || null;
   }
 
   async createOauthAccount(data: NewOauthAccount): Promise<OauthAccount> {
@@ -44,12 +64,19 @@ export class AuthRepository {
   async findOauthAccountByUserAndProvider(
     userId: number,
     provider: 'google' | 'github' | 'linkedin',
+    purpose?: OauthGrantPurpose,
   ): Promise<OauthAccount | null> {
     const oauthAccount = await this.db.query.oauthAccounts.findFirst({
-      where: and(
-        eq(oauthAccounts.userId, userId),
-        eq(oauthAccounts.provider, provider),
-      ),
+      where: purpose
+        ? and(
+            eq(oauthAccounts.userId, userId),
+            eq(oauthAccounts.provider, provider),
+            eq(oauthAccounts.purpose, purpose),
+          )
+        : and(
+            eq(oauthAccounts.userId, userId),
+            eq(oauthAccounts.provider, provider),
+          ),
     });
 
     return oauthAccount || null;

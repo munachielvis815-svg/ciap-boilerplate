@@ -36,7 +36,7 @@ export class YoutubeIngestionController {
   @Get('metrics')
   @ApiOperation({
     summary:
-      'Pull authenticated user YouTube channel, latest 10 videos, and analytics',
+      'Pull authenticated user YouTube channel, latest 10 videos, and analytics(Internal)',
   })
   @ApiQuery({
     name: 'days',
@@ -71,9 +71,34 @@ export class YoutubeIngestionController {
             publishedAt: '2026-04-10T12:00:00.000Z',
           },
         ],
+        comments: [
+          {
+            videoId: 'abc123',
+            commentCount: 42,
+            sampleComments: [
+              {
+                commentId: 'comment-1',
+                textDisplay: 'Great video!',
+                authorDisplayName: 'Viewer One',
+                likeCount: 3,
+                publishedAt: '2026-04-01T12:00:00.000Z',
+                commentType: 'top',
+              },
+            ],
+          },
+        ],
+        demographics: {
+          ageGroups: [{ ageGroup: '18-24', viewerPercentage: 0.32 }],
+          genders: [{ gender: 'female', viewerPercentage: 0.48 }],
+          countries: [{ country: 'US', viewerPercentage: 0.22 }],
+          startDate: '2026-03-10',
+          endDate: '2026-04-08',
+        },
+        demographicsCount: 3,
         videosCount: 1,
+        commentsCount: 70,
         analyticsCount: 30,
-        cacheStatus: 'success',
+        cacheStatus: 'warning',
         jobId: 'job-123',
         jobStatus: 'queued',
         syncedAt: '2026-04-15T12:00:00.000Z',
@@ -99,7 +124,7 @@ export class YoutubeIngestionController {
   @ApiBearerAuth('access-token')
   @Get('oauth2')
   @ApiOperation({
-    summary: 'Prepare Google OAuth2 flow to connect YouTube for creators',
+    summary: 'Prepare Google OAuth2 flow to connect YouTube for creators(Client)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -119,7 +144,7 @@ export class YoutubeIngestionController {
   @Public()
   @Get('oauth2/callback')
   @ApiOperation({
-    summary: 'Google OAuth2 callback for YouTube connect and immediate sync',
+    summary: 'Google OAuth2 callback for YouTube connect and immediate sync(Internal)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -134,12 +159,22 @@ export class YoutubeIngestionController {
           videoCount: 58,
         },
         videosCount: 10,
+        commentsCount: 70,
+        demographicsCount: 3,
+        comments: [],
+        demographics: {
+          ageGroups: [],
+          genders: [],
+          countries: [],
+          startDate: '2026-03-10',
+          endDate: '2026-04-08',
+        },
         analyticsCount: 30,
         ingestionStatus: 'success',
         ingestionWarning: null,
         analyticsStatus: 'success',
         analyticsWarning: null,
-        cacheStatus: 'success',
+        cacheStatus: 'warning',
         jobId: 'job-123',
         jobStatus: 'queued',
         syncedAt: '2026-04-15T12:00:00.000Z',
@@ -180,7 +215,7 @@ export class YoutubeIngestionController {
   @ApiBearerAuth('access-token')
   @Post('permissions/approve')
   @ApiOperation({
-    summary: 'Approve YouTube permissions for the connected channel',
+    summary: 'Approve YouTube permissions for the connected channel(Internal)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -206,7 +241,7 @@ export class YoutubeIngestionController {
   @ApiBearerAuth('access-token')
   @Post('approve')
   @ApiOperation({
-    summary: 'Approve YouTube channel for analytics and growth tracking',
+    summary: 'Approve YouTube channel for analytics and growth tracking(Internal)',
   })
   @ApiResponse({
     status: HttpStatus.OK,

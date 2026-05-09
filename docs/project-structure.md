@@ -49,6 +49,7 @@ src/
 |  |- creator-insights/
 |  |- creator-discovery/
 |  |- health/
+|  |- search/
 |  |- rbac/
 |  |- sessions/
 |  `- users/
@@ -63,6 +64,7 @@ src/
 - `ingestion/youtube`: YouTube ingestion endpoints for channel + analytics pulls
 - `creator-insights`: creator audience/content insights
 - `creator-discovery`: SME creator discovery and comparison
+- `search`: universal search endpoints
 - `users`: protected user retrieval/list endpoints
 - `health`: API, DB, readiness checks
 - `sessions`: session lifecycle abstraction over session repository

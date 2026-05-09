@@ -21,19 +21,25 @@ import { CreatorCompareQueryDto } from './dto/creator-compare-query.dto';
 import { CreatorCompareResponseDto } from './dto/creator-compare-response.dto';
 import { CreatorProfileResponseDto } from './dto/creator-profile-response.dto';
 import { CreatorProfileQueryDto } from './dto/creator-profile-query.dto';
+import { SearchService } from '@modules/search/search.service';
+import { CreatorSearchQueryDto } from '@modules/search/dto/creator-search-query.dto';
+import { CreatorSearchResponseDto } from '@modules/search/dto/creator-search-response.dto';
 
 @ApiTags('sme-creators')
 @Controller('sme/creators')
 @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
 export class CreatorDiscoveryController {
-  constructor(private readonly discoveryService: CreatorDiscoveryService) {}
+  constructor(
+    private readonly discoveryService: CreatorDiscoveryService,
+    private readonly searchService: SearchService,
+  ) {}
 
   @Get('discovery')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Discover creators for SME campaigns' })
   @ApiResponse({
     status: 200,
-    type: CreatorDiscoveryResponseDto,
+    type: CreatorSearchResponseDto,
     schema: {
       example: {
         creators: [
@@ -46,7 +52,6 @@ export class CreatorDiscoveryController {
           },
         ],
         limit: 10,
-        offset: 0,
       },
     },
   })
@@ -112,7 +117,7 @@ export class CreatorDiscoveryController {
   @Get('search')
   @ApiBearerAuth('access-token')
   @ApiOperation({
-    summary: 'Search creators (any authenticated role; MVP database query)',
+    summary: 'Search creators (delegates to universal search)',
   })
   @ApiResponse({
     status: 200,
@@ -133,15 +138,10 @@ export class CreatorDiscoveryController {
       },
     },
   })
-  async search(@Query() query: CreatorDiscoveryQueryDto) {
-    return this.discoveryService.searchCreators({
+  async search(@Query() query: CreatorSearchQueryDto) {
+    return this.searchService.searchCreators({
       query: query.query,
-      bioQuery: query.bioQuery,
-      platform: query.platform,
-      minInfluenceScore: query.minInfluenceScore,
-      maxInfluenceScore: query.maxInfluenceScore,
       limit: query.limit ?? 10,
-      offset: query.offset ?? 0,
     });
   }
 

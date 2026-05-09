@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthRepository } from '@modules/auth/auth.repository';
 import { AuthService } from '@modules/auth/auth.service';
+import { GOOGLE_YOUTUBE_CONNECT_SCOPES } from '@modules/auth/auth-google-oauth.service';
 import { UsersRepository } from '@modules/users/users.repository';
 import {
   ExternalApiException,
@@ -16,8 +17,8 @@ import type { GoogleAuthDto } from '@modules/auth/dto/google-auth.dto';
 import type { YoutubeMetricsQueryDto } from './dto/youtube-metrics-query.dto';
 import {
   buildYoutubeMetricsPullJobPayload,
-  YOUTUBE_METRICS_PULL_JOB,
-  YOUTUBE_METRICS_QUEUE,
+  YOUTUBE_PULL_JOB,
+  YOUTUBE_QUEUE,
 } from './youtube-metrics.job';
 
 type YoutubeChannelResponse = {
@@ -76,6 +77,26 @@ type YoutubeVideosResponse = {
   }>;
 };
 
+type YoutubeCommentThreadResponse = {
+  items?: Array<{
+    id?: string;
+    snippet?: {
+      topLevelComment?: {
+        id?: string;
+        snippet?: {
+          textDisplay?: string;
+          textOriginal?: string;
+          authorDisplayName?: string;
+          authorChannelId?: { value?: string };
+          likeCount?: number;
+          publishedAt?: string;
+          updatedAt?: string;
+        };
+      };
+    };
+  }>;
+};
+
 type YoutubeAnalyticsRow = [string, ...number[]]; // date + metrics
 type YoutubeAnalyticsResponse = {
   columnHeaders?: Array<{
@@ -84,6 +105,39 @@ type YoutubeAnalyticsResponse = {
     dataType?: string;
   }>;
   rows?: YoutubeAnalyticsRow[];
+};
+
+type YoutubeDemographicsResponse = {
+  ageGroups: Array<{ ageGroup: string; viewerPercentage: number }>;
+  genders: Array<{ gender: string; viewerPercentage: number }>;
+  countries: Array<{ country: string; viewerPercentage: number }>;
+  startDate: string;
+  endDate: string;
+};
+
+type YoutubeDemographicsFetchResult = {
+  demographics: YoutubeDemographicsResponse;
+  warning: string | null;
+};
+
+type YoutubeComment = {
+  commentId: string;
+  textDisplay: string | null;
+  textOriginal: string | null;
+  authorDisplayName: string | null;
+  authorChannelId: string | null;
+  likeCount: number;
+  publishedAt: string | null;
+  updatedAt: string | null;
+  commentType: 'top' | 'latest';
+};
+
+type YoutubeCommentsByVideo = {
+  videoId: string;
+  commentCount: number;
+  topComments: YoutubeComment[];
+  latestComments: YoutubeComment[];
+  sampleComments: YoutubeComment[];
 };
 
 @Injectable()
@@ -147,7 +201,7 @@ export class SocialsService {
     }
 
     const user = await this.usersRepository.findByIdOrNull(userId);
-    if (!user || user.tenantId !== tenantId) {
+    if (user?.tenantId !== tenantId) {
       throw new InvalidTokenException({ reason: 'oauth-user-not-found' });
     }
 
@@ -181,26 +235,23 @@ export class SocialsService {
   }
 
   async getYoutubeMetrics(actor: RequestUser, query: YoutubeMetricsQueryDto) {
-    const actorRecord = await this.usersRepository.findByIdOrNull(actor.id);
-    if (!actorRecord || actorRecord.tenantId !== actor.tenantId) {
-      throw new InvalidTokenException({ reason: 'tenant-context-mismatch' });
-    }
-
     const days = query.days ?? 30;
     const maxVideos = Math.min(query.maxVideos ?? 10, 10);
-
-    const accessToken = await this.resolveGoogleAccessToken(actor);
 
     let channel: YoutubeChannelResponse;
     let channelItem:
       | NonNullable<YoutubeChannelResponse['items']>[number]
       | null;
     let videos: YoutubeVideosResponse;
+    let comments: YoutubeCommentsByVideo[] = [];
+    let demographics: YoutubeDemographicsResponse | null = null;
+    let demographicsStatus: 'success' | 'warning' = 'success';
+    let demographicsWarning: string | null = null;
 
     try {
-      channel = await this.fetchGoogleJson<YoutubeChannelResponse>(
+      channel = await this.fetchGoogleJsonWithRefresh<YoutubeChannelResponse>(
         'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&mine=true',
-        accessToken,
+        actor,
       );
       channelItem = channel.items?.[0] ?? null;
       if (!channelItem) {
@@ -213,31 +264,36 @@ export class SocialsService {
         );
       }
 
-      const searchResult = await this.fetchGoogleJson<YoutubeSearchResponse>(
-        `https://www.googleapis.com/youtube/v3/search?part=id&forMine=true&type=video&order=date&maxResults=${maxVideos}`,
-        accessToken,
-      );
+      const searchResult =
+        await this.fetchGoogleJsonWithRefresh<YoutubeSearchResponse>(
+          `https://www.googleapis.com/youtube/v3/search?part=id&forMine=true&type=video&order=date&maxResults=${maxVideos}`,
+          actor,
+        );
 
       const videoIds = (searchResult.items || [])
         .map((item) => item.id?.videoId)
         .filter((value): value is string => Boolean(value));
 
       videos = videoIds.length
-        ? await this.fetchGoogleJson<YoutubeVideosResponse>(
+        ? await this.fetchGoogleJsonWithRefresh<YoutubeVideosResponse>(
             `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds.join(',')}`,
-            accessToken,
+            actor,
           )
         : { items: [] };
+
+      if (videoIds.length) {
+        comments = await this.fetchVideoComments(actor, videoIds, videos);
+      }
     } catch (error) {
-      if (error instanceof InsufficientPermissionsException) {
+      if (
+        error instanceof InsufficientPermissionsException &&
+        this.isGoogleScopeInsufficientError(error)
+      ) {
         throw this.buildGoogleOauthRequiredException(
           'insufficient-youtube-scopes',
           actor,
           {
-            requiredScopes: [
-              'https://www.googleapis.com/auth/youtube.readonly',
-              'https://www.googleapis.com/auth/yt-analytics.readonly',
-            ],
+            requiredScopes: [...GOOGLE_YOUTUBE_CONNECT_SCOPES],
             ...error.details,
           },
         );
@@ -251,7 +307,7 @@ export class SocialsService {
     let analyticsWarning: string | null = null;
 
     try {
-      analytics = await this.fetchAnalyticsReport(accessToken, days);
+      analytics = await this.fetchAnalyticsReport(actor, days);
     } catch (error) {
       if (error instanceof InsufficientPermissionsException) {
         analyticsStatus = 'warning';
@@ -262,20 +318,44 @@ export class SocialsService {
       }
     }
 
+    try {
+      const demographicsResult = await this.fetchAudienceDemographics(
+        actor,
+        days,
+      );
+      demographics = demographicsResult.demographics;
+      if (demographicsResult.warning) {
+        demographicsStatus = 'warning';
+        demographicsWarning = demographicsResult.warning;
+      }
+    } catch (error) {
+      if (error instanceof InsufficientPermissionsException) {
+        demographicsStatus = 'warning';
+        demographicsWarning =
+          'YouTube audience demographics are unavailable for this account.';
+      } else {
+        throw error;
+      }
+    }
+
     return {
       channel: channelItem,
       videos: videos.items || [],
+      comments,
+      demographics,
       analytics,
       analyticsStatus,
       analyticsWarning,
+      demographicsStatus,
+      demographicsWarning,
       limits: {
         days,
         maxVideos,
       },
       // Prepared payload contract for later BullMQ integration.
       bullmq: {
-        queue: YOUTUBE_METRICS_QUEUE,
-        jobName: YOUTUBE_METRICS_PULL_JOB,
+        queue: YOUTUBE_QUEUE,
+        jobName: YOUTUBE_PULL_JOB,
         payload: buildYoutubeMetricsPullJobPayload({
           userId: actor.id,
           tenantId: actor.tenantId,
@@ -294,8 +374,8 @@ export class SocialsService {
     const maxVideos = Math.min(query.maxVideos ?? 10, 10);
 
     return {
-      queue: YOUTUBE_METRICS_QUEUE,
-      jobName: YOUTUBE_METRICS_PULL_JOB,
+      queue: YOUTUBE_QUEUE,
+      jobName: YOUTUBE_PULL_JOB,
       payload: buildYoutubeMetricsPullJobPayload({
         userId: actor.id,
         tenantId: actor.tenantId,
@@ -310,6 +390,7 @@ export class SocialsService {
       await this.authRepository.findOauthAccountByUserAndProvider(
         actor.id,
         'google',
+        'youtube-connect',
       );
     if (!oauthAccount) {
       throw this.buildGoogleOauthRequiredException(
@@ -343,15 +424,10 @@ export class SocialsService {
   }
 
   private async fetchAnalyticsReport(
-    accessToken: string,
+    actor: RequestUser,
     days: number,
   ): Promise<YoutubeAnalyticsResponse> {
-    const endDate = new Date();
-    const startDate = new Date(endDate);
-    startDate.setDate(endDate.getDate() - (days - 1));
-
-    const start = startDate.toISOString().slice(0, 10);
-    const end = endDate.toISOString().slice(0, 10);
+    const { start, end } = this.resolveAnalyticsWindow(days);
 
     const query = new URLSearchParams({
       ids: 'channel==MINE',
@@ -364,10 +440,313 @@ export class SocialsService {
       maxResults: '90',
     });
 
-    return this.fetchGoogleJson<YoutubeAnalyticsResponse>(
+    return this.fetchGoogleJsonWithRefresh<YoutubeAnalyticsResponse>(
       `https://youtubeanalytics.googleapis.com/v2/reports?${query.toString()}`,
-      accessToken,
+      actor,
     );
+  }
+
+  private async fetchAudienceDemographics(
+    actor: RequestUser,
+    days: number,
+  ): Promise<YoutubeDemographicsFetchResult> {
+    const { start, end } = this.resolveAnalyticsWindow(days);
+
+    const ageQuery = new URLSearchParams({
+      ids: 'channel==MINE',
+      startDate: start,
+      endDate: end,
+      metrics: 'viewerPercentage',
+      dimensions: 'ageGroup',
+    });
+
+    const genderQuery = new URLSearchParams({
+      ids: 'channel==MINE',
+      startDate: start,
+      endDate: end,
+      metrics: 'viewerPercentage',
+      dimensions: 'gender',
+    });
+
+    const countryQuery = new URLSearchParams({
+      ids: 'channel==MINE',
+      startDate: start,
+      endDate: end,
+      metrics: 'views',
+      dimensions: 'country',
+      sort: '-views',
+      maxResults: '25',
+    });
+
+    const [ageResponse, genderResponse, countryResponse] =
+      await Promise.allSettled([
+        this.fetchGoogleJsonWithRefresh<YoutubeAnalyticsResponse>(
+          `https://youtubeanalytics.googleapis.com/v2/reports?${ageQuery.toString()}`,
+          actor,
+        ),
+        this.fetchGoogleJsonWithRefresh<YoutubeAnalyticsResponse>(
+          `https://youtubeanalytics.googleapis.com/v2/reports?${genderQuery.toString()}`,
+          actor,
+        ),
+        this.fetchGoogleJsonWithRefresh<YoutubeAnalyticsResponse>(
+          `https://youtubeanalytics.googleapis.com/v2/reports?${countryQuery.toString()}`,
+          actor,
+        ),
+      ]);
+
+    const failures = [ageResponse, genderResponse, countryResponse].filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+
+    const fatalFailure = failures.find(
+      (result) => !this.isRecoverableDemographicsError(result.reason),
+    );
+    if (fatalFailure) {
+      throw fatalFailure.reason;
+    }
+
+    return {
+      demographics: {
+        ageGroups:
+          ageResponse.status === 'fulfilled'
+            ? this.mapAgeGroupRows(ageResponse.value.rows)
+            : [],
+        genders:
+          genderResponse.status === 'fulfilled'
+            ? this.mapGenderRows(genderResponse.value.rows)
+            : [],
+        countries:
+          countryResponse.status === 'fulfilled'
+            ? this.mapCountryRows(countryResponse.value.rows)
+            : [],
+        startDate: start,
+        endDate: end,
+      },
+      warning: failures.length
+        ? 'Some YouTube audience demographics are unavailable for this account.'
+        : null,
+    };
+  }
+
+  private mapAgeGroupRows(
+    rows: YoutubeAnalyticsRow[] | undefined,
+  ): Array<{ ageGroup: string; viewerPercentage: number }> {
+    if (!rows?.length) {
+      return [];
+    }
+
+    return rows
+      .map((row) => {
+        const value = row[0];
+        const percentage = row[1];
+        if (typeof value !== 'string' || typeof percentage !== 'number') {
+          return null;
+        }
+        return { ageGroup: value, viewerPercentage: percentage };
+      })
+      .filter(
+        (value): value is { ageGroup: string; viewerPercentage: number } =>
+          Boolean(value),
+      );
+  }
+
+  private mapGenderRows(
+    rows: YoutubeAnalyticsRow[] | undefined,
+  ): Array<{ gender: string; viewerPercentage: number }> {
+    if (!rows?.length) {
+      return [];
+    }
+
+    return rows
+      .map((row) => {
+        const value = row[0];
+        const percentage = row[1];
+        if (typeof value !== 'string' || typeof percentage !== 'number') {
+          return null;
+        }
+        return { gender: value, viewerPercentage: percentage };
+      })
+      .filter((value): value is { gender: string; viewerPercentage: number } =>
+        Boolean(value),
+      );
+  }
+
+  private mapCountryRows(
+    rows: YoutubeAnalyticsRow[] | undefined,
+  ): Array<{ country: string; viewerPercentage: number }> {
+    if (!rows?.length) {
+      return [];
+    }
+
+    const mappedRows = rows
+      .map((row) => {
+        const value = row[0];
+        const views = row[1];
+        if (
+          typeof value !== 'string' ||
+          typeof views !== 'number' ||
+          !Number.isFinite(views) ||
+          views < 0
+        ) {
+          return null;
+        }
+        return { country: value, views };
+      })
+      .filter((value): value is { country: string; views: number } =>
+        Boolean(value),
+      );
+
+    const totalViews = mappedRows.reduce((sum, row) => sum + row.views, 0);
+    return mappedRows.map((row) => ({
+      country: row.country,
+      viewerPercentage: totalViews > 0 ? row.views / totalViews : 0,
+    }));
+  }
+
+  private async fetchVideoComments(
+    actor: RequestUser,
+    videoIds: string[],
+    videos: YoutubeVideosResponse,
+  ): Promise<YoutubeCommentsByVideo[]> {
+    const videoCommentCounts = new Map<string, number>();
+    for (const item of videos.items || []) {
+      if (!item.id) {
+        continue;
+      }
+      const commentCount = Number(item.statistics?.commentCount ?? 0);
+      videoCommentCounts.set(
+        item.id,
+        Number.isFinite(commentCount) ? commentCount : 0,
+      );
+    }
+
+    const results = await Promise.all(
+      videoIds.map(async (videoId) => {
+        const [topComments, latestComments] = await Promise.all([
+          this.fetchCommentThreads(actor, videoId, 'relevance', 20, 'top'),
+          this.fetchCommentThreads(actor, videoId, 'time', 50, 'latest'),
+        ]);
+
+        const uniqueComments = this.dedupeYoutubeComments([
+          ...topComments,
+          ...latestComments,
+        ]);
+        const sampleComments = uniqueComments.slice(0, 5);
+
+        return {
+          videoId,
+          commentCount: videoCommentCounts.get(videoId) ?? 0,
+          topComments,
+          latestComments,
+          sampleComments,
+        };
+      }),
+    );
+
+    return results;
+  }
+
+  private async fetchCommentThreads(
+    actor: RequestUser,
+    videoId: string,
+    order: 'relevance' | 'time',
+    maxResults: number,
+    commentType: 'top' | 'latest',
+  ): Promise<YoutubeComment[]> {
+    const query = new URLSearchParams({
+      part: 'snippet',
+      videoId,
+      order,
+      maxResults: String(maxResults),
+    });
+
+    let response: YoutubeCommentThreadResponse;
+    try {
+      response =
+        await this.fetchGoogleJsonWithRefresh<YoutubeCommentThreadResponse>(
+          `https://www.googleapis.com/youtube/v3/commentThreads?${query.toString()}`,
+          actor,
+        );
+    } catch (error) {
+      if (this.isGoogleCommentsDisabledError(error)) {
+        return [];
+      }
+      throw error;
+    }
+
+    return (response.items || [])
+      .map((item) => {
+        const snippet = item.snippet?.topLevelComment?.snippet;
+        const commentId = item.snippet?.topLevelComment?.id || item.id || '';
+        if (!snippet || !commentId) {
+          return null;
+        }
+
+        return {
+          commentId,
+          textDisplay: snippet.textDisplay ?? null,
+          textOriginal: snippet.textOriginal ?? null,
+          authorDisplayName: snippet.authorDisplayName ?? null,
+          authorChannelId: snippet.authorChannelId?.value ?? null,
+          likeCount:
+            typeof snippet.likeCount === 'number' ? snippet.likeCount : 0,
+          publishedAt: snippet.publishedAt ?? null,
+          updatedAt: snippet.updatedAt ?? null,
+          commentType,
+        } as YoutubeComment;
+      })
+      .filter((comment): comment is YoutubeComment => Boolean(comment));
+  }
+
+  private dedupeYoutubeComments(comments: YoutubeComment[]): YoutubeComment[] {
+    const seen = new Set<string>();
+    const uniqueComments: YoutubeComment[] = [];
+
+    for (const comment of comments) {
+      if (seen.has(comment.commentId)) {
+        continue;
+      }
+      seen.add(comment.commentId);
+      uniqueComments.push(comment);
+    }
+
+    return uniqueComments;
+  }
+
+  private resolveAnalyticsWindow(days: number) {
+    const endDate = new Date();
+    const startDate = new Date(endDate);
+    startDate.setDate(endDate.getDate() - (days - 1));
+
+    return {
+      start: startDate.toISOString().slice(0, 10),
+      end: endDate.toISOString().slice(0, 10),
+    };
+  }
+
+  private async fetchGoogleJsonWithRefresh<T>(
+    url: string,
+    actor: RequestUser,
+  ): Promise<T> {
+    const accessToken = await this.resolveGoogleAccessToken(actor);
+
+    try {
+      return await this.fetchGoogleJson<T>(url, accessToken);
+    } catch (error) {
+      if (error instanceof InvalidTokenException) {
+        const details = error.details as { status?: number } | undefined;
+        if (details?.status === 401) {
+          const refreshed =
+            await this.authService.refreshGoogleOauthTokensForUser(
+              actor.id,
+              actor,
+            );
+          return this.fetchGoogleJson<T>(url, refreshed.accessToken);
+        }
+      }
+
+      throw error;
+    }
   }
 
   private async fetchGoogleJson<T>(
@@ -394,13 +773,14 @@ export class SocialsService {
         throw new InvalidTokenException({
           provider: 'google',
           reason,
+          status: response.status,
           googleError: errorBody,
         });
       }
 
       if (response.status === 403) {
         throw new InsufficientPermissionsException(
-          'youtube.readonly + yt-analytics.readonly',
+          'youtube.readonly + youtube.force-ssl + yt-analytics.readonly',
           {
             provider: 'google',
             reason,
@@ -465,13 +845,56 @@ export class SocialsService {
     return null;
   }
 
+  private isRecoverableDemographicsError(error: unknown): boolean {
+    return (
+      error instanceof InsufficientPermissionsException ||
+      error instanceof ExternalApiException
+    );
+  }
+
+  private isGoogleScopeInsufficientError(
+    error: InsufficientPermissionsException,
+  ): boolean {
+    const details = error.details as
+      | {
+          reason?: unknown;
+          googleError?: {
+            error?: {
+              details?: Array<{
+                reason?: unknown;
+              }>;
+            };
+          };
+        }
+      | undefined;
+
+    if (details?.reason === 'insufficientPermissions') {
+      return true;
+    }
+
+    return (
+      details?.googleError?.error?.details?.some(
+        (item) => item.reason === 'ACCESS_TOKEN_SCOPE_INSUFFICIENT',
+      ) ?? false
+    );
+  }
+
+  private isGoogleCommentsDisabledError(error: unknown): boolean {
+    if (!(error instanceof InsufficientPermissionsException)) {
+      return false;
+    }
+
+    const details = error.details as { reason?: unknown } | undefined;
+    return details?.reason === 'commentsDisabled';
+  }
+
   private buildGoogleOauthRequiredException(
     reason: string,
     actor: RequestUser,
     extraDetails?: Record<string, unknown>,
   ): InvalidTokenException {
     const oauthHint = this.prepareGoogleOauth2Youtube(actor);
-    const safeExtraDetails = { ...(extraDetails ?? {}) };
+    const safeExtraDetails = extraDetails ? { ...extraDetails } : {};
     delete safeExtraDetails.reason;
 
     return new InvalidTokenException({

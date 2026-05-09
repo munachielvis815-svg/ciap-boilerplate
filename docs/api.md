@@ -30,6 +30,7 @@ Authorization: Bearer <access_token>
 - `GET /health` - basic API health
 - `GET /health/db` - database connectivity health
 - `GET /health/ready` - readiness status
+- `GET /health/cache` - cache connectivity health (returns warning when Redis is unavailable and the app defaults to in-memory cache)
 
 ### Auth
 
@@ -47,8 +48,8 @@ Authorization: Bearer <access_token>
 - `GET /auth/socials/oauth2/google/login` - build Google OAuth authorization URL for login (public)
 - `GET /auth/socials/google/login/callback` - Google OAuth login callback endpoint (public)
 - `POST /auth/socials/google/token/refresh` - refresh stored Google OAuth token for current user (protected)
-- `GET /auth/socials/google/youtube/metrics` - pull channel + latest 10 videos + analytics metrics (protected, no persistence)
-  - Response may include `analyticsStatus` and `analyticsWarning` when analytics access is unavailable.
+- `GET /auth/socials/google/youtube/metrics` - pull channel + latest 10 videos + analytics metrics + comments + demographics (protected, no persistence)
+  - Response may include `analyticsStatus`/`analyticsWarning` and `demographicsStatus`/`demographicsWarning` when analytics access is unavailable.
   - Returns `404` when the authenticated account has no YouTube channel.
 - `GET /auth/socials/google/youtube/metrics/job-payload` - prepare BullMQ job payload contract (protected, no enqueue)
 
@@ -60,8 +61,8 @@ Deprecated (excluded from Swagger):
 
 ### Ingestion
 
-- `GET /ingestion/youtube/metrics` - pull authenticated user channel + latest 10 videos + analytics metrics (protected, no persistence)
-  - Response may include `analyticsStatus` and `analyticsWarning` when analytics access is unavailable.
+- `GET /ingestion/youtube/metrics` - pull authenticated user channel + latest 10 videos + analytics metrics + comments + demographics (protected, persisted)
+  - Response may include `analyticsStatus`/`analyticsWarning` and `demographicsStatus`/`demographicsWarning` when analytics access is unavailable.
   - Returns `200` with `ingestionStatus=warning` when the authenticated account has no YouTube channel.
 - `GET /ingestion/youtube/oauth2` - prepare Google OAuth flow for YouTube connect (protected)
 - `GET /ingestion/youtube/oauth2/callback` - Google OAuth callback for YouTube connect + immediate sync (public)
@@ -77,10 +78,16 @@ Deprecated (excluded from Swagger):
 ### SME creator discovery
 
 - `GET /sme/creators/discovery` - creator discovery (protected, sme only)
-- `GET /sme/creators/search` - creator search (protected, any role; MVP database search)
-  - If `bioQuery` is blank or omitted, the endpoint still searches using the other provided filters.
+- `GET /sme/creators/search` - creator search (protected, any role; delegates to universal search)
+  - Accepts only `query` and optional `limit` (max 50); other legacy filters are ignored.
 - `GET /sme/creators/compare` - compare creators by IDs or search (protected, sme only)
 - `GET /sme/creators/:id/profile` - creator profile for SME dashboard (protected, sme only)
+
+### Search
+
+- `GET /search/creators` - universal creator search (protected, any role)
+  - Query params: `query` (required), `limit` (optional, max 50)
+  - Searches creator name, niche (creator types/industry), and bio with fuzzy matching.
 
 ### Users
 
@@ -189,7 +196,8 @@ The callback immediately runs the YouTube ingestion sync and queues influence sc
 Important:
 
 - Google sign-in (`/auth/socials/oauth2/google/login`) is only for app authentication.
-- YouTube ingestion requires the separate `/ingestion/youtube/oauth2` consent flow because the login flow does not grant YouTube scopes.
+- YouTube ingestion requires the separate `/ingestion/youtube/oauth2` consent flow because the login flow does not grant the YouTube API scopes used by ingestion.
+- The YouTube connect flow requests `youtube.readonly`, `youtube.force-ssl`, and `yt-analytics.readonly` in addition to the basic Google identity scopes.
 
 ### Pull YouTube metrics
 
@@ -202,9 +210,14 @@ Notes:
 
 - Pulls channel-level and video-level metrics for the latest videos (`maxVideos <= 10`).
 - Pulls Analytics API data for the requested date window (`days <= 90`).
+- Pulls top 20 + latest 50 top-level comments per video, but only 5 comment samples per video are returned.
+- Videos with disabled comments are skipped for comment sampling instead of failing the whole sync.
+- Pulls audience demographics for `ageGroup`, `gender`, and `country`.
+- Country audience share is derived from the selected window's country view totals when YouTube does not expose direct `viewerPercentage` by country.
 - Metrics are returned directly and are not persisted.
 - Response includes BullMQ queue/job payload contract for later queue integration.
 - Requires a linked Google OAuth token for the authenticated user; otherwise returns `401` with `oauth2-link-required` details.
+- Reconnect guidance includes the required YouTube scopes for comment + analytics access.
 - Returns `404` when the authenticated account has no YouTube channel.
 - Use `/ingestion/youtube/oauth2` to connect YouTube if missing.
 
@@ -217,10 +230,15 @@ curl "http://localhost:3000/ingestion/youtube/metrics?days=30&maxVideos=10" \
 
 Notes:
 
-- Uses the authenticated user's stored Google OAuth token (linked via `/ingestion/youtube/oauth2`).
-- If the stored Google token lacks YouTube scopes, the API returns `401` with `oauth2-link-required` details so the user can reconnect through `/ingestion/youtube/oauth2`.
+- Uses the authenticated user's stored Google OAuth token from the `youtube-connect` grant linked via `/ingestion/youtube/oauth2`.
+- If the stored Google token lacks the required YouTube scopes, the API returns `401` with `oauth2-link-required` details so the user can reconnect through `/ingestion/youtube/oauth2`.
 - Returns channel info including `statistics.viewCount` and a top-level `channelViews`.
 - Pulls analytics metrics for the requested date window (`days <= 90`).
+- Pulls top 20 + latest 50 top-level comments per video, but only 5 comment samples per video are returned.
+- Videos with disabled comments are skipped for comment sampling instead of failing the whole sync.
+- Pulls audience demographics for `ageGroup`, `gender`, and `country`.
+- Country audience share is derived from the selected window's country view totals when YouTube does not expose direct `viewerPercentage` by country.
+- Persists channel, videos, analytics, comments, and demographics to the database and enqueues a unified `youtube` BullMQ job.
 - Returns `401` with `oauth2-link-required` details if no Google OAuth token is available.
 - Returns `200` with `ingestionStatus=warning` when the authenticated account has no YouTube channel.
 

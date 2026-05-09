@@ -239,19 +239,102 @@ export class YoutubeIngestionService {
       let jobId: string | null = null;
       let jobStatus: 'queued' | 'warning' | 'error' = 'queued';
       try {
+        const commentsSummary = raw.comments?.reduce(
+          (acc, entry) => {
+            acc.topCount += entry.topComments.length;
+            acc.latestCount += entry.latestComments.length;
+            acc.sampleCount += entry.sampleComments.length;
+            return acc;
+          },
+          { topCount: 0, latestCount: 0, sampleCount: 0 },
+        ) ?? { topCount: 0, latestCount: 0, sampleCount: 0 };
+
+        const totalCommentsCount =
+          raw.comments?.reduce(
+            (count, entry) => count + entry.commentCount,
+            0,
+          ) ?? 0;
+
+        const demographics = raw.demographics
+          ? {
+              ageGroups: raw.demographics.ageGroups,
+              genders: raw.demographics.genders,
+              countries: raw.demographics.countries,
+              startDate: raw.demographics.startDate,
+              endDate: raw.demographics.endDate,
+            }
+          : {
+              ageGroups: [],
+              genders: [],
+              countries: [],
+              startDate: null,
+              endDate: null,
+            };
+
+        const demographicsCount =
+          demographics.ageGroups.length +
+          demographics.genders.length +
+          demographics.countries.length;
+
         jobId = await this.queueService.addYoutubeMetricsJob(
           {
             provider: 'google',
             userId: actor.id,
             tenantId: actor.tenantId,
-            channelId: persisted.channel.youtubeChannelId,
-            days: query.days ?? 30,
-            maxVideos: query.maxVideos ?? 10,
             requestedAt: new Date().toISOString(),
+            sync: {
+              analyticsStatus: raw.analyticsStatus ?? 'success',
+              analyticsWarning: raw.analyticsWarning ?? null,
+              ingestionStatus: 'success',
+              ingestionWarning: null,
+              cacheStatus,
+              syncedAt: new Date().toISOString(),
+            },
+            summary: {
+              videosCount: persisted.videos.length,
+              commentsCount: totalCommentsCount,
+              demographicsCount,
+              contentItemsCount: persisted.videos.length,
+              metricsCount: persisted.analytics.length,
+            },
+            channel: {
+              youtubeChannelId: persisted.channel.youtubeChannelId,
+              channelTitle: persisted.channel.channelTitle ?? null,
+              subscriberCount: persisted.channel.subscriberCount ?? 0,
+              totalViewCount: Number(persisted.channel.totalViewCount ?? 0),
+              videoCount: persisted.channel.videoCount ?? 0,
+            },
+            analytics: {
+              windowDays: query.days ?? 30,
+              rowsCount: persisted.analytics.length,
+            },
+            demographics,
+            commentsSummary,
+            commentsByVideo: raw.comments ?? [],
+            videos: persisted.videos.map((video) => {
+              const views = video.viewCount ?? 0;
+              const likes = video.likeCount ?? 0;
+              const comments = video.commentCount ?? 0;
+              const engagementRate = views > 0 ? (likes + comments) / views : 0;
+
+              return {
+                youtubeVideoId: video.youtubeVideoId,
+                title: video.videoTitle ?? null,
+                viewCount: views,
+                likeCount: likes,
+                commentCount: comments,
+                engagementRate,
+                publishedAt: video.publishedAt
+                  ? video.publishedAt.toISOString()
+                  : null,
+              };
+            }),
           },
           'user-requested-sync',
         );
-        this.logger.log(`[Sync ${actor.id}] Enqueued ML job ${jobId}`);
+        this.logger.log(
+          `[Sync ${actor.id}] Enqueued ML job ${jobId} for user ${actor.id}`,
+        );
       } catch (queueError) {
         this.logger.error(
           `[Sync ${actor.id}] Failed to enqueue ML job (data persisted, scoring deferred): ${queueError instanceof Error ? queueError.message : String(queueError)}`,

@@ -15,6 +15,7 @@ import { CacheModule } from '@modules/cache/cache.module';
 import { QueueModule } from '@modules/queue/queue.module';
 import { CreatorInsightsModule } from '@modules/creator-insights/creator-insights.module';
 import { CreatorDiscoveryModule } from '@modules/creator-discovery/creator-discovery.module';
+import { SearchModule } from '@modules/search/search.module';
 
 type LogFormat = 'pretty' | 'json';
 type LoggerBackend = 'pino' | 'nest' | 'winston';
@@ -149,6 +150,7 @@ function buildLoggerParams(): Params {
     IngestionModule,
     CreatorInsightsModule,
     CreatorDiscoveryModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

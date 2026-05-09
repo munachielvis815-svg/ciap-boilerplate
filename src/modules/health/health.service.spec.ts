@@ -53,7 +53,11 @@ describe('HealthService', () => {
   });
 
   it('returns ok when cache is reachable', async () => {
-    cache.healthCheck.mockResolvedValue(true);
+    cache.healthCheck.mockResolvedValue({
+      connected: true,
+      mode: 'redis',
+      message: 'Redis cache connection successful',
+    });
 
     const result = await service.checkCache();
 
@@ -61,12 +65,16 @@ describe('HealthService', () => {
     expect(result.cache).toBe('connected');
   });
 
-  it('returns error when cache check fails', async () => {
-    cache.healthCheck.mockResolvedValue(false);
+  it('returns warning when cache defaults to memory', async () => {
+    cache.healthCheck.mockResolvedValue({
+      connected: false,
+      mode: 'memory',
+      message: 'Redis unavailable; defaulting to in-memory cache',
+    });
 
     const result = await service.checkCache();
 
-    expect(result.status).toBe('error');
+    expect(result.status).toBe('warning');
     expect(result.cache).toBe('disconnected');
   });
 

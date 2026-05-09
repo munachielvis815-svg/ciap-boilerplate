@@ -27,6 +27,12 @@ export const authProviderEnum = pgEnum('auth_provider', [
   'github',
   'linkedin',
 ]);
+export const oauthGrantPurposeEnum = pgEnum('oauth_grant_purpose', [
+  'login',
+  'youtube-connect',
+]);
+export type OauthGrantPurpose =
+  (typeof oauthGrantPurposeEnum.enumValues)[number];
 export const auditActionEnum = pgEnum('audit_action', [
   'signup',
   'login',
@@ -119,6 +125,7 @@ export const oauthAccounts = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     provider: authProviderEnum('provider').notNull(),
+    purpose: oauthGrantPurposeEnum('purpose').notNull().default('login'),
     providerUserId: text('provider_user_id').notNull(),
     email: text('email'),
     accessToken: text('access_token'),
@@ -135,9 +142,12 @@ export const oauthAccounts = pgTable(
   (table) => ({
     oauthUserIdx: index('oauth_accounts_user_id_idx').on(table.userId),
     oauthProviderIdx: index('oauth_accounts_provider_idx').on(table.provider),
-    oauthProviderIdentityUq: uniqueIndex(
-      'oauth_accounts_provider_identity_uq',
-    ).on(table.provider, table.providerUserId),
+    oauthUserProviderPurposeUq: uniqueIndex(
+      'oauth_accounts_user_provider_purpose_uq',
+    ).on(table.userId, table.provider, table.purpose),
+    oauthProviderIdentityPurposeUq: uniqueIndex(
+      'oauth_accounts_provider_identity_purpose_uq',
+    ).on(table.provider, table.providerUserId, table.purpose),
   }),
 );
 
@@ -353,6 +363,74 @@ export const youtubeMlScores = pgTable(
     youtubeMlJobIdx: index('youtube_ml_scores_job_id_idx').on(table.jobId),
     youtubeMlScoredAtIdx: index('youtube_ml_scores_scored_at_idx').on(
       table.scoredAt,
+    ),
+  }),
+);
+
+/**
+ * YouTube Video Comments Table
+ * Stores top-level comments pulled during ingestion for downstream analysis.
+ */
+export const youtubeVideoComments = pgTable(
+  'youtube_video_comments',
+  {
+    id: serial('id').primaryKey(),
+    videoId: integer('video_id')
+      .notNull()
+      .references(() => youtubeVideos.id, { onDelete: 'cascade' }),
+    youtubeCommentId: text('youtube_comment_id').notNull(),
+    commentType: text('comment_type').notNull(),
+    authorDisplayName: text('author_display_name'),
+    authorChannelId: text('author_channel_id'),
+    textDisplay: text('text_display'),
+    textOriginal: text('text_original'),
+    likeCount: integer('like_count').default(0),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    youtubeCommentVideoIdx: index('youtube_video_comments_video_id_idx').on(
+      table.videoId,
+    ),
+    youtubeCommentIdUq: uniqueIndex('youtube_video_comments_youtube_id_uq').on(
+      table.youtubeCommentId,
+    ),
+  }),
+);
+
+/**
+ * YouTube Audience Demographics Table
+ * Stores audience breakdowns by age group, gender, and country.
+ */
+export const youtubeAudienceDemographics = pgTable(
+  'youtube_audience_demographics',
+  {
+    id: serial('id').primaryKey(),
+    channelId: integer('channel_id')
+      .notNull()
+      .references(() => youtubeChannels.id, { onDelete: 'cascade' }),
+    dimensionType: text('dimension_type').notNull(),
+    dimensionValue: text('dimension_value').notNull(),
+    viewerPercentage: real('viewer_percentage').notNull().default(0),
+    startDate: timestamp('start_date', { withTimezone: true }).notNull(),
+    endDate: timestamp('end_date', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    youtubeAudienceChannelIdx: index(
+      'youtube_audience_demographics_channel_id_idx',
+    ).on(table.channelId),
+    youtubeAudienceUq: uniqueIndex('youtube_audience_demographics_uq').on(
+      table.channelId,
+      table.dimensionType,
+      table.dimensionValue,
+      table.startDate,
+      table.endDate,
     ),
   }),
 );
@@ -578,6 +656,7 @@ export const youtubeChannelsRelations = relations(
     }),
     videos: many(youtubeVideos),
     dailyAnalytics: many(youtubeDailyAnalytics),
+    audienceDemographics: many(youtubeAudienceDemographics),
   }),
 );
 
@@ -589,6 +668,7 @@ export const youtubeVideosRelations = relations(
       references: [youtubeChannels.id],
     }),
     mlScores: many(youtubeMlScores),
+    comments: many(youtubeVideoComments),
   }),
 );
 
@@ -597,6 +677,26 @@ export const youtubeDailyAnalyticsRelations = relations(
   ({ one }) => ({
     channel: one(youtubeChannels, {
       fields: [youtubeDailyAnalytics.channelId],
+      references: [youtubeChannels.id],
+    }),
+  }),
+);
+
+export const youtubeVideoCommentsRelations = relations(
+  youtubeVideoComments,
+  ({ one }) => ({
+    video: one(youtubeVideos, {
+      fields: [youtubeVideoComments.videoId],
+      references: [youtubeVideos.id],
+    }),
+  }),
+);
+
+export const youtubeAudienceDemographicsRelations = relations(
+  youtubeAudienceDemographics,
+  ({ one }) => ({
+    channel: one(youtubeChannels, {
+      fields: [youtubeAudienceDemographics.channelId],
       references: [youtubeChannels.id],
     }),
   }),
@@ -678,6 +778,12 @@ export type NewYoutubeDailyAnalytics =
   typeof youtubeDailyAnalytics.$inferInsert;
 export type YoutubeMlScore = typeof youtubeMlScores.$inferSelect;
 export type NewYoutubeMlScore = typeof youtubeMlScores.$inferInsert;
+export type YoutubeVideoComment = typeof youtubeVideoComments.$inferSelect;
+export type NewYoutubeVideoComment = typeof youtubeVideoComments.$inferInsert;
+export type YoutubeAudienceDemographic =
+  typeof youtubeAudienceDemographics.$inferSelect;
+export type NewYoutubeAudienceDemographic =
+  typeof youtubeAudienceDemographics.$inferInsert;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type NewUserProfile = typeof userProfiles.$inferInsert;
 export type ContentItem = typeof contentItems.$inferSelect;

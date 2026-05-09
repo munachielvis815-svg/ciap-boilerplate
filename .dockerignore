@@ -21,15 +21,20 @@ uploads
 .github
 .vscode
 .idea
+.husky
+.commitlintrc
 
 # Docs and task tracking not needed in image build context
 docs
 agent-docs
 tasks
+workers
 
 #individual files
 README.md
 REDIS_BULLMQ_SETUP.md
+SECURITY.md
+AGENT.md
 
 # OS files
 .DS_Store

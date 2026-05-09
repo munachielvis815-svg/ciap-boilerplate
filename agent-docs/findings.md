@@ -22,6 +22,18 @@ Append-only notes for discoveries, decisions, and gotchas.
 
 ## Current Findings
 
+## Universal Search Uses pg_trgm Fuzzy Matching (2026-05-08)
+
+- Context: Added a universal creator search endpoint with fuzzy name/niche/bio matching.
+- Finding: Search relies on PostgreSQL `pg_trgm` with trigram GIN indexes on creator profile text fields (plus users.name) to keep fuzzy matching efficient.
+- Impact: Database environments must have `pg_trgm` enabled before applying migrations for search indexes.
+
+## Unified YouTube Queue + Demographics/Comments Storage (2026-05-07)
+
+- Context: Expanded YouTube ingestion to include comments and audience demographics, and consolidated BullMQ queueing.
+- Finding: The app now enqueues all YouTube ingestion payloads into a single `youtube` BullMQ queue with a `youtube.ingestion` job, and persists YouTube comments and audience demographics in dedicated tables.
+- Impact: Downstream processors should consume the unified youtube queue payload and use the new tables for comments/demographics data.
+
 ## Initial NestJS + Drizzle Bootstrap (2026-04-07)
 
 - Context: Project was scaffolded as a NestJS API with PostgreSQL and Drizzle.
@@ -99,8 +111,8 @@ Append-only notes for discoveries, decisions, and gotchas.
 
 - Context: Multiple repositories used `onConflictDoUpdate({ set: { field: values[0]?.field } })`.
 - Finding: When inserting multiple rows, Drizzle's `onConflictDoUpdate` `set` clause runs once per conflict. Using `values[0]?.field` sets ALL conflicting rows to the first inserted row's data. The correct pattern is `sql\`excluded.column_name\`` to reference each row's own incoming values.
-- Impact: All four upsert repositories had this bug causing silent data overwrite with first-row values. Fixed with `sql\`excluded.*\`` pattern.
-- Follow-up: Review any new `onConflictDoUpdate` code to ensure it uses `sql\`excluded.*\`` for batch operations.
+- Impact: All four upsert repositories had this bug causing silent data overwrite with first-row values. Fixed with `sql\`excluded.\*\`` pattern.
+- Follow-up: Review any new `onConflictDoUpdate` code to ensure it uses `sql\`excluded.\*\`` for batch operations.
 
 ## OAuth2Client Must Not Be Shared Across Concurrent Refresh Calls (2026-04-20)
 
@@ -154,3 +166,21 @@ Append-only notes for discoveries, decisions, and gotchas.
 - Context: Finished the partial creator onboarding work that had already been scaffolded in the users module.
 - Finding: Creator onboarding state is stored on `user_profiles` via `creator_types` and `is_onboarded`, and `POST /users/me/onboard` updates that profile record with an upsert.
 - Impact: `/users/me` should treat `user_profiles` as the source of truth for `profile.isOnboarded` and `profile.creatorTypes`, and onboarding changes should invalidate the cached `/users/me` response.
+
+## YouTube Comment Pulls Need youtube.force-ssl In Connect Flow (2026-05-07)
+
+- Context: Investigated `/ingestion/youtube/oauth2/callback` failures that surfaced as `401 Invalid or malformed token` immediately after Google redirected back with a valid `state` + authorization code.
+- Finding: The callback `state` parsing was succeeding; the failure happened in the post-connect sync when `commentThreads.list` returned Google `ACCESS_TOKEN_SCOPE_INSUFFICIENT`. The existing YouTube connect flow requested `youtube.readonly` and `yt-analytics.readonly`, but comment retrieval also needs `youtube.force-ssl`.
+- Impact: YouTube connect must request `youtube.readonly`, `youtube.force-ssl`, and `yt-analytics.readonly`, and reconnect guidance should surface that same scope set so older stored grants can be repaired by re-consent.
+
+## YouTube Grant Storage And commentsDisabled Handling (2026-05-07)
+
+- Context: Follow-up debugging on the same OAuth callback path showed Google returning `403 commentsDisabled` for specific videos even after the full YouTube scope set was granted.
+- Finding: The app now stores Google OAuth records with a `purpose` (`login` vs `youtube-connect`) and YouTube ingestion/refresh reads only the `youtube-connect` record. Existing token-bearing Google rows are backfilled to `youtube-connect` in migration `20260507100607_old_meltdown.sql`. The comment fetch path also skips `commentsDisabled` videos instead of translating them into `oauth2-link-required`.
+- Impact: App login and scheduled YouTube ingestion are separated more safely, and videos with disabled comments no longer fail the whole connect/sync flow with a misleading auth error.
+
+## YouTube Country Demographics Must Be Derived From Country Views (2026-05-08)
+
+- Context: Investigated a remaining `/ingestion/youtube/oauth2/callback` failure after the OAuth fixes, where YouTube Analytics returned `400 badRequest` for `metrics=viewerPercentage&dimensions=country`.
+- Finding: YouTube Analytics supports `viewerPercentage` for demographic reports like `ageGroup` and `gender`, but not with `country` as the dimension. The app now fetches `country` with `metrics=views` and derives `viewerPercentage` locally from each country's share of the returned total views. Demographics subqueries also degrade to warnings when Google rejects one optional slice.
+- Impact: Country demographics remain available in the stored/output contract without failing the whole sync on an invalid or unavailable optional analytics report.

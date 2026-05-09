@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
+import type { CacheManagerOptions } from '@nestjs/cache-manager';
+import KeyvRedis from '@keyv/redis';
 import { RedisCacheService } from './redis-cache.service';
 
 /**
@@ -23,7 +25,22 @@ import { RedisCacheService } from './redis-cache.service';
  * ```
  */
 @Module({
-  imports: [ConfigModule, NestCacheModule.register()],
+  imports: [
+    ConfigModule,
+    NestCacheModule.registerAsync<CacheManagerOptions>({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): CacheManagerOptions => {
+        const redisUrl = configService.get<string>('REDIS_URL');
+        if (!redisUrl) {
+          return {};
+        }
+        return {
+          stores: [new KeyvRedis(redisUrl)],
+        };
+      },
+    }),
+  ],
   providers: [RedisCacheService],
   exports: [RedisCacheService],
 })

@@ -85,7 +85,7 @@ export class AuthService {
       influenceScoreUpdatedAt: null,
     });
 
-    await this.writeAuditLog({
+    this.writeAuditLog({
       userId: createdUser.id,
       action: 'signup',
       entity: 'users',
@@ -157,7 +157,7 @@ export class AuthService {
       influenceScoreUpdatedAt: null,
     });
 
-    await this.writeAuditLog({
+    this.writeAuditLog({
       userId: createdUser.id,
       action: 'signup',
       entity: 'users',
@@ -206,7 +206,7 @@ export class AuthService {
     await this.usersRepository.updateLastLogin(user.id);
     const tokenResponse = await this.tokensService.issueTokens(user, request);
 
-    await this.writeAuditLog({
+    this.writeAuditLog({
       userId: user.id,
       action: 'login',
       entity: 'users',
@@ -242,7 +242,7 @@ export class AuthService {
     await this.usersRepository.updateLastLogin(user.id);
     const tokenResponse = await this.tokensService.issueTokens(user, request);
 
-    await this.writeAuditLog({
+    this.writeAuditLog({
       userId: user.id,
       action: 'login',
       entity: 'users',
@@ -280,10 +280,14 @@ export class AuthService {
 
     let user: User | null = null;
     let createdNewUser = false;
-    const existingOauth = await this.authRepository.findOauthAccount(
+    const existingOauthAccounts = await this.authRepository.findOauthAccounts(
       'google',
       googleSubject,
     );
+    const existingOauth =
+      existingOauthAccounts.find((account) => account.purpose === 'login') ||
+      existingOauthAccounts[0] ||
+      null;
     if (existingOauth) {
       user = await this.usersRepository.findByIdOrNull(existingOauth.userId);
     } else {
@@ -321,6 +325,7 @@ export class AuthService {
       await this.authRepository.createOauthAccount({
         userId: user.id,
         provider: 'google',
+        purpose: 'login',
         providerUserId: googleSubject,
         email,
       });
@@ -337,10 +342,12 @@ export class AuthService {
       });
     }
 
-    await this.usersRepository.markEmailVerified(user.id);
-    await this.usersRepository.updateLastLogin(user.id);
+    await Promise.all([
+      this.usersRepository.markEmailVerified(user.id),
+      this.usersRepository.updateLastLogin(user.id),
+    ]);
 
-    await this.writeAuditLog({
+    this.writeAuditLog({
       userId: user.id,
       action: 'login',
       entity: 'oauth_accounts',
@@ -353,9 +360,7 @@ export class AuthService {
       userAgent: request.headers['user-agent'] || null,
     });
 
-    const latestUser =
-      (await this.usersRepository.findByIdOrNull(user.id)) || user;
-    return this.tokensService.issueTokens(latestUser, request);
+    return this.tokensService.issueTokens(user, request);
   }
 
   async loginWithGoogleAuthorizationCode(
@@ -435,7 +440,7 @@ export class AuthService {
     await this.sessionsService.revokeSessionById(session.id);
     const nextTokenPair = await this.tokensService.issueTokens(user, request);
 
-    await this.writeAuditLog({
+    this.writeAuditLog({
       userId: user.id,
       action: 'refresh',
       entity: 'sessions',
@@ -457,7 +462,7 @@ export class AuthService {
   ): Promise<{ success: boolean }> {
     await this.sessionsService.revokeSessionById(sessionId);
 
-    await this.writeAuditLog({
+    this.writeAuditLog({
       userId,
       action: 'logout',
       entity: 'sessions',
@@ -483,7 +488,7 @@ export class AuthService {
       throw new InvalidTokenException({ reason: 'session-invalid' });
     }
 
-    await this.writeAuditLog({
+    this.writeAuditLog({
       userId,
       action: 'verify',
       entity: 'sessions',
@@ -597,8 +602,13 @@ export class AuthService {
     return created.id;
   }
 
-  private async writeAuditLog(log: NewAuditLog): Promise<void> {
-    await this.authRepository.createAuditLog(log);
+  private writeAuditLog(log: NewAuditLog): void {
+    void this.authRepository.createAuditLog(log).catch((error: unknown) => {
+      this.logger.error(
+        'Failed to write audit log',
+        error instanceof Error ? error.stack : String(error),
+      );
+    });
   }
 
   private getBcryptRounds(): number {
