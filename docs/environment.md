@@ -46,6 +46,8 @@ Updated for the current runtime config on 2026-04-08.
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_LOGIN_REDIRECT_URI` (default fallback: `http://localhost:3000/auth/socials/google/login/callback`)
 - `GOOGLE_YOUTUBE_REDIRECT_URI` (default fallback: `http://localhost:3000/ingestion/youtube/oauth2/callback`)
+- `FRONTEND_GOOGLE_LOGIN_CALLBACK_URL` (default fallback: `http://localhost:5173/auth/callback/google`)
+- `FRONTEND_YOUTUBE_CONNECT_CALLBACK_URL` (default fallback: `http://localhost:5173/settings/integrations/youtube/callback`)
 - `GOOGLE_REDIRECT_URI` (legacy fallback for older OAuth flows)
 - Swagger metadata overrides:
   - `APP_NAME`
@@ -103,6 +105,7 @@ Updated for the current runtime config on 2026-04-08.
 - CORS origin is derived from `CORS_ORIGIN`.
 - JWT signing and verification keys are pulled from env.
 - Google OAuth client and redirect URI come from env.
+- OAuth callback frontend return URLs are controlled by `FRONTEND_GOOGLE_LOGIN_CALLBACK_URL` and `FRONTEND_YOUTUBE_CONNECT_CALLBACK_URL`.
 - Admin onboarding flow validates `ADMIN_SIGNUP_KEY`.
 - Database connection uses `DATABASE_URL`.
 - BullMQ/Redis compose wiring uses `REDIS_HOST`, `REDIS_PORT`, and `REDIS_URL` values passed by Docker Compose.

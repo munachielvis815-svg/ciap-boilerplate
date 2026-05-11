@@ -6,8 +6,10 @@ import {
   HttpStatus,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -18,16 +20,25 @@ import {
 import { Public, RequireAbilities, Roles } from '@decorators/index';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
 import type { AuthenticatedRequest } from '@/types/express';
+import type { Response } from 'express';
 import { YoutubeMetricsQueryDto } from '@modules/auth/socials/dto/youtube-metrics-query.dto';
 import { YoutubeIngestionService } from './services/youtube.service';
 import { ApproveYoutubeChannelDto } from './dto/approve-youtube-channel.dto';
 import { MissingFieldException } from '@common/exceptions';
 import { YoutubeOauthCallbackQueryDto } from './dto/youtube-oauth-callback-query.dto';
+import {
+  buildFrontendOauthRedirectUrl,
+  encodeFrontendOauthPayload,
+  resolveFrontendOauthError,
+} from '@utils/frontend-oauth-redirect.util';
 
 @ApiTags('ingestion')
 @Controller('ingestion/youtube')
 export class YoutubeIngestionController {
-  constructor(private readonly ingestionService: YoutubeIngestionService) {}
+  constructor(
+    private readonly ingestionService: YoutubeIngestionService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
   @Roles('admin', 'creator')
@@ -124,7 +135,8 @@ export class YoutubeIngestionController {
   @ApiBearerAuth('access-token')
   @Get('oauth2')
   @ApiOperation({
-    summary: 'Prepare Google OAuth2 flow to connect YouTube for creators(Client)',
+    summary:
+      'Prepare Google OAuth2 flow to connect YouTube for creators(Client)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -144,69 +156,73 @@ export class YoutubeIngestionController {
   @Public()
   @Get('oauth2/callback')
   @ApiOperation({
-    summary: 'Google OAuth2 callback for YouTube connect and immediate sync(Internal)',
+    summary:
+      'Google OAuth2 callback for YouTube connect and immediate sync(Internal)',
   })
   @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'YouTube connected and sync completed',
+    status: HttpStatus.FOUND,
+    description: 'Redirects to frontend callback route with connect status.',
     schema: {
       example: {
-        channel: {
-          youtubeChannelId: 'UC123456789',
-          channelTitle: 'My Channel',
-          subscriberCount: 10243,
-          totalViewCount: 234556,
-          videoCount: 58,
-        },
-        videosCount: 10,
-        commentsCount: 70,
-        demographicsCount: 3,
-        comments: [],
-        demographics: {
-          ageGroups: [],
-          genders: [],
-          countries: [],
-          startDate: '2026-03-10',
-          endDate: '2026-04-08',
-        },
-        analyticsCount: 30,
-        ingestionStatus: 'success',
-        ingestionWarning: null,
-        analyticsStatus: 'success',
-        analyticsWarning: null,
-        cacheStatus: 'warning',
-        jobId: 'job-123',
-        jobStatus: 'queued',
-        syncedAt: '2026-04-15T12:00:00.000Z',
-        contentItemsCount: 10,
-        metricsCount: 300,
+        location:
+          'http://localhost:5173/settings/integrations/youtube/callback#status=success&provider=google&purpose=youtube-connect',
       },
     },
   })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Missing authorization code or state',
-  })
   async connectYoutubeOauthCallback(
     @Query() query: YoutubeOauthCallbackQueryDto,
-  ) {
-    if (!query.code?.trim()) {
-      throw new MissingFieldException('code');
-    }
-    if (!query.state?.trim()) {
-      throw new MissingFieldException('state');
-    }
+    @Res() response: Response,
+  ): Promise<void> {
+    const frontendCallbackUrl = this.getYoutubeFrontendCallbackUrl();
 
-    const metricsQuery: YoutubeMetricsQueryDto = {
-      days: query.days,
-      maxVideos: query.maxVideos,
-    };
+    try {
+      if (!query.code?.trim()) {
+        throw new MissingFieldException('code');
+      }
+      if (!query.state?.trim()) {
+        throw new MissingFieldException('state');
+      }
 
-    return this.ingestionService.connectYoutubeOauth(
-      query.code,
-      query.state,
-      metricsQuery,
-    );
+      const metricsQuery: YoutubeMetricsQueryDto = {
+        days: query.days,
+        maxVideos: query.maxVideos,
+      };
+
+      const result = await this.ingestionService.connectYoutubeOauth(
+        query.code,
+        query.state,
+        metricsQuery,
+      );
+
+      const summary = {
+        channelId: result.channel?.id ?? null,
+        jobId: result.jobId,
+        jobStatus: result.jobStatus,
+        syncedAt: result.syncedAt,
+      };
+
+      const redirectUrl = buildFrontendOauthRedirectUrl(frontendCallbackUrl, {
+        status: 'success',
+        provider: 'google',
+        purpose: 'youtube-connect',
+        channelId: summary.channelId,
+        jobId: summary.jobId,
+        payload: encodeFrontendOauthPayload(summary),
+      });
+      response.redirect(HttpStatus.FOUND, redirectUrl);
+      return;
+    } catch (error) {
+      const oauthError = resolveFrontendOauthError(error);
+      const redirectUrl = buildFrontendOauthRedirectUrl(frontendCallbackUrl, {
+        status: 'error',
+        provider: 'google',
+        purpose: 'youtube-connect',
+        errorCode: oauthError.code,
+        errorMessage: oauthError.message,
+      });
+      response.redirect(HttpStatus.FOUND, redirectUrl);
+      return;
+    }
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
@@ -241,7 +257,8 @@ export class YoutubeIngestionController {
   @ApiBearerAuth('access-token')
   @Post('approve')
   @ApiOperation({
-    summary: 'Approve YouTube channel for analytics and growth tracking(Internal)',
+    summary:
+      'Approve YouTube channel for analytics and growth tracking(Internal)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -265,5 +282,12 @@ export class YoutubeIngestionController {
     @Body() dto: ApproveYoutubeChannelDto,
   ) {
     return this.ingestionService.approveChannel(request.user, dto);
+  }
+
+  private getYoutubeFrontendCallbackUrl(): string {
+    return (
+      this.configService.get<string>('FRONTEND_YOUTUBE_CONNECT_CALLBACK_URL') ||
+      'http://localhost:5173/settings/integrations/youtube/callback'
+    );
   }
 }

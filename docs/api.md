@@ -46,7 +46,7 @@ Authorization: Bearer <access_token>
 ### Auth social providers
 
 - `GET /auth/socials/oauth2/google/login` - build Google OAuth authorization URL for login (public)
-- `GET /auth/socials/google/login/callback` - Google OAuth login callback endpoint (public)
+- `GET /auth/socials/google/login/callback` - Google OAuth login callback endpoint (public, redirects to frontend)
 - `POST /auth/socials/google/token/refresh` - refresh stored Google OAuth token for current user (protected)
 - `GET /auth/socials/google/youtube/metrics` - pull channel + latest 10 videos + analytics metrics + comments + demographics (protected, no persistence)
   - Response may include `analyticsStatus`/`analyticsWarning` and `demographicsStatus`/`demographicsWarning` when analytics access is unavailable.
@@ -65,7 +65,7 @@ Deprecated (excluded from Swagger):
   - Response may include `analyticsStatus`/`analyticsWarning` and `demographicsStatus`/`demographicsWarning` when analytics access is unavailable.
   - Returns `200` with `ingestionStatus=warning` when the authenticated account has no YouTube channel.
 - `GET /ingestion/youtube/oauth2` - prepare Google OAuth flow for YouTube connect (protected)
-- `GET /ingestion/youtube/oauth2/callback` - Google OAuth callback for YouTube connect + immediate sync (public)
+- `GET /ingestion/youtube/oauth2/callback` - Google OAuth callback for YouTube connect + immediate sync (public, redirects to frontend)
 - `POST /ingestion/youtube/permissions/approve` - approve YouTube permissions (protected)
 - `POST /ingestion/youtube/approve` - approve YouTube channel for analytics tracking (protected)
 
@@ -174,6 +174,11 @@ It returns an `authorizationUrl`. Open it in a browser, approve consent, then Go
 http://localhost:3000/auth/socials/google/login/callback?code=...&state=...
 ```
 
+Backend callback behavior:
+
+- Exchanges Google code for app login, then redirects to frontend callback URL (`FRONTEND_GOOGLE_LOGIN_CALLBACK_URL`).
+- Sends OAuth outcome in URL fragment params (`#status=...&provider=google&purpose=login&payload=...`).
+
 Callback error cases:
 
 - `400` when `code` query param is missing
@@ -191,7 +196,10 @@ Open the `authorizationUrl`. Google redirects to:
 http://localhost:3000/ingestion/youtube/oauth2/callback?code=...&state=...&iss=...&scope=...&authuser=...&prompt=...
 ```
 
-The callback immediately runs the YouTube ingestion sync and queues influence scoring.
+Backend callback behavior:
+
+- Connects the Google account, runs immediate ingestion sync, then redirects to frontend callback URL (`FRONTEND_YOUTUBE_CONNECT_CALLBACK_URL`).
+- Sends OAuth outcome in URL fragment params (`#status=...&provider=google&purpose=youtube-connect&payload=...`).
 
 Important:
 

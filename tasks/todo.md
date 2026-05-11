@@ -24,6 +24,32 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Redirect OAuth callbacks back to frontend
+
+- Date: 2026-05-11
+- Request: Inspect callback endpoints and add a frontend redirect strategy so both Google OAuth login and YouTube connect callbacks return to frontend routes.
+- Plan:
+  - [x] Inspect existing callback controllers/services and current OAuth redirect env wiring.
+  - [x] Add a shared frontend OAuth callback redirect utility for success/error payloads.
+  - [x] Update Google login callback endpoint to always redirect to frontend with callback result.
+  - [x] Update YouTube connect callback endpoint to always redirect to frontend with callback result.
+  - [x] Update docs/env examples and run verification.
+- Progress:
+  - Added shared `frontend-oauth-redirect` utility + tests for fragment URL building, payload encoding, and error extraction.
+  - Updated `SocialsController` Google callback routes to redirect to frontend with success/error fragment payloads.
+  - Updated `YoutubeIngestionController` callback route to redirect to frontend with success/error fragment payloads.
+- Verification:
+  - Tests:
+    - `corepack pnpm run lint` (pass)
+    - `corepack pnpm run build` (pass)
+    - `corepack pnpm run test` (fails in pre-existing `test/app.e2e-spec.ts` because `JWT_ACCESS_PUBLIC_KEY` is not configured in test env)
+  - Logs / errors:
+    - `corepack pnpm run test` also triggers `TypeError: Cannot read properties of undefined (reading 'close')` in `afterEach` because app bootstrap already failed from missing JWT env key.
+- Result:
+  - Added frontend callback redirect strategy for both Google login and YouTube connect callbacks using fragment-based success/error payloads.
+  - Added config-driven frontend callback URLs and documented the new env vars in `.env.example` and `docs/environment.md`.
+  - Updated API docs and added utility tests for redirect URL/payload/error helpers.
+
 ## Task: Add universal creator search module
 
 - Date: 2026-05-08

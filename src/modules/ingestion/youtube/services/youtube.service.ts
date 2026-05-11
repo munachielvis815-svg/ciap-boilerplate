@@ -144,6 +144,27 @@ export type YoutubeIngestionResponse = {
   };
 };
 
+export type YoutubeMetricsSyncResult = {
+  channel: YoutubeChannel | null;
+  videos: YoutubeVideo[];
+  videosCount: number;
+  comments: YoutubeCommentsByVideo[];
+  demographics: YoutubeDemographics | null;
+  analyticsCount: number;
+  analyticsStatus: 'success' | 'warning';
+  analyticsWarning: string | null;
+  ingestionStatus: 'success' | 'warning';
+  ingestionWarning: string | null;
+  cacheStatus: CacheStatus;
+  jobId: string | null;
+  jobStatus: JobStatus;
+  syncedAt: string;
+  contentItemsCount: number;
+  metricsCount: number;
+  commentsCount: number;
+  demographicsCount: number;
+};
+
 @Injectable()
 export class YoutubeIngestionService {
   private readonly logger = new Logger(YoutubeIngestionService.name);
@@ -166,7 +187,7 @@ export class YoutubeIngestionService {
     code: string,
     state: string,
     query: YoutubeMetricsQueryDto,
-  ) {
+  ): Promise<YoutubeMetricsSyncResult> {
     const actor =
       await this.socialsService.connectGoogleYoutubeAuthorizationCode(
         code,
@@ -186,26 +207,7 @@ export class YoutubeIngestionService {
   async getYoutubeMetrics(
     actor: RequestUser,
     query: YoutubeMetricsQueryDto,
-  ): Promise<{
-    channel: YoutubeChannel | null;
-    videos: YoutubeVideo[];
-    videosCount: number;
-    comments: YoutubeCommentsByVideo[];
-    demographics: YoutubeDemographics | null;
-    analyticsCount: number;
-    analyticsStatus: 'success' | 'warning';
-    analyticsWarning: string | null;
-    ingestionStatus: 'success' | 'warning';
-    ingestionWarning: string | null;
-    cacheStatus: CacheStatus;
-    jobId: string | null;
-    jobStatus: JobStatus;
-    syncedAt: string;
-    contentItemsCount: number;
-    metricsCount: number;
-    commentsCount: number;
-    demographicsCount: number;
-  }> {
+  ): Promise<YoutubeMetricsSyncResult> {
     const syncStartTime = Date.now();
 
     try {

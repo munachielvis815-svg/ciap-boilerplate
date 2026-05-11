@@ -6,8 +6,10 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ApiExcludeEndpoint,
   ApiBearerAuth,
@@ -16,12 +18,16 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { MissingFieldException } from '@common/exceptions';
 import { Public, RequireAbilities, Roles } from '@decorators/index';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
 import type { AuthenticatedRequest } from '@/types/express';
-import { AuthResponseDto } from '@modules/auth/dto/auth-response.dto';
+import {
+  buildFrontendOauthRedirectUrl,
+  encodeFrontendOauthPayload,
+  resolveFrontendOauthError,
+} from '@utils/frontend-oauth-redirect.util';
 import { YoutubeMetricsQueryDto } from './dto/youtube-metrics-query.dto';
 import { GoogleOauthLoginQueryDto } from './dto/google-oauth-login-query.dto';
 import { SocialsService } from './socials.service';
@@ -29,7 +35,10 @@ import { SocialsService } from './socials.service';
 @ApiTags('auth-socials')
 @Controller('auth/socials')
 export class SocialsController {
-  constructor(private readonly socialsService: SocialsService) {}
+  constructor(
+    private readonly socialsService: SocialsService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Public()
   @HttpCode(HttpStatus.GONE)
@@ -79,23 +88,16 @@ export class SocialsController {
   @Get('google/login/callback')
   @ApiOperation({ summary: 'Google OAuth2 login callback endpoint (Internal)' })
   @ApiResponse({
-    status: 200,
-    type: AuthResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Missing authorization code',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Invalid or expired Google authorization code',
+    status: HttpStatus.FOUND,
+    description: 'Redirects to frontend callback route with result payload.',
   })
   async googleCallback(
     @Query('code') code: string,
     @Query('state') state: string | undefined,
     @Req() request: Request,
-  ): Promise<AuthResponseDto> {
-    return this.handleGoogleLoginCallback(code, state, request);
+    @Res() response: Response,
+  ): Promise<void> {
+    return this.redirectGoogleLoginCallback(code, state, request, response);
   }
 
   @Public()
@@ -105,8 +107,9 @@ export class SocialsController {
     @Query('code') code: string,
     @Query('state') state: string | undefined,
     @Req() request: Request,
-  ): Promise<AuthResponseDto> {
-    return this.handleGoogleLoginCallback(code, state, request);
+    @Res() response: Response,
+  ): Promise<void> {
+    return this.redirectGoogleLoginCallback(code, state, request, response);
   }
 
   private handleGoogleLoginCallback(
@@ -122,6 +125,49 @@ export class SocialsController {
       code,
       request,
       state,
+    );
+  }
+
+  private async redirectGoogleLoginCallback(
+    code: string,
+    state: string | undefined,
+    request: Request,
+    response: Response,
+  ): Promise<void> {
+    const frontendCallbackUrl = this.getGoogleLoginFrontendCallbackUrl();
+
+    try {
+      const authResponse = await this.handleGoogleLoginCallback(
+        code,
+        state,
+        request,
+      );
+      const redirectUrl = buildFrontendOauthRedirectUrl(frontendCallbackUrl, {
+        status: 'success',
+        provider: 'google',
+        purpose: 'login',
+        payload: encodeFrontendOauthPayload(authResponse),
+      });
+      response.redirect(HttpStatus.FOUND, redirectUrl);
+      return;
+    } catch (error) {
+      const oauthError = resolveFrontendOauthError(error);
+      const redirectUrl = buildFrontendOauthRedirectUrl(frontendCallbackUrl, {
+        status: 'error',
+        provider: 'google',
+        purpose: 'login',
+        errorCode: oauthError.code,
+        errorMessage: oauthError.message,
+      });
+      response.redirect(HttpStatus.FOUND, redirectUrl);
+      return;
+    }
+  }
+
+  private getGoogleLoginFrontendCallbackUrl(): string {
+    return (
+      this.configService.get<string>('FRONTEND_GOOGLE_LOGIN_CALLBACK_URL') ||
+      'http://localhost:5173/auth/callback/google'
     );
   }
 
@@ -156,7 +202,8 @@ export class SocialsController {
   @ApiBearerAuth('access-token')
   @Get('google/youtube/metrics')
   @ApiOperation({
-    summary: 'Pull YouTube channel, latest 10 videos, and analytics metrics(Dev)',
+    summary:
+      'Pull YouTube channel, latest 10 videos, and analytics metrics(Dev)',
   })
   @ApiQuery({
     name: 'days',

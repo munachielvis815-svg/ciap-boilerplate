@@ -22,6 +22,12 @@ Append-only notes for discoveries, decisions, and gotchas.
 
 ## Current Findings
 
+## OAuth Callback Frontend Redirect Strategy (2026-05-11)
+
+- Context: Google login and YouTube connect callbacks previously returned backend JSON directly after provider redirect.
+- Finding: Callback endpoints now redirect to frontend URLs and pass callback outcomes through URL fragment params with a base64url `payload`, using `FRONTEND_GOOGLE_LOGIN_CALLBACK_URL` and `FRONTEND_YOUTUBE_CONNECT_CALLBACK_URL`.
+- Impact: Frontend can complete both OAuth flows from dedicated callback pages without parsing raw backend JSON responses in the browser redirect step.
+
 ## Universal Search Uses pg_trgm Fuzzy Matching (2026-05-08)
 
 - Context: Added a universal creator search endpoint with fuzzy name/niche/bio matching.
