@@ -25,6 +25,7 @@ import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
 import type { AuthenticatedRequest } from '@/types/express';
 import {
   buildFrontendOauthRedirectUrl,
+  DEFAULT_FRONTEND_GOOGLE_LOGIN_CALLBACK_URL,
   encodeFrontendOauthPayload,
   resolveFrontendOauthError,
 } from '@utils/frontend-oauth-redirect.util';
@@ -167,7 +168,7 @@ export class SocialsController {
   private getGoogleLoginFrontendCallbackUrl(): string {
     return (
       this.configService.get<string>('FRONTEND_GOOGLE_LOGIN_CALLBACK_URL') ||
-      'http://localhost:5173/auth/callback/google'
+      DEFAULT_FRONTEND_GOOGLE_LOGIN_CALLBACK_URL
     );
   }
 

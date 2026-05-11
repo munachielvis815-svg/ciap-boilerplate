@@ -2,6 +2,11 @@ import { HttpException } from '@nestjs/common';
 
 type RedirectParamValue = string | number | boolean | null | undefined;
 
+export const DEFAULT_FRONTEND_GOOGLE_LOGIN_CALLBACK_URL =
+  'http://localhost:5173/auth/callback/google';
+export const DEFAULT_FRONTEND_YOUTUBE_CONNECT_CALLBACK_URL =
+  'http://localhost:5173/settings/integrations/youtube/callback';
+
 export function buildFrontendOauthRedirectUrl(
   baseUrl: string,
   params: Record<string, RedirectParamValue>,

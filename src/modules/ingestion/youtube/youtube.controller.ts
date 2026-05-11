@@ -28,6 +28,7 @@ import { MissingFieldException } from '@common/exceptions';
 import { YoutubeOauthCallbackQueryDto } from './dto/youtube-oauth-callback-query.dto';
 import {
   buildFrontendOauthRedirectUrl,
+  DEFAULT_FRONTEND_YOUTUBE_CONNECT_CALLBACK_URL,
   encodeFrontendOauthPayload,
   resolveFrontendOauthError,
 } from '@utils/frontend-oauth-redirect.util';
@@ -287,7 +288,7 @@ export class YoutubeIngestionController {
   private getYoutubeFrontendCallbackUrl(): string {
     return (
       this.configService.get<string>('FRONTEND_YOUTUBE_CONNECT_CALLBACK_URL') ||
-      'http://localhost:5173/settings/integrations/youtube/callback'
+      DEFAULT_FRONTEND_YOUTUBE_CONNECT_CALLBACK_URL
     );
   }
 }
