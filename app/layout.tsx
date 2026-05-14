@@ -1,21 +1,30 @@
 import type { Metadata } from 'next';
-import { Bricolage_Grotesque, Hanken_Grotesk } from 'next/font/google';
+import { Space_Grotesk, Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'sonner';
 import QueryProvider from '@/components/providers/QueryProvider';
 
-const bricolage = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-bricolage' });
-const hanken = Hanken_Grotesk({ subsets: ['latin'], variable: '--font-hanken' });
+const spaceGrotesk = Space_Grotesk({ 
+  subsets: ['latin'], 
+  variable: '--font-space-grotesk',
+  weight: ['400', '500', '600', '700'],
+});
+
+const inter = Inter({ 
+  subsets: ['latin'], 
+  variable: '--font-inter',
+  weight: ['400', '500', '600', '700'],
+});
 
 export const metadata: Metadata = {
-  title: 'domiron • Creator Analytics',
-  description: 'Unparalleled insight into market metrics.',
+  title: 'Omniview • Resource Intelligence',
+  description: 'Your resource intelligence for the creator economy.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${bricolage.variable} ${hanken.variable}`} suppressHydrationWarning>
-      <body className="font-[family-name:var(--font-hanken)] min-h-screen antialiased bg-[#FFF9F5] text-[#111111]">
+    <html lang="en" className={`${spaceGrotesk.variable} ${inter.variable}`} suppressHydrationWarning>
+      <body className="min-h-screen antialiased bg-[#F8F9FF] text-[#0B1C30] font-sans">
         <QueryProvider>
           {children}
           <Toaster position="top-center" richColors closeButton />

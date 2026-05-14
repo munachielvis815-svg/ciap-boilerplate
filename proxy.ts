@@ -5,7 +5,7 @@ export default function middleware(request: NextRequest) {
   const token = request.cookies.get('accessToken')?.value;
   const { pathname } = request.nextUrl;
 
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup');
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/onboarding') || pathname.startsWith('/welcome');
   const isLandingPage = pathname === '/';
   
   // Allow landing and auth pages without tokens
