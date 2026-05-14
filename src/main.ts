@@ -5,6 +5,8 @@ import helmet from 'helmet';
 import { Logger as PinoNestLogger, PinoLogger } from 'nestjs-pino';
 import type { NextFunction, Request, Response } from 'express';
 import type { LogLevel, NodeEnv } from '@/types';
+import type { Server as HttpServer } from 'http';
+import type { Socket } from 'net';
 import { WinstonLoggerService } from '@common/logging/winston.logger';
 import { AppModule } from './app.module';
 import { setupSwagger } from './swagger';
@@ -172,11 +174,47 @@ async function bootstrap() {
   // Setup Swagger/OpenAPI Documentation
   setupSwagger(app);
 
-  await app.listen(port, () => {
+  // Graceful shutdown state
+  let isShuttingDown = false;
+  const gracefulTimeout = Number(process.env.GRACEFUL_SHUTDOWN_TIMEOUT ?? 30000);
+
+  // Deny new requests once shutdown begins
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (isShuttingDown) {
+      res.setHeader('Connection', 'close');
+      return res.status(503).send('Server is restarting');
+    }
+    return next();
+  });
+
+  // Track active (in-flight) requests so we can wait for them on shutdown
+  let inflightRequests = 0;
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // If shutdown already started, don't increment (deny middleware handled it)
+    if (isShuttingDown) return next();
+
+    inflightRequests++;
+    const decrement = () => {
+      inflightRequests = Math.max(0, inflightRequests - 1);
+    };
+    res.once('finish', decrement);
+    res.once('close', decrement);
+    return next();
+  });
+
+  await app.listen(port);
+
+  const server = app.getHttpServer() as HttpServer;
+
+  const connections = new Set<Socket>();
+  server.on('connection', (socket: Socket) => {
+    connections.add(socket);
+    socket.on('close', () => connections.delete(socket));
+  });
+
+  const logStartup = () => {
     bootstrapLogger.log(`Server running on http://localhost:${port}`);
-    bootstrapLogger.log(
-      `Swagger docs available at http://localhost:${port}/api-docs`,
-    );
+    bootstrapLogger.log(`Swagger docs available at http://localhost:${port}/api-docs`);
     bootstrapLogger.log(`Health check at http://localhost:${port}/health`);
     bootstrapLogger.log(`Environment: ${nodeEnv}`);
     bootstrapLogger.log(`Logger enabled: ${logEnabled}`);
@@ -186,6 +224,76 @@ async function bootstrap() {
     bootstrapLogger.log(`Log to file: ${logToFile}`);
     bootstrapLogger.log(`HTTP access logs: ${httpLogEnabled}`);
     bootstrapLogger.log(`HTTP access mode: ${httpLogMode}`);
+  };
+
+  logStartup();
+
+  async function gracefulShutdown(signal?: string) {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    bootstrapLogger.log(`Received ${signal ?? 'shutdown'}, starting graceful shutdown`);
+
+    // Stop accepting new connections
+    try {
+      server.close((err) => {
+        if (err) {
+          bootstrapLogger.error('Error closing http server', err as any);
+        }
+      });
+    } catch (err) {
+      bootstrapLogger.error('Error calling server.close()', err as any);
+    }
+
+    // Allow Nest to run its lifecycle hooks (onModuleDestroy, beforeApplicationShutdown, etc.)
+    try {
+      await app.close();
+      bootstrapLogger.log('Nest application closed');
+    } catch (err) {
+      bootstrapLogger.error('Error while closing Nest application', err as any);
+    }
+
+    // Wait for in-flight requests to finish, or until timeout
+    const deadline = Date.now() + gracefulTimeout;
+    while (inflightRequests > 0 && Date.now() < deadline) {
+      bootstrapLogger.log(`Waiting for ${inflightRequests} in-flight request(s) to finish`);
+      // wait 100ms
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 100));
+    }
+
+    if (inflightRequests > 0) {
+      bootstrapLogger.log(`Timeout reached, forcing close of ${connections.size} open connections and ${inflightRequests} in-flight request(s)`);
+    } else {
+      bootstrapLogger.log('All in-flight requests completed');
+    }
+
+    if (connections.size > 0) {
+      connections.forEach((socket) => {
+        try {
+          socket.destroy();
+        } catch (e) {
+          // ignore
+        }
+      });
+    }
+
+    // exit explicitly to ensure the process stops if something else is keeping it alive
+    process.exit(0);
+  }
+
+  // Handle signals
+  process.once('SIGTERM', () => void gracefulShutdown('SIGTERM'));
+  process.once('SIGINT', () => void gracefulShutdown('SIGINT'));
+  process.once('SIGHUP', () => void gracefulShutdown('SIGHUP'));
+
+  // Unhandled errors -> attempt graceful shutdown
+  process.on('unhandledRejection', (reason) => {
+    bootstrapLogger.error('Unhandled Rejection:', reason as any);
+    void gracefulShutdown('unhandledRejection');
+  });
+  process.on('uncaughtException', (err) => {
+    bootstrapLogger.error('Uncaught Exception:', err as any);
+    void gracefulShutdown('uncaughtException');
   });
 }
 
