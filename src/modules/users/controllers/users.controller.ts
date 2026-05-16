@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+// Put decorator not used
 import {
   ApiOperation,
   ApiResponse,
@@ -17,12 +18,12 @@ import {
   ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { UsersService } from './users.service';
-import { UserDto } from './dto/user.dto';
-import { MeResponseDto } from './dto/me-response.dto';
-import { CreatorOnboardDto } from './dto/creator-onboard.dto';
-import { CreatorOnboardResponseDto } from './dto/creator-onboard-response.dto';
-import { UserPlatformStatusDto } from './dto/user-platform-status.dto';
+import { UsersService } from '../services/users.service';
+import { UserDto } from '../dto/user.dto';
+import { MeResponseDto } from '../dto/me-response.dto';
+import { CreatorOnboardDto } from '../dto/creator-onboard.dto';
+import { CreatorOnboardResponseDto } from '../dto/creator-onboard-response.dto';
+import { UserPlatformStatusDto } from '../dto/user-platform-status.dto';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
 import { RequireAbilities, Roles } from '@decorators/index';
 import type { AuthenticatedRequest } from '@/types/express';

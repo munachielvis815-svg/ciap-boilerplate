@@ -10,7 +10,7 @@ import {
 } from '@common/exceptions';
 import type { RequestUser } from '@/types';
 import type { YoutubeMetricsQueryDto } from '@modules/auth/socials/dto/youtube-metrics-query.dto';
-import { SocialsService } from '@modules/auth/socials/socials.service';
+import { SocialsService } from '@modules/auth/socials/services/socials.service';
 import { YoutubeNormalizationService } from './youtube-normalization.service';
 import { YoutubeRepository } from '../repository/youtube.repository';
 import { YoutubeCacheService } from './youtube-cache.service';

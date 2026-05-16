@@ -61,10 +61,10 @@ export class RedisCacheService {
     const ttlMs = ttl * 3600 * 1000;
 
     try {
-      await this.cacheManager.set(key, value, ttlMs);
+      await this.withTimeout(this.cacheManager.set(key, value, ttlMs));
       this.logger.debug(`Cached key '${key}' with TTL ${ttl}h`);
     } catch (error) {
-      this.logger.error(`Failed to cache key '${key}':`, error);
+      this.logger.error(`Failed to cache key '${key}': ${String(error)}`);
       // Non-critical: cache failure should not break application
     }
   }
@@ -80,10 +80,12 @@ export class RedisCacheService {
     }
 
     try {
-      const cached = await this.cacheManager.get<T>(key);
+      const cached = await this.withTimeout(this.cacheManager.get<T>(key));
       return cached ?? null;
     } catch (error) {
-      this.logger.error(`Failed to retrieve cache key '${key}':`, error);
+      this.logger.error(
+        `Failed to retrieve cache key '${key}': ${String(error)}`,
+      );
       return null;
     }
   }
@@ -101,10 +103,28 @@ export class RedisCacheService {
     }
 
     try {
-      await this.cacheManager.del(key);
+      await this.withTimeout(this.cacheManager.del(key));
       this.logger.debug(`Deleted cache key '${key}'`);
     } catch (error) {
-      this.logger.error(`Failed to delete cache key '${key}':`, error);
+      this.logger.error(
+        `Failed to delete cache key '${key}': ${String(error)}`,
+      );
+    }
+  }
+
+  private async withTimeout<T>(p: Promise<T>): Promise<T> {
+    const timeoutMs = Number(process.env.CACHE_OP_TIMEOUT_MS || '2000');
+    let timer: NodeJS.Timeout;
+    const timeoutPromise = new Promise<never>((_, rej) => {
+      timer = setTimeout(
+        () => rej(new Error('cache-operation-timeout')),
+        timeoutMs,
+      );
+    });
+    try {
+      return await Promise.race([p, timeoutPromise]);
+    } finally {
+      clearTimeout(timer!);
     }
   }
 

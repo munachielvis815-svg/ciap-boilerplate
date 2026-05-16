@@ -6,7 +6,7 @@ import {
   HttpException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { Logger } from '@nestjs/common';
+import { WinstonLoggerService } from '@common/logging/logger';
 
 /**
  * Catch-all exception filter for unexpected errors.
@@ -15,7 +15,13 @@ import { Logger } from '@nestjs/common';
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-  private logger = new Logger('AllExceptionsFilter');
+  private logger = new WinstonLoggerService('AllExceptionsFilter', {
+    level: process.env.LOG_LEVEL || 'error',
+    formatMode: process.env.LOG_FORMAT === 'pretty' ? 'pretty' : 'json',
+    toFile: process.env.LOG_TO_FILE === 'true',
+    filePath: process.env.LOG_FILE_PATH || './logs/ciap.log',
+    fileLevel: process.env.LOG_FILE_LEVEL || process.env.LOG_LEVEL || 'error',
+  });
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -56,15 +62,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
           ? JSON.stringify(errorResponse.details)
           : undefined;
 
+      const logMessage = `${method} ${path} - ${statusCode}: ${String(formattedResponse.message)}`;
       if (statusCode >= 500) {
+        const stack = exception instanceof Error ? exception.stack : undefined;
         this.logger.error(
-          `${method} ${path} - ${statusCode}: ${String(formattedResponse.message)}`,
-          exception.stack,
+          logMessage,
+          stack ?? undefined,
+          'AllExceptionsFilter',
         );
       } else {
         const detailsSuffix = details ? ` | details=${details}` : '';
         this.logger.warn(
-          `${method} ${path} - ${statusCode}: ${String(formattedResponse.message)}${detailsSuffix}`,
+          `${logMessage}${detailsSuffix}`,
+          'AllExceptionsFilter',
         );
       }
 
@@ -100,7 +110,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
 
     // Log full error details internally
-    this.logger.error(`${method} ${path} - 500: ${errorMessage}`, errorStack);
+    const logMessage = `${method} ${path} - 500: ${errorMessage}`;
+    this.logger.error(
+      logMessage,
+      errorStack || undefined,
+      'AllExceptionsFilter',
+    );
 
     // Send safe response
     response.status(statusCode).json(formattedResponse);

@@ -22,6 +22,18 @@ Append-only notes for discoveries, decisions, and gotchas.
 
 ## Current Findings
 
+## Auth Token Cookies Are Centralized (2026-05-16)
+
+- Context: Applied httpOnly access/refresh cookies beyond Google OAuth callbacks to local user/admin signup and login.
+- Finding: Auth token cookies are set through `setAuthTokenCookies` in `src/modules/auth/utils`, using `ciap_access` and `ciap_refresh` with `httpOnly: true`, `SameSite=Lax`, and `Secure` only in production. Public auth responses are stripped through `toPublicAuthResponse` and must not include raw token fields.
+- Impact: Future auth endpoints that issue first-party tokens should reuse the helper instead of duplicating cookie options or returning `accessToken`/`refreshToken` in JSON.
+
+## Auth And Users Modules Use Layer Folders (2026-05-16)
+
+- Context: Reorganized scattered auth/users module files after cookie auth work.
+- Finding: `auth`, `auth/socials`, and `users` now keep module files at the module root and place controllers, services, repositories, utilities, and jobs in matching subfolders.
+- Impact: New files in these modules should follow the layer-folder layout and import via aliases or the nearest clear relative path.
+
 ## Universal Search Uses pg_trgm Fuzzy Matching (2026-05-08)
 
 - Context: Added a universal creator search endpoint with fuzzy name/niche/bio matching.

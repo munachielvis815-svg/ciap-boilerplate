@@ -7,7 +7,13 @@ import type { NextFunction, Request, Response } from 'express';
 import type { LogLevel, NodeEnv } from '@/types';
 import type { Server as HttpServer } from 'http';
 import type { Socket } from 'net';
-import { WinstonLoggerService } from '@common/logging/winston.logger';
+import { WinstonLoggerService } from '@common/logging/logger';
+import {
+  requestContextMiddleware,
+  getUserId,
+} from '@common/logging/request-context';
+import { RequestContextInterceptor } from '@common/interceptors/request-context.interceptor';
+import { LoggingInterceptor } from '@common/interceptors/logging.interceptor';
 import { AppModule } from './app.module';
 import { setupSwagger } from './swagger';
 
@@ -81,6 +87,13 @@ async function bootstrap() {
     app.useLogger(winstonLogger);
   }
 
+  // Create per-request AsyncLocalStorage context and populate userId later in a global interceptor
+  app.use(requestContextMiddleware);
+  app.useGlobalInterceptors(
+    new RequestContextInterceptor(),
+    new LoggingInterceptor(),
+  );
+
   const pinoAccessLogger = logBackend === 'pino' ? PinoLogger.root : null;
   const nestAccessLogger = logBackend === 'nest' ? new Logger('HTTP') : null;
   const winstonAccessLogger =
@@ -94,54 +107,62 @@ async function bootstrap() {
         })
       : null;
 
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    if (!logEnabled || !httpLogEnabled || httpLogMode === 'off') {
+  app.use(
+    (
+      req: Request & { __userId?: number; user?: { id?: number | string } },
+      res: Response,
+      next: NextFunction,
+    ) => {
+      if (!logEnabled || !httpLogEnabled || httpLogMode === 'off') {
+        return next();
+      }
+
+      const startedAt = Date.now();
+      res.on('finish', () => {
+        const responseTime = Date.now() - startedAt;
+        const method = req.method;
+        const url = req.originalUrl || req.url;
+        const statusCode = res.statusCode;
+        const ip = req.ip || req.socket.remoteAddress || '-';
+        const userAgent = req.get('user-agent') || '-';
+        const contentLength = res.getHeader('content-length') || '-';
+        if (httpLogMode === 'errors' && statusCode < 400) {
+          return;
+        }
+
+        const resolvedUserId =
+          getUserId() ?? req.__userId ?? req.user?.id ?? '-';
+        const message = `${method} ${url} status=${statusCode} duration=${responseTime}ms ip=${ip} bytes=${String(contentLength)} ua="${String(userAgent)}" userId=${String(resolvedUserId)}`;
+
+        if (statusCode >= 500) {
+          if (pinoAccessLogger) {
+            pinoAccessLogger.error({ context: 'HTTP' }, message);
+          } else if (nestAccessLogger) {
+            nestAccessLogger.error(message);
+          } else if (winstonAccessLogger) {
+            winstonAccessLogger.error(message);
+          }
+        } else if (statusCode >= 400) {
+          if (pinoAccessLogger) {
+            pinoAccessLogger.warn({ context: 'HTTP' }, message);
+          } else if (nestAccessLogger) {
+            nestAccessLogger.warn(message);
+          } else if (winstonAccessLogger) {
+            winstonAccessLogger.warn(message);
+          }
+        } else {
+          if (pinoAccessLogger) {
+            pinoAccessLogger.info({ context: 'HTTP' }, message);
+          } else if (nestAccessLogger) {
+            nestAccessLogger.log(message);
+          } else if (winstonAccessLogger) {
+            winstonAccessLogger.log(message);
+          }
+        }
+      });
       return next();
-    }
-
-    const startedAt = Date.now();
-    res.on('finish', () => {
-      const responseTime = Date.now() - startedAt;
-      const method = req.method;
-      const url = req.originalUrl || req.url;
-      const statusCode = res.statusCode;
-      const ip = req.ip || req.socket.remoteAddress || '-';
-      const userAgent = req.get('user-agent') || '-';
-      const contentLength = res.getHeader('content-length') || '-';
-      if (httpLogMode === 'errors' && statusCode < 400) {
-        return;
-      }
-
-      const message = `${method} ${url} status=${statusCode} duration=${responseTime}ms ip=${ip} bytes=${String(contentLength)} ua="${String(userAgent)}"`;
-
-      if (statusCode >= 500) {
-        if (pinoAccessLogger) {
-          pinoAccessLogger.error({ context: 'HTTP' }, message);
-        } else if (nestAccessLogger) {
-          nestAccessLogger.error(message);
-        } else if (winstonAccessLogger) {
-          winstonAccessLogger.error(message);
-        }
-      } else if (statusCode >= 400) {
-        if (pinoAccessLogger) {
-          pinoAccessLogger.warn({ context: 'HTTP' }, message);
-        } else if (nestAccessLogger) {
-          nestAccessLogger.warn(message);
-        } else if (winstonAccessLogger) {
-          winstonAccessLogger.warn(message);
-        }
-      } else {
-        if (pinoAccessLogger) {
-          pinoAccessLogger.info({ context: 'HTTP' }, message);
-        } else if (nestAccessLogger) {
-          nestAccessLogger.log(message);
-        } else if (winstonAccessLogger) {
-          winstonAccessLogger.log(message);
-        }
-      }
-    });
-    return next();
-  });
+    },
+  );
 
   // Security headers
   app.use(
@@ -176,7 +197,9 @@ async function bootstrap() {
 
   // Graceful shutdown state
   let isShuttingDown = false;
-  const gracefulTimeout = Number(process.env.GRACEFUL_SHUTDOWN_TIMEOUT ?? 30000);
+  const gracefulTimeout = Number(
+    process.env.GRACEFUL_SHUTDOWN_TIMEOUT ?? 30000,
+  );
 
   // Deny new requests once shutdown begins
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -214,7 +237,9 @@ async function bootstrap() {
 
   const logStartup = () => {
     bootstrapLogger.log(`Server running on http://localhost:${port}`);
-    bootstrapLogger.log(`Swagger docs available at http://localhost:${port}/api-docs`);
+    bootstrapLogger.log(
+      `Swagger docs available at http://localhost:${port}/api-docs`,
+    );
     bootstrapLogger.log(`Health check at http://localhost:${port}/health`);
     bootstrapLogger.log(`Environment: ${nodeEnv}`);
     bootstrapLogger.log(`Logger enabled: ${logEnabled}`);
@@ -228,20 +253,31 @@ async function bootstrap() {
 
   logStartup();
 
+  function formatError(err: unknown): string | undefined {
+    if (err instanceof Error) return err.stack || err.message;
+    try {
+      return typeof err === 'string' ? err : JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+
   async function gracefulShutdown(signal?: string) {
     if (isShuttingDown) return;
     isShuttingDown = true;
-    bootstrapLogger.log(`Received ${signal ?? 'shutdown'}, starting graceful shutdown`);
+    bootstrapLogger.log(
+      `Received ${signal ?? 'shutdown'}, starting graceful shutdown`,
+    );
 
     // Stop accepting new connections
     try {
       server.close((err) => {
         if (err) {
-          bootstrapLogger.error('Error closing http server', err as any);
+          bootstrapLogger.error('Error closing http server', formatError(err));
         }
       });
     } catch (err) {
-      bootstrapLogger.error('Error calling server.close()', err as any);
+      bootstrapLogger.error('Error calling server.close()', formatError(err));
     }
 
     // Allow Nest to run its lifecycle hooks (onModuleDestroy, beforeApplicationShutdown, etc.)
@@ -249,20 +285,27 @@ async function bootstrap() {
       await app.close();
       bootstrapLogger.log('Nest application closed');
     } catch (err) {
-      bootstrapLogger.error('Error while closing Nest application', err as any);
+      bootstrapLogger.error(
+        'Error while closing Nest application',
+        formatError(err),
+      );
     }
 
     // Wait for in-flight requests to finish, or until timeout
     const deadline = Date.now() + gracefulTimeout;
     while (inflightRequests > 0 && Date.now() < deadline) {
-      bootstrapLogger.log(`Waiting for ${inflightRequests} in-flight request(s) to finish`);
+      bootstrapLogger.log(
+        `Waiting for ${inflightRequests} in-flight request(s) to finish`,
+      );
       // wait 100ms
-      // eslint-disable-next-line no-await-in-loop
+
       await new Promise((r) => setTimeout(r, 100));
     }
 
     if (inflightRequests > 0) {
-      bootstrapLogger.log(`Timeout reached, forcing close of ${connections.size} open connections and ${inflightRequests} in-flight request(s)`);
+      bootstrapLogger.log(
+        `Timeout reached, forcing close of ${connections.size} open connections and ${inflightRequests} in-flight request(s)`,
+      );
     } else {
       bootstrapLogger.log('All in-flight requests completed');
     }
@@ -271,7 +314,7 @@ async function bootstrap() {
       connections.forEach((socket) => {
         try {
           socket.destroy();
-        } catch (e) {
+        } catch {
           // ignore
         }
       });
@@ -288,11 +331,11 @@ async function bootstrap() {
 
   // Unhandled errors -> attempt graceful shutdown
   process.on('unhandledRejection', (reason) => {
-    bootstrapLogger.error('Unhandled Rejection:', reason as any);
+    bootstrapLogger.error('Unhandled Rejection:', formatError(reason));
     void gracefulShutdown('unhandledRejection');
   });
   process.on('uncaughtException', (err) => {
-    bootstrapLogger.error('Uncaught Exception:', err as any);
+    bootstrapLogger.error('Uncaught Exception:', formatError(err));
     void gracefulShutdown('uncaughtException');
   });
 }

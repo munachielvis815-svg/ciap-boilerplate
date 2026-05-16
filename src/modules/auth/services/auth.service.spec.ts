@@ -1,5 +1,5 @@
 import { AuthService } from './auth.service';
-import type { AuthResponseDto } from './dto/auth-response.dto';
+import type { AuthTokenResponseDto } from '../dto/auth-response.dto';
 
 describe('AuthService', () => {
   it('does not overwrite stored Google integration tokens during Google login', async () => {
@@ -49,7 +49,7 @@ describe('AuthService', () => {
         accessToken: 'app-access-token',
         refreshToken: 'app-refresh-token',
         expiresIn: 900,
-      } satisfies AuthResponseDto),
+      } satisfies AuthTokenResponseDto),
     } as never;
 
     const googleOauthService = {
@@ -77,6 +77,10 @@ describe('AuthService', () => {
       get: jest.fn(),
     } as never;
 
+    const usersCacheService = {
+      deleteMe: jest.fn(),
+    } as never;
+
     const service = new AuthService(
       usersRepository,
       sessionsService,
@@ -84,6 +88,7 @@ describe('AuthService', () => {
       tokensService,
       googleOauthService,
       configService,
+      usersCacheService,
     );
 
     const request = {

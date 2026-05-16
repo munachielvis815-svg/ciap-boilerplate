@@ -14,8 +14,8 @@ Quick map of the repository and where new code should go.
 
 ## Source Layout
 
-- `src/modules/auth`: local/admin auth endpoints, token/session lifecycle, and strategies
-- `src/modules/auth/socials`: social provider auth flows (Google), token refresh, and social metrics pull helpers
+- `src/modules/auth`: local/admin auth endpoints, token/session lifecycle, and strategies, organized by layer folders
+- `src/modules/auth/socials`: social provider auth flows (Google), token refresh, and social metrics pull helpers, organized by layer folders
 - `src/modules/ingestion`: ingestion entry module for external platform pulls
 - `src/modules/ingestion/youtube`: YouTube ingestion routes and service
 - `src/modules/creator-insights`: creator audience/content insight endpoints
@@ -24,7 +24,7 @@ Quick map of the repository and where new code should go.
 - `src/modules/health`: health endpoints and DTOs
 - `src/modules/rbac`: role ability policy service and RBAC module wiring
 - `src/modules/sessions`: session persistence module for refresh lifecycle
-- `src/modules/users`: users controller, service, repository, DTOs
+- `src/modules/users`: users controller, service, repository, DTOs, organized by layer folders
 - `src/common/bases`: shared base classes
 - `src/common/constants`: shared constants (RBAC roles + abilities)
 - `src/common/decorators`: route metadata decorators (`Public`, `Roles`, `RequireAbilities`)
@@ -42,13 +42,18 @@ Use this pattern for new modules:
 ```text
 src/modules/<feature>/
   <feature>.module.ts
-  <feature>.controller.ts
-  <feature>.service.ts
-  <feature>.repository.ts
+  controllers/
+    <feature>.controller.ts
+  services/
+    <feature>.service.ts
+    <feature>.service.spec.ts
+  repositories/
+    <feature>.repository.ts
+  utils/
   dto/
 ```
 
-Add `*.spec.ts` beside the source file for unit tests when needed.
+Module files stay at the module root. Add `*.spec.ts` beside the source file for unit tests when needed. Existing subfeature folders such as `auth/socials` follow the same folder ordering where they own controllers/services/jobs locally.
 
 ## Ownership By Layer
 
@@ -67,6 +72,7 @@ Global validation and CORS are configured in `src/main.ts`.
 
 - Shared exceptions belong in `src/common/exceptions`.
 - Shared filters belong in `src/common/filters`.
+- Feature controllers, services, repositories, utilities, and jobs belong in matching module-local folders.
 - Schema changes belong in `src/database/drizzle/schema.ts`.
 - Migrations stay under `src/database/drizzle/migrations/`.
 - One-off or historical notes belong in `agent-docs/findings.md`.

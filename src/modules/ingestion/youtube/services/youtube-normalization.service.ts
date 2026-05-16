@@ -33,6 +33,45 @@ export type NormalizedYoutubeDailyAnalytics = Omit<
   channelId: number; // must be set by caller after channel insert
 };
 
+type YoutubeStatisticValue = string | number | null | undefined;
+
+type NormalizableYoutubeChannel = {
+  title?: string | null;
+  description?: string | null;
+  thumbnails?: Record<string, { url?: string }> | null;
+  snippet?: {
+    title?: string | null;
+    description?: string | null;
+    thumbnails?: Record<string, { url?: string }> | null;
+  };
+  statistics?: {
+    subscriberCount?: YoutubeStatisticValue;
+    viewCount?: YoutubeStatisticValue;
+    videoCount?: YoutubeStatisticValue;
+  };
+  contentDetails?: { relatedPlaylists?: { uploads?: string | null } };
+};
+
+type NormalizableYoutubeVideo = {
+  id?: string;
+  title?: string | null;
+  description?: string | null;
+  publishedAt?: string | null;
+  durationSeconds?: number | null;
+  thumbnails?: object | null;
+  snippet?: {
+    title?: string | null;
+    description?: string | null;
+    publishedAt?: string | null;
+  };
+  statistics?: {
+    viewCount?: YoutubeStatisticValue;
+    likeCount?: YoutubeStatisticValue;
+    commentCount?: YoutubeStatisticValue;
+  };
+  contentDetails?: { duration?: string | null };
+};
+
 @Injectable()
 export class YoutubeNormalizationService {
   private readonly logger = new Logger(YoutubeNormalizationService.name);
@@ -43,39 +82,30 @@ export class YoutubeNormalizationService {
    */
   normalizeChannel(
     youtubeChannelId: string,
-    raw: {
-      snippet?: {
-        title?: string;
-        description?: string;
-        thumbnails?: Record<string, object>;
-      };
-      statistics?: {
-        subscriberCount?: string;
-        viewCount?: string;
-        videoCount?: string;
-      };
-      contentDetails?: { relatedPlaylists?: { uploads?: string } };
-    } | null,
+    raw: NormalizableYoutubeChannel | null,
     userId: number,
   ): NormalizedYoutubeChannel | null {
-    if (!raw || !raw.snippet) {
-      this.logger.warn(`Channel ${youtubeChannelId} missing snippet data`);
+    const title = raw?.snippet?.title ?? raw?.title ?? null;
+    if (!raw || !title) {
+      this.logger.warn(`Channel ${youtubeChannelId} missing title data`);
       return null;
     }
 
     const stats = raw.statistics || {};
-    const thumbnail = this.getThumbnailUrl(raw.snippet.thumbnails);
+    const thumbnail = this.getThumbnailUrl(
+      raw.snippet?.thumbnails ?? raw.thumbnails,
+    );
     const uploadPlaylist = raw.contentDetails?.relatedPlaylists?.uploads;
 
     return {
       userId,
       youtubeChannelId,
-      channelTitle: raw.snippet.title || null,
-      channelDescription: raw.snippet.description || null,
+      channelTitle: title,
+      channelDescription: raw.snippet?.description ?? raw.description ?? null,
       thumbnailUrl: thumbnail,
-      subscriberCount: this.parseStringInt(stats.subscriberCount),
-      videoCount: this.parseStringInt(stats.videoCount),
-      totalViewCount: Number(this.parseStringBigInt(stats.viewCount)),
+      subscriberCount: this.parseNumberishInt(stats.subscriberCount),
+      videoCount: this.parseNumberishInt(stats.videoCount),
+      totalViewCount: Number(this.parseNumberishBigInt(stats.viewCount)),
       uploadPlaylistId: uploadPlaylist || null,
       isApproved: false,
       approvedAt: null,
@@ -86,37 +116,28 @@ export class YoutubeNormalizationService {
    * Normalize raw YouTube videos to database schema.
    * Extracts engagement metrics and parses ISO8601 duration to seconds.
    */
-  normalizeVideos(
-    raw: Array<{
-      id?: string;
-      snippet?: { title?: string; description?: string; publishedAt?: string };
-      statistics?: {
-        viewCount?: string;
-        likeCount?: string;
-        commentCount?: string;
-      };
-      contentDetails?: { duration?: string };
-    }>,
-  ): NormalizedYoutubeVideo[] {
+  normalizeVideos(raw: NormalizableYoutubeVideo[]): NormalizedYoutubeVideo[] {
     return raw
-      .filter((video) => video.id && video.snippet)
+      .filter((video) => video.id && (video.snippet || video.title))
       .map((video) => {
         const stats = video.statistics || {};
         const duration = video.contentDetails?.duration
           ? this.parseIso8601Duration(video.contentDetails.duration)
-          : null;
+          : (video.durationSeconds ?? null);
 
         return {
           youtubeVideoId: video.id!,
-          videoTitle: video.snippet?.title || null,
-          videoDescription: video.snippet?.description || null,
+          videoTitle: video.snippet?.title ?? video.title ?? null,
+          videoDescription:
+            video.snippet?.description ?? video.description ?? null,
           durationSeconds: duration,
-          viewCount: this.parseStringInt(stats.viewCount),
-          likeCount: this.parseStringInt(stats.likeCount),
-          commentCount: this.parseStringInt(stats.commentCount),
-          publishedAt: video.snippet?.publishedAt
-            ? new Date(video.snippet.publishedAt)
-            : null,
+          viewCount: this.parseNumberishInt(stats.viewCount),
+          likeCount: this.parseNumberishInt(stats.likeCount),
+          commentCount: this.parseNumberishInt(stats.commentCount),
+          publishedAt:
+            (video.snippet?.publishedAt ?? video.publishedAt)
+              ? new Date(video.snippet?.publishedAt ?? video.publishedAt!)
+              : null,
         };
       });
   }
@@ -190,6 +211,14 @@ export class YoutubeNormalizationService {
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
   }
 
+  private parseNumberishInt(value: YoutubeStatisticValue): number {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+    }
+
+    return this.parseStringInt(value);
+  }
+
   /**
    * Safely parse YouTube's string big integer to JavaScript BigInt.
    * JS integers are safe up to 2^53-1 (~9 * 10^15), but YouTube view counts can exceed this.
@@ -207,12 +236,22 @@ export class YoutubeNormalizationService {
     }
   }
 
+  private parseNumberishBigInt(value: YoutubeStatisticValue): bigint {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) && value >= 0
+        ? BigInt(Math.floor(value))
+        : 0n;
+    }
+
+    return this.parseStringBigInt(value);
+  }
+
   /**
    * Extract highest resolution thumbnail URL.
    * YouTube API returns thumbnails in order: default, medium, high.
    */
   private getThumbnailUrl(
-    thumbnails: Record<string, { url?: string }> | undefined,
+    thumbnails: Record<string, { url?: string }> | null | undefined,
   ): string | null {
     if (!thumbnails || typeof thumbnails !== 'object') {
       return null;

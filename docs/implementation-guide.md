@@ -107,3 +107,11 @@ For route behavior changes, also run targeted tests or manual route checks.
 - [ ] `docs/api.md` updated
 - [ ] Related docs updated (`database`, `environment`, `project-structure`) where applicable
 - [ ] `tasks/todo.md` updated with plan/progress/result
+
+## Operational & Logging Changes
+
+- Graceful shutdown: the app now sets a shutdown flag, stops accepting new connections, waits for in-flight requests to complete (configurable via `GRACEFUL_SHUTDOWN_TIMEOUT`, default 30000ms), then runs Nest lifecycle hooks and force-closes remaining sockets. Update deployment healthchecks and drain logic to signal the process and allow time for requests to finish.
+
+- Request-scoped logging: a request context (AsyncLocalStorage) captures `userId` from `request.user.id` via a global interceptor so log lines include `userId` metadata automatically. Ensure long-running background tasks do not rely on request context.
+
+- Unified logger filename: logger implementation consolidated to `src/common/logging/logger.ts`. If you switch logging backends (Pino vs Winston), add a small adapter so `userId` metadata is injected consistently.

@@ -1,5 +1,5 @@
 import { UsersService } from './users.service';
-import type { UsersRepository } from './users.repository';
+import type { UsersRepository } from '../repositories/users.repository';
 import type { CreatorInsightsService } from '@modules/creator-insights/creator-insights.service';
 import type { UsersCacheService } from './users-cache.service';
 import type { User, UserProfile } from '@database/drizzle/schema';

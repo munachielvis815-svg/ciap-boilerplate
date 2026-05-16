@@ -16,10 +16,10 @@ import {
   MissingFieldException,
 } from '@common/exceptions';
 import type { PublicOnboardingRole } from '@constants/roles.constant';
-import { UsersRepository } from '@modules/users/users.repository';
-import { AuthRepository } from './auth.repository';
+import { UsersRepository } from '@modules/users/repositories/users.repository';
+import { AuthRepository } from '../repositories/auth.repository';
 import { AuthTokensService } from './auth-tokens.service';
-import type { OAuth2Provider } from './dto/oauth2-provider.dto';
+import type { OAuth2Provider } from '../dto/oauth2-provider.dto';
 import type { RequestUser } from '@/types';
 
 export type GoogleOauthPurpose = 'login' | 'youtube-connect';

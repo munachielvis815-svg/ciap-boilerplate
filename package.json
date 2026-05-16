@@ -1,6 +1,6 @@
 {
   "name": "CIAP",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Creative Influence and Analytics Platform for SMEs and creators ",
   "author": "group2",
   "private": true,
@@ -59,6 +59,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.4",
     "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "crypto-js": "^4.2.0",
     "dotenv": "^17.4.2",

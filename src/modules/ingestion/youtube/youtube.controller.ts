@@ -124,7 +124,8 @@ export class YoutubeIngestionController {
   @ApiBearerAuth('access-token')
   @Get('oauth2')
   @ApiOperation({
-    summary: 'Prepare Google OAuth2 flow to connect YouTube for creators(Client)',
+    summary:
+      'Prepare Google OAuth2 flow to connect YouTube for creators(Client)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -144,7 +145,8 @@ export class YoutubeIngestionController {
   @Public()
   @Get('oauth2/callback')
   @ApiOperation({
-    summary: 'Google OAuth2 callback for YouTube connect and immediate sync(Internal)',
+    summary:
+      'Google OAuth2 callback for YouTube connect and immediate sync(Internal)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -241,7 +243,8 @@ export class YoutubeIngestionController {
   @ApiBearerAuth('access-token')
   @Post('approve')
   @ApiOperation({
-    summary: 'Approve YouTube channel for analytics and growth tracking(Internal)',
+    summary:
+      'Approve YouTube channel for analytics and growth tracking(Internal)',
   })
   @ApiResponse({
     status: HttpStatus.OK,

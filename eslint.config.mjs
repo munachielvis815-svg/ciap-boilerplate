@@ -14,6 +14,7 @@ export default tseslint.config(
       'node_modules',
       'logs',
       'workers/**',
+      'scripts/**',
       'test/load/**',
       '**/*.spec.ts',
       '**/*e2e*.ts',

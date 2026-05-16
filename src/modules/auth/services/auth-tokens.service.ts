@@ -17,8 +17,12 @@ import {
   TokenExpiredException,
 } from '@common/exceptions';
 import { SessionsService } from '@modules/sessions/sessions.service';
-import type { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
-import { getRequestIp } from './auth.utils';
+import { UsersRepository } from '@modules/users/repositories/users.repository';
+import type {
+  AuthTokenResponseDto,
+  AuthUserDto,
+} from '../dto/auth-response.dto';
+import { getRequestIp } from '../utils/auth.utils';
 
 type AccessTokenPayload = {
   sub: number;
@@ -46,6 +50,7 @@ export class AuthTokensService {
   constructor(
     private readonly sessionsService: SessionsService,
     private readonly configService: ConfigService,
+    private readonly usersRepository: UsersRepository,
   ) {
     this.accessPrivateKey = this.normalizePemKey(
       this.configService.get<string>('JWT_ACCESS_PRIVATE_KEY'),
@@ -73,7 +78,10 @@ export class AuthTokensService {
       '7d';
   }
 
-  async issueTokens(user: User, request: Request): Promise<AuthResponseDto> {
+  async issueTokens(
+    user: User,
+    request: Request,
+  ): Promise<AuthTokenResponseDto> {
     const sessionId = randomUUID();
     const accessTokenPayload: AccessTokenPayload = {
       sub: user.id,
@@ -111,7 +119,7 @@ export class AuthTokensService {
     });
 
     return {
-      user: this.mapUser(user),
+      user: await this.mapUser(user),
       accessToken,
       refreshToken,
       expiresIn: Math.floor(
@@ -180,7 +188,8 @@ export class AuthTokensService {
     return this.refreshExpiresIn;
   }
 
-  private mapUser(user: User): AuthUserDto {
+  private async mapUser(user: User): Promise<AuthUserDto> {
+    const profile = await this.usersRepository.getProfileByUserId(user.id);
     return {
       id: user.id,
       email: user.email,
@@ -188,6 +197,7 @@ export class AuthTokensService {
       role: user.role,
       tenantId: user.tenantId,
       isEmailVerified: user.isEmailVerified,
+      avatarUrl: profile?.avatarUrl ?? null,
     };
   }
 

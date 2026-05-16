@@ -12,9 +12,14 @@ Updated for the current NestJS codebase on 2026-04-09.
 - Access token: JWT signed with `ES256`
 - Refresh token: JWT signed with `ES512`
 - Refresh tokens are session-backed:
-  - raw token is returned once to client
+  - raw token is delivered in the `ciap_refresh` httpOnly cookie
   - SHA-256 hash is stored in `sessions.refresh_token_hash`
   - refresh rotates by revoking old session and creating a new one
+- Successful signup, login, OAuth login callback, and refresh responses set httpOnly cookies:
+  - `ciap_access` contains the access token and expires with `expiresIn`
+  - `ciap_refresh` contains the refresh token and defaults to 7 days
+  - cookies use `SameSite=Lax` and `Secure` in production
+- Auth JSON responses do not include `accessToken` or `refreshToken`.
 
 Use bearer auth on protected endpoints:
 
@@ -42,6 +47,9 @@ Authorization: Bearer <access_token>
 - `GET /auth/verify` - verify access token + session (protected)
 - `POST /auth/logout` - revoke current session (protected)
 - `GET /auth/roles` - list roles (protected, `admin` only)
+- `PATCH /auth/me/password` - set or change the authenticated user's password (protected)
+  - Request body (JSON): `currentPassword` (optional if no password), `newPassword` (required)
+  - Response: `{ "success": true }`
 
 ### Auth social providers
 
@@ -96,6 +104,7 @@ Deprecated (excluded from Swagger):
 - `GET /users/:id` - get user by id (protected + RBAC + abilities)
 - `GET /users?limit=10&offset=0` - list tenant users (protected, `sme` only)
 - `GET /users/admin/all?limit=10&offset=0` - list users across tenants (protected, `admin` only)
+- `PATCH /users/me/password` - set or change the authenticated user's password (protected)
 
 ## Request and Response Examples
 
@@ -124,23 +133,25 @@ Response shape:
     "tenantId": 2,
     "isEmailVerified": false
   },
-  "accessToken": "<jwt>",
-  "refreshToken": "<jwt>",
   "expiresIn": 900
 }
 ```
 
+Tokens are set only as `ciap_access` and `ciap_refresh` httpOnly cookies.
+
 ### Login
 
 `POST /auth/login` does not accept admin accounts. Admin must use `/auth/admin/login`.
+Both `/auth/login` and `/auth/admin/login` return the tokenless auth response body and set httpOnly token cookies.
 
 ### Refresh
 
 ```bash
 curl -X POST http://localhost:3000/auth/refresh \
-  -H "Content-Type: application/json" \
-  -d '{"refreshToken":"<refresh_token>"}'
+  --cookie "ciap_refresh=<refresh_token>"
 ```
+
+For backwards compatibility, `/auth/refresh` also accepts `{ "refreshToken": "<refresh_token>" }` in the JSON body. The response rotates both httpOnly cookies and omits token body fields.
 
 ### Verify session
 

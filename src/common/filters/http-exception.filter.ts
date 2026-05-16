@@ -6,7 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { Logger } from '@nestjs/common';
+import { WinstonLoggerService } from '@common/logging/logger';
 
 /**
  * Filter for handling HttpException and subclasses.
@@ -14,7 +14,13 @@ import { Logger } from '@nestjs/common';
  */
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
-  private logger = new Logger('HttpExceptionFilter');
+  private logger = new WinstonLoggerService('HttpExceptionFilter', {
+    level: process.env.LOG_LEVEL || 'error',
+    formatMode: process.env.LOG_FORMAT === 'pretty' ? 'pretty' : 'json',
+    toFile: process.env.LOG_TO_FILE === 'true',
+    filePath: process.env.LOG_FILE_PATH || './logs/ciap.log',
+    fileLevel: process.env.LOG_FILE_LEVEL || process.env.LOG_LEVEL || 'error',
+  });
 
   catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -52,16 +58,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? JSON.stringify(errorResponse.details)
         : undefined;
 
+    const logMessage = `${request.method} ${request.url} - ${statusCode}: ${String(
+      formattedResponse.message,
+    )}`;
     if (statusCode >= 500) {
-      this.logger.error(
-        `${request.method} ${request.url} - ${statusCode}: ${String(formattedResponse.message)}`,
-        exception.stack,
-      );
+      const stack =
+        (exception as unknown) instanceof Error
+          ? (exception as Error).stack
+          : undefined;
+      this.logger.error(logMessage, stack ?? undefined, 'HttpExceptionFilter');
     } else {
       const detailsSuffix = details ? ` | details=${details}` : '';
-      this.logger.warn(
-        `${request.method} ${request.url} - ${statusCode}: ${String(formattedResponse.message)}${detailsSuffix}`,
-      );
+      this.logger.warn(`${logMessage}${detailsSuffix}`, 'HttpExceptionFilter');
     }
 
     // Send response (no stack trace to client)

@@ -5,7 +5,7 @@ import {
 } from '@common/exceptions';
 import type { RequestUser } from '@/types';
 import { SocialsService } from './socials.service';
-import { YoutubeMetricsQueryDto } from './dto/youtube-metrics-query.dto';
+import { YoutubeMetricsQueryDto } from '../dto/youtube-metrics-query.dto';
 
 describe('SocialsService', () => {
   it('returns oauth2-link-required details when stored Google token lacks YouTube scopes', async () => {

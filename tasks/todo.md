@@ -24,6 +24,72 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Remove auth tokens from JSON responses
+
+- Date: 2026-05-16
+- Request: Inspect auth and OAuth endpoints now that cookies are returned, and stop including access/refresh tokens in login/signup/etc. JSON responses.
+- Plan:
+  - [x] Audit first-party auth token issuing endpoints and OAuth callback responses.
+  - [x] Keep token pairs internal for cookie setting, but return public auth responses without token fields.
+  - [x] Update refresh cookie fallback/docs/tests and verify focused auth behavior.
+- Progress:
+  - Confirmed `/auth/signup`, `/auth/login`, `/auth/admin/signup`, `/auth/admin/login`, `/auth/refresh`, and Google OAuth login callbacks still used `AuthResponseDto` with `accessToken`/`refreshToken` in JSON.
+  - Confirmed stored Google OAuth refresh endpoint already hides the provider access token and only returns `tokenExpiresAt`.
+  - Removed `accessToken` and `refreshToken` from the public `AuthResponseDto`; token-bearing results now use the internal `AuthTokenResponseDto` type.
+  - Added `toPublicAuthResponse` and applied it to signup, login, admin signup/login, refresh, and Google OAuth login callbacks.
+  - Changed `/auth/refresh` to read `ciap_refresh` from cookies when the body token is absent, while retaining JSON body fallback for compatibility.
+  - Updated API docs and load test checks to assert cookies instead of token body fields.
+- Verification:
+  - Tests: `cmd /c pnpm exec jest --runInBand --runTestsByPath src/modules/auth/utils/auth-cookie.util.spec.ts src/modules/auth/services/auth.service.spec.ts src/modules/auth/services/auth-tokens.service.spec.ts src/modules/auth/services/auth-google-oauth.service.spec.ts src/modules/auth/socials/services/socials.service.spec.ts src/modules/users/services/users.service.spec.ts` (pass)
+  - Logs / errors: `cmd /c pnpm exec eslint src/modules/auth src/modules/users` (pass)
+  - Logs / errors: `cmd /c pnpm exec prettier --check ...` for touched auth/docs/load files (pass)
+  - Logs / errors: `cmd /c pnpm exec tsc --noEmit --pretty false` still fails only on the pre-existing YouTube ingestion statistic type mismatch (`number` normalized stats passed to string-based Google response types).
+- Result:
+  - Completed. Auth and OAuth login/refresh endpoints now set token cookies and return tokenless JSON responses.
+
+## Task: Organize auth and users module files
+
+- Date: 2026-05-16
+- Request: Move scattered module files into ordered folders so services, repositories, utilities, and controllers live in matching folders, while module files remain at module root; resolve imports.
+- Plan:
+  - [x] Inspect current auth/users module file placement and import paths.
+  - [x] Move auth/users files into `controllers`, `services`, `repositories`, and `utils` folders, keeping `*.module.ts` at module root.
+  - [x] Update imports, docs for module shape, and run focused verification.
+- Progress:
+  - Confirmed auth and users root folders mix controllers, services, repositories, utilities, and specs beside module files.
+  - Moved `auth`, `auth/socials`, and `users` files into layer folders; kept `auth.module.ts` and `users.module.ts` at module roots.
+  - Updated imports across auth, users, socials, and YouTube ingestion references to the moved `SocialsService`.
+  - Updated project structure docs and findings to preserve the new placement rule.
+- Verification:
+  - Tests: `cmd /c pnpm exec jest --runInBand --runTestsByPath src/modules/auth/utils/auth-cookie.util.spec.ts src/modules/auth/services/auth.service.spec.ts src/modules/auth/services/auth-tokens.service.spec.ts src/modules/auth/services/auth-google-oauth.service.spec.ts src/modules/auth/socials/services/socials.service.spec.ts src/modules/users/services/users.service.spec.ts` (pass)
+  - Logs / errors: `cmd /c pnpm exec eslint src/modules/auth/auth.module.ts src/modules/auth/controllers/auth.controller.ts src/modules/auth/services/auth.service.ts src/modules/auth/services/auth-tokens.service.ts src/modules/auth/services/auth-google-oauth.service.ts src/modules/auth/socials/controllers/socials.controller.ts src/modules/auth/socials/services/socials.service.ts src/modules/auth/utils/auth-cookie.util.ts src/modules/users/users.module.ts src/modules/users/controllers/users.controller.ts src/modules/users/services/users.service.ts src/modules/users/services/users-cache.service.ts src/modules/users/repositories/users.repository.ts src/modules/ingestion/youtube/youtube.service.ts src/modules/ingestion/youtube/services/youtube.service.ts` (pass)
+  - Logs / errors: `cmd /c pnpm exec prettier --check ...` for moved source/docs (pass)
+  - Logs / errors: `cmd /c pnpm exec tsc --noEmit --pretty false` still fails only on the pre-existing YouTube ingestion statistic type mismatch (`number` normalized stats passed to string-based Google response types).
+- Result:
+  - Completed. Auth, auth/socials, and users now use ordered module-local layer folders with imports resolved.
+
+## Task: Apply auth token cookies to local auth flows
+
+- Date: 2026-05-16
+- Request: Reuse the OAuth httpOnly access/refresh cookie behavior for normal user/admin signup and login, correct the OAuth implementation if needed, and verify whether password updates cache sessions, passwords, or responses while Redis is intentionally off.
+- Plan:
+  - [x] Inspect OAuth callback cookie handling, local auth endpoints, token/session persistence, and password update cache usage.
+  - [x] Centralize auth cookie setting and apply it to user/admin signup and login responses.
+  - [x] Update docs/tests for the endpoint contract and record verification.
+- Progress:
+  - Confirmed OAuth callback routes duplicate `ciap_access`/`ciap_refresh` cookie setting and one path allows disabling `httpOnly` through `FRONTEND_OAUTH_USE_HTTP_ONLY`.
+  - Confirmed local `/auth/signup`, `/auth/login`, `/auth/admin/signup`, and `/auth/admin/login` return token bodies but do not set auth cookies yet.
+  - Confirmed `PATCH /auth/me/password` only clears the cached `/users/me` response via `UsersCacheService.deleteMe`; it does not cache sessions, passwords, or auth responses.
+  - Added `setAuthTokenCookies` and reused it from local auth and OAuth callback controllers.
+  - Updated API docs and added focused cookie coverage.
+- Verification:
+  - Tests: `cmd /c pnpm exec jest --runInBand --runTestsByPath src/modules/auth/utils/auth-cookie.util.spec.ts src/modules/auth/services/auth.service.spec.ts` (pass)
+  - Logs / errors: `cmd /c pnpm exec eslint src/modules/auth/utils/auth-cookie.util.ts src/modules/auth/controllers/auth.controller.ts src/modules/auth/socials/controllers/socials.controller.ts` (pass)
+  - Logs / errors: `cmd /c pnpm exec prettier --check src/modules/auth/utils/auth-cookie.util.ts src/modules/auth/utils/auth-cookie.util.spec.ts src/modules/auth/controllers/auth.controller.ts src/modules/auth/socials/controllers/socials.controller.ts src/modules/auth/services/auth.service.spec.ts docs/api.md tasks/todo.md` (pass)
+  - Logs / errors: `cmd /c pnpm run typecheck` still fails in pre-existing YouTube ingestion service statistic type mismatches (`number` normalized stats passed to string-based Google response types).
+- Result:
+  - Completed. Local user/admin signup and login now set the same httpOnly token cookies as OAuth login while preserving the existing auth response body.
+
 ## Task: Add universal creator search module
 
 - Date: 2026-05-08

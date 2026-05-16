@@ -6,6 +6,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -16,15 +17,19 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { MissingFieldException } from '@common/exceptions';
 import { Public, RequireAbilities, Roles } from '@decorators/index';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
 import type { AuthenticatedRequest } from '@/types/express';
 import { AuthResponseDto } from '@modules/auth/dto/auth-response.dto';
-import { YoutubeMetricsQueryDto } from './dto/youtube-metrics-query.dto';
-import { GoogleOauthLoginQueryDto } from './dto/google-oauth-login-query.dto';
-import { SocialsService } from './socials.service';
+import {
+  setAuthTokenCookies,
+  toPublicAuthResponse,
+} from '@modules/auth/utils/auth-cookie.util';
+import { YoutubeMetricsQueryDto } from '../dto/youtube-metrics-query.dto';
+import { GoogleOauthLoginQueryDto } from '../dto/google-oauth-login-query.dto';
+import { SocialsService } from '../services/socials.service';
 
 @ApiTags('auth-socials')
 @Controller('auth/socials')
@@ -77,7 +82,11 @@ export class SocialsController {
 
   @Public()
   @Get('google/login/callback')
-  @ApiOperation({ summary: 'Google OAuth2 login callback endpoint (Internal)' })
+  @ApiOperation({
+    summary: 'Google OAuth2 login callback endpoint (Internal)',
+    description:
+      'Sets ciap_access and ciap_refresh httpOnly cookies. If no frontend redirect is configured, the JSON response omits raw token fields.',
+  })
   @ApiResponse({
     status: 200,
     type: AuthResponseDto,
@@ -94,8 +103,17 @@ export class SocialsController {
     @Query('code') code: string,
     @Query('state') state: string | undefined,
     @Req() request: Request,
-  ): Promise<AuthResponseDto> {
-    return this.handleGoogleLoginCallback(code, state, request);
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto | void> {
+    const result = await this.handleGoogleLoginCallback(code, state, request);
+
+    setAuthTokenCookies(res, result);
+    const frontendRedirect = process.env.FRONTEND_OAUTH_REDIRECT_URI;
+    if (frontendRedirect) {
+      return res.redirect(frontendRedirect);
+    }
+
+    return toPublicAuthResponse(result);
   }
 
   @Public()
@@ -105,8 +123,17 @@ export class SocialsController {
     @Query('code') code: string,
     @Query('state') state: string | undefined,
     @Req() request: Request,
-  ): Promise<AuthResponseDto> {
-    return this.handleGoogleLoginCallback(code, state, request);
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto | void> {
+    const result = await this.handleGoogleLoginCallback(code, state, request);
+
+    setAuthTokenCookies(res, result);
+    const frontendRedirect = process.env.FRONTEND_OAUTH_REDIRECT_URI;
+    if (frontendRedirect) {
+      return res.redirect(frontendRedirect);
+    }
+
+    return toPublicAuthResponse(result);
   }
 
   private handleGoogleLoginCallback(
@@ -156,7 +183,8 @@ export class SocialsController {
   @ApiBearerAuth('access-token')
   @Get('google/youtube/metrics')
   @ApiOperation({
-    summary: 'Pull YouTube channel, latest 10 videos, and analytics metrics(Dev)',
+    summary:
+      'Pull YouTube channel, latest 10 videos, and analytics metrics(Dev)',
   })
   @ApiQuery({
     name: 'days',

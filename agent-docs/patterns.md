@@ -112,11 +112,26 @@ export class UsersRepository {
 4. Are DTOs the external contract?
 5. Are errors typed and safe?
 
-## Optional Module Subfolders (Catalog)
+## Module Subfolders
 
-This repo currently keeps feature modules flat (e.g. `users.controller.ts`, `users.service.ts`, `users.repository.ts`, `dto/`). Only introduce deeper subfolders when a module grows enough to need them, and keep names consistent across modules.
+Keep feature files organized by layer inside each module. Module files stay at the module root, while controllers, services, repositories, utilities, and jobs belong in matching subfolders.
 
-If needed, use the following catalog as guidance (adapt to Drizzle/NestJS, not Prisma/Mongo):
+Current preferred shape:
+
+```text
+module/
+  module.module.ts
+  controllers/
+  services/
+  repositories/
+  dto/
+  utils/              # when module-local helpers are needed
+  jobs/               # when module-local queue/job contracts are needed
+```
+
+Use the following catalog for larger modules and add folders only when the module actually needs that layer:
+
+Adapt to Drizzle/NestJS, not Prisma/Mongo:
 
 ```text
 module/

@@ -199,4 +199,14 @@ export class UsersRepository {
 
     return Number(result[0]?.value ?? 0);
   }
+
+  async updatePasswordHash(
+    userId: number,
+    passwordHash: string | null,
+  ): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ passwordHash })
+      .where(eq(users.id, userId));
+  }
 }

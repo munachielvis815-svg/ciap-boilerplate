@@ -50,6 +50,17 @@ Reusable lessons, mistakes, debugging notes, and tooling cautions.
 - Avoid: Treating corrections as one-off comments that are forgotten next session.
 - Apply: Record the correction, the mistake pattern, and the rule that should prevent recurrence.
 
+## Agents Should Proactively Suggest Better Options (2026-05-15)
+
+- Situation: Users sometimes introduce configuration or API mistakes (bad keys, wrong HTTP verbs, or mis-applied RBAC) that can be fixed in multiple ways.
+- Lesson: The agent should not only apply the immediate fix, but also suggest safer, alternative approaches and explain trade-offs tailored to the repo (e.g., use ES256 with P-256 keys, prefer PATCH for partial updates, prefer role-agnostic guards for self-owned resources).
+- Avoid: Applying a single "best guess" fix without offering alternatives or noting consequences.
+- Apply: When a user error is detected, include:
+	- Short diagnosis of the root cause (1-2 lines).
+	- One recommended fix with exact commands or code changes.
+	- One or two alternatives with pros/cons (security, compatibility, migration cost).
+	- Suggested verification steps (tests or runtime checks) and commands to run locally.
+
 ## Drizzle Batch Upsert Pattern: Always Use sql`excluded.*` (2026-04-20)
 
 - Mistake: Using `set: { field: array[0]?.field }` in `onConflictDoUpdate` for batch inserts.

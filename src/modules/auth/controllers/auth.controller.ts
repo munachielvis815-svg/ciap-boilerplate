@@ -7,7 +7,9 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
+  Patch,
 } from '@nestjs/common';
 import {
   ApiExcludeEndpoint,
@@ -18,16 +20,22 @@ import {
 } from '@nestjs/swagger';
 import { Public, RequireAbilities, Roles } from '@decorators/index';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { MissingFieldException } from '@common/exceptions';
 import type { AuthenticatedRequest } from '@/types/express';
-import { AuthService } from './auth.service';
-import { AuthResponseDto } from './dto/auth-response.dto';
-import { AdminSignupDto } from './dto/admin-signup.dto';
-import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { SignupDto } from './dto/signup.dto';
-import { VerifyResponseDto } from './dto/verify-response.dto';
+import { AuthService } from '../services/auth.service';
+import { AuthResponseDto } from '../dto/auth-response.dto';
+import {
+  getRefreshTokenFromRequest,
+  setAuthTokenCookies,
+  toPublicAuthResponse,
+} from '../utils/auth-cookie.util';
+import { AdminSignupDto } from '../dto/admin-signup.dto';
+import { LoginDto } from '../dto/login.dto';
+import { RefreshTokenDto } from '../dto/refresh-token.dto';
+import { SignupDto } from '../dto/signup.dto';
+import { VerifyResponseDto } from '../dto/verify-response.dto';
+import { UpdatePasswordDto } from '@modules/users/dto/update-password.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -36,7 +44,11 @@ export class AuthController {
 
   @Public()
   @Post('signup')
-  @ApiOperation({ summary: 'Create account' })
+  @ApiOperation({
+    summary: 'Create account',
+    description:
+      'Sets ciap_access and ciap_refresh httpOnly cookies. The JSON response omits raw token fields.',
+  })
   @ApiResponse({
     status: 201,
     type: AuthResponseDto,
@@ -48,14 +60,21 @@ export class AuthController {
   async signup(
     @Body() dto: SignupDto,
     @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
-    return this.authService.signup(dto, request);
+    const result = await this.authService.signup(dto, request);
+    setAuthTokenCookies(response, result);
+    return toPublicAuthResponse(result);
   }
 
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  @ApiOperation({ summary: 'Authenticate user and issue tokens' })
+  @ApiOperation({
+    summary: 'Authenticate user and issue tokens',
+    description:
+      'Sets ciap_access and ciap_refresh httpOnly cookies. The JSON response omits raw token fields.',
+  })
   @ApiResponse({
     status: 200,
     type: AuthResponseDto,
@@ -67,8 +86,11 @@ export class AuthController {
   async login(
     @Body() dto: LoginDto,
     @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
-    return this.authService.login(dto, request);
+    const result = await this.authService.login(dto, request);
+    setAuthTokenCookies(response, result);
+    return toPublicAuthResponse(result);
   }
 
   @Public()
@@ -76,6 +98,8 @@ export class AuthController {
   @Post('admin/signup')
   @ApiOperation({
     summary: 'Create platform admin account (separate protected flow)',
+    description:
+      'Sets ciap_access and ciap_refresh httpOnly cookies. The JSON response omits raw token fields.',
   })
   @ApiResponse({
     status: 200,
@@ -88,8 +112,11 @@ export class AuthController {
   async adminSignup(
     @Body() dto: AdminSignupDto,
     @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
-    return this.authService.adminSignup(dto, request);
+    const result = await this.authService.adminSignup(dto, request);
+    setAuthTokenCookies(response, result);
+    return toPublicAuthResponse(result);
   }
 
   @Public()
@@ -97,6 +124,8 @@ export class AuthController {
   @Post('admin/login')
   @ApiOperation({
     summary: 'Authenticate platform admin (separate from public login)',
+    description:
+      'Sets ciap_access and ciap_refresh httpOnly cookies. The JSON response omits raw token fields.',
   })
   @ApiResponse({
     status: 200,
@@ -109,14 +138,21 @@ export class AuthController {
   async adminLogin(
     @Body() dto: LoginDto,
     @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
-    return this.authService.adminLogin(dto, request);
+    const result = await this.authService.adminLogin(dto, request);
+    setAuthTokenCookies(response, result);
+    return toPublicAuthResponse(result);
   }
 
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
-  @ApiOperation({ summary: 'Rotate refresh token and issue new tokens' })
+  @ApiOperation({
+    summary: 'Rotate refresh token and issue new tokens',
+    description:
+      'Reads ciap_refresh from an httpOnly cookie when the body token is absent. Rotates ciap_access and ciap_refresh cookies and omits raw token fields from JSON.',
+  })
   @ApiResponse({
     status: 200,
     type: AuthResponseDto,
@@ -124,8 +160,17 @@ export class AuthController {
   async refresh(
     @Body() dto: RefreshTokenDto,
     @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponseDto> {
-    return this.authService.refresh(dto, request);
+    const refreshToken =
+      dto.refreshToken ?? getRefreshTokenFromRequest(request);
+    if (!refreshToken) {
+      throw new MissingFieldException('refreshToken');
+    }
+
+    const result = await this.authService.refresh({ refreshToken }, request);
+    setAuthTokenCookies(response, result);
+    return toPublicAuthResponse(result);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -172,6 +217,18 @@ export class AuthController {
     );
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
+  @Patch('me/password')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: "Set or change the authenticated user's password" })
+  @ApiResponse({ status: 200, schema: { example: { success: true } } })
+  async updatePassword(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: UpdatePasswordDto,
+  ): Promise<{ success: true }> {
+    return this.authService.updatePassword(request.user, dto);
+  }
+
   /**
    * Backward-compatibility alias for older Google OAuth callback URL.
    * Preferred route is /auth/socials/google/callback.
@@ -182,12 +239,24 @@ export class AuthController {
   async legacyGoogleCallback(
     @Query('code') code: string,
     @Req() request: Request,
-  ): Promise<AuthResponseDto> {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto | void> {
     if (!code?.trim()) {
       throw new MissingFieldException('code');
     }
 
-    return this.authService.loginWithGoogleAuthorizationCode(code, request);
+    const result = await this.authService.loginWithGoogleAuthorizationCode(
+      code,
+      request,
+    );
+
+    setAuthTokenCookies(res, result);
+    const frontendRedirect = process.env.FRONTEND_OAUTH_REDIRECT_URI;
+    if (frontendRedirect) {
+      return res.redirect(frontendRedirect);
+    }
+
+    return toPublicAuthResponse(result);
   }
 
   /**
@@ -211,12 +280,23 @@ export class AuthController {
   async legacyOauth2GoogleCallback(
     @Query('code') code: string,
     @Req() request: Request,
-  ): Promise<AuthResponseDto> {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto | void> {
     if (!code?.trim()) {
       throw new MissingFieldException('code');
     }
+    const result = await this.authService.loginWithGoogleAuthorizationCode(
+      code,
+      request,
+    );
 
-    return this.authService.loginWithGoogleAuthorizationCode(code, request);
+    setAuthTokenCookies(res, result);
+    const frontendRedirect = process.env.FRONTEND_OAUTH_REDIRECT_URI;
+    if (frontendRedirect) {
+      return res.redirect(frontendRedirect);
+    }
+
+    return toPublicAuthResponse(result);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)

@@ -60,5 +60,13 @@
       "@test/*": ["test/*"]
     }
   },
-  "exclude": ["node_modules", "dist", "test", "**/*spec.ts", "logs", "coverage"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "**/*spec.ts",
+    "logs",
+    "coverage",
+    "scripts"
+  ]
 }

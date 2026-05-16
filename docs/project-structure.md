@@ -43,7 +43,15 @@ src/
 |  `- seeds/
 |- modules/
 |  |- auth/
+|  |  |- controllers/
+|  |  |- dto/
+|  |  |- repositories/
+|  |  |- services/
 |  |  `- socials/
+|  |     |- controllers/
+|  |     |- dto/
+|  |     |- jobs/
+|  |     `- services/
 |  |- ingestion/
 |  |  `- youtube/
 |  |- creator-insights/
@@ -53,6 +61,10 @@ src/
 |  |- rbac/
 |  |- sessions/
 |  `- users/
+|     |- controllers/
+|     |- dto/
+|     |- repositories/
+|     `- services/
 `- types/
 ```
 
@@ -76,7 +88,7 @@ src/
 - Service: business logic and orchestration
 - Repository: Drizzle data access
 
-Keep this split consistent for new features.
+Keep this split consistent for new features. Module files stay at the module root; feature files live in module-local `controllers/`, `services/`, `repositories/`, `utils/`, or `jobs/` folders as applicable.
 
 ## Cross-Cutting Components
 

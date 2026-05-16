@@ -18,6 +18,12 @@ export class AuthUserDto {
   @ApiProperty({ example: 1 })
   tenantId!: number;
 
+  @ApiProperty({
+    example: 'https://cdn.example.com/avatar.png',
+    required: false,
+  })
+  avatarUrl?: string | null;
+
   @ApiProperty({ example: true })
   isEmailVerified!: boolean;
 }
@@ -26,15 +32,14 @@ export class AuthResponseDto {
   @ApiProperty({ type: AuthUserDto })
   user!: AuthUserDto;
 
-  @ApiProperty()
-  accessToken!: string;
-
-  @ApiProperty()
-  refreshToken!: string;
-
   @ApiProperty({
     description: 'Access token expiry in seconds',
     example: 900,
   })
   expiresIn!: number;
 }
+
+export type AuthTokenResponseDto = AuthResponseDto & {
+  accessToken: string;
+  refreshToken: string;
+};

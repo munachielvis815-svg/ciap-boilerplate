@@ -12,21 +12,23 @@ import {
   InvalidCredentialsException,
   InvalidTokenException,
   MissingFieldException,
+  UserNotFoundException,
+  WeakPasswordException,
 } from '@common/exceptions';
-import { UsersRepository } from '@modules/users/users.repository';
+import { UsersRepository } from '@modules/users/repositories/users.repository';
 import { SessionsService } from '@modules/sessions/sessions.service';
-import { AuthRepository } from './auth.repository';
+import { AuthRepository } from '../repositories/auth.repository';
 import { AuthGoogleOauthService } from './auth-google-oauth.service';
 import { AuthTokensService } from './auth-tokens.service';
-import type { AuthResponseDto } from './dto/auth-response.dto';
-import type { AdminSignupDto } from './dto/admin-signup.dto';
-import type { GoogleAuthDto } from './dto/google-auth.dto';
-import type { LoginDto } from './dto/login.dto';
-import type { OAuth2Provider } from './dto/oauth2-provider.dto';
-import type { RefreshTokenDto } from './dto/refresh-token.dto';
-import type { SignupDto } from './dto/signup.dto';
+import { UsersCacheService } from '@modules/users/services/users-cache.service';
+import type { AuthTokenResponseDto } from '../dto/auth-response.dto';
+import type { AdminSignupDto } from '../dto/admin-signup.dto';
+import type { GoogleAuthDto } from '../dto/google-auth.dto';
+import type { LoginDto } from '../dto/login.dto';
+import type { OAuth2Provider } from '../dto/oauth2-provider.dto';
+import type { SignupDto } from '../dto/signup.dto';
 import type { RequestUser } from '@/types';
-import { getRequestIp } from './auth.utils';
+import { getRequestIp } from '../utils/auth.utils';
 import type {
   GoogleOauthPurpose,
   GoogleOauthStatePayload,
@@ -43,9 +45,100 @@ export class AuthService {
     private readonly tokensService: AuthTokensService,
     private readonly googleOauthService: AuthGoogleOauthService,
     private readonly configService: ConfigService,
+    private readonly usersCacheService: UsersCacheService,
   ) {}
 
-  async signup(dto: SignupDto, request: Request): Promise<AuthResponseDto> {
+  /**
+   * Set or change password for authenticated user.
+   * - If user has an existing password, `currentPassword` is required and verified.
+   * - If user has no password (social login), they may set one without currentPassword.
+   */
+  async updatePassword(
+    actor: RequestUser,
+    dto: { currentPassword?: string; newPassword: string },
+  ): Promise<{ success: true }> {
+    this.logger.log(`updatePassword called for userId=${actor?.id}`);
+    const user = await this.usersRepository.findByIdOrNull(actor.id);
+    if (!user) {
+      this.logger.warn(
+        `user not found when updating password userId=${actor?.id}`,
+      );
+      throw new UserNotFoundException(actor.id);
+    }
+
+    if (user.passwordHash) {
+      if (!dto.currentPassword) {
+        this.logger.warn(`currentPassword missing for userId=${actor.id}`);
+        throw new InvalidCredentialsException({
+          reason: 'current-password-required',
+        });
+      }
+      const { compare } = await import('bcrypt');
+      let ok = false;
+      try {
+        ok = await compare(dto.currentPassword, user.passwordHash);
+      } catch (err) {
+        this.logger.error(
+          `bcrypt compare failed for userId=${actor.id}`,
+          err instanceof Error ? err.stack : String(err),
+        );
+        throw err;
+      }
+      if (!ok) {
+        this.logger.warn(
+          `invalid current password provided for userId=${actor.id}`,
+        );
+        throw new InvalidCredentialsException({
+          reason: 'invalid-current-password',
+        });
+      }
+    }
+
+    const requirements: string[] = [];
+    if (dto.newPassword.length < 8) requirements.push('at least 8 characters');
+    if (!/[A-Z]/.test(dto.newPassword))
+      requirements.push('one uppercase letter');
+    if (!/[a-z]/.test(dto.newPassword))
+      requirements.push('one lowercase letter');
+    if (!/[0-9]/.test(dto.newPassword)) requirements.push('one digit');
+    if (!/[^A-Za-z0-9]/.test(dto.newPassword))
+      requirements.push('one special character');
+
+    if (requirements.length > 0) {
+      throw new WeakPasswordException(requirements);
+    }
+
+    const { hash } = await import('bcrypt');
+    const rounds = Number(
+      this.configService.get<string>('BCRYPT_ROUNDS') || '10',
+    );
+    const newHash = await hash(dto.newPassword, rounds);
+    try {
+      this.logger.log(`updating password hash in DB for userId=${actor.id}`);
+      await this.usersRepository.updatePasswordHash(actor.id, newHash);
+      try {
+        await this.usersCacheService.deleteMe(actor.id);
+      } catch (e) {
+        this.logger.warn(
+          `failed to clear users cache for userId=${actor.id}: ${String(e)}`,
+        );
+      }
+    } catch (err) {
+      this.logger.error(
+        `failed updating password for userId=${actor.id}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+      throw err;
+    }
+
+    this.logger.log(`password update successful for userId=${actor.id}`);
+    return { success: true };
+  }
+
+  async signup(
+    dto: SignupDto,
+    request: Request,
+  ): Promise<AuthTokenResponseDto> {
     const email = dto.email.toLowerCase();
     const existing = await this.usersRepository.findByEmail(email);
     if (existing) {
@@ -104,7 +197,7 @@ export class AuthService {
   async adminSignup(
     dto: AdminSignupDto,
     request: Request,
-  ): Promise<AuthResponseDto> {
+  ): Promise<AuthTokenResponseDto> {
     const expectedAdminSignupKey =
       this.configService.get<string>('ADMIN_SIGNUP_KEY');
     if (!expectedAdminSignupKey) {
@@ -174,7 +267,7 @@ export class AuthService {
     return this.tokensService.issueTokens(createdUser, request);
   }
 
-  async login(dto: LoginDto, request: Request): Promise<AuthResponseDto> {
+  async login(dto: LoginDto, request: Request): Promise<AuthTokenResponseDto> {
     const user = await this.usersRepository.findByEmail(
       dto.email.toLowerCase(),
     );
@@ -222,7 +315,10 @@ export class AuthService {
     return tokenResponse;
   }
 
-  async adminLogin(dto: LoginDto, request: Request): Promise<AuthResponseDto> {
+  async adminLogin(
+    dto: LoginDto,
+    request: Request,
+  ): Promise<AuthTokenResponseDto> {
     const user = await this.usersRepository.findByEmail(
       dto.email.toLowerCase(),
     );
@@ -262,7 +358,7 @@ export class AuthService {
   async loginWithGoogle(
     dto: GoogleAuthDto,
     request: Request,
-  ): Promise<AuthResponseDto> {
+  ): Promise<AuthTokenResponseDto> {
     const payload = await this.googleOauthService.verifyGoogleIdToken(
       dto.idToken,
     );
@@ -315,7 +411,7 @@ export class AuthService {
           location: null,
           industry: null,
           websiteUrl: null,
-          avatarUrl: null,
+          avatarUrl: payload.picture ? String(payload.picture) : null,
           audienceSize: 0,
           influenceScore: null,
           influenceScoreUpdatedAt: null,
@@ -347,6 +443,39 @@ export class AuthService {
       this.usersRepository.updateLastLogin(user.id),
     ]);
 
+    // If this was an existing user and Google provided an avatar, keep profile in sync
+    if (!createdNewUser && payload.picture) {
+      const profile = await this.usersRepository.getProfileByUserId(user.id);
+      const picture = String(payload.picture);
+      if (!profile) {
+        await this.usersRepository.createProfile({
+          userId: user.id,
+          displayName: user.name,
+          bio: null,
+          location: null,
+          industry: null,
+          websiteUrl: null,
+          avatarUrl: picture,
+          audienceSize: 0,
+          influenceScore: null,
+          influenceScoreUpdatedAt: null,
+        });
+      } else if (profile.avatarUrl !== picture) {
+        await this.usersRepository.upsertProfile({
+          userId: user.id,
+          displayName: profile.displayName ?? user.name,
+          bio: profile.bio ?? null,
+          location: profile.location ?? null,
+          industry: profile.industry ?? null,
+          websiteUrl: profile.websiteUrl ?? null,
+          avatarUrl: picture,
+          creatorTypes: profile.creatorTypes ?? [],
+          isOnboarded: profile.isOnboarded ?? false,
+          audienceSize: profile.audienceSize ?? 0,
+        });
+      }
+    }
+
     this.writeAuditLog({
       userId: user.id,
       action: 'login',
@@ -367,7 +496,7 @@ export class AuthService {
     code: string,
     request: Request,
     role: PublicOnboardingRole = 'creator',
-  ): Promise<AuthResponseDto> {
+  ): Promise<AuthTokenResponseDto> {
     if (!code?.trim()) {
       throw new MissingFieldException('code');
     }
@@ -415,9 +544,9 @@ export class AuthService {
   }
 
   async refresh(
-    dto: RefreshTokenDto,
+    dto: { refreshToken: string },
     request: Request,
-  ): Promise<AuthResponseDto> {
+  ): Promise<AuthTokenResponseDto> {
     const decoded = this.tokensService.verifyRefreshToken(dto.refreshToken);
     const session = await this.sessionsService.findActiveSessionById(
       decoded.sid,

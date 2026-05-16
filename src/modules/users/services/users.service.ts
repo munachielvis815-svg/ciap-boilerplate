@@ -7,12 +7,12 @@ import {
 import { CreatorInsightsService } from '@modules/creator-insights/creator-insights.service';
 import type { OauthAccount, User, UserProfile } from '@database/drizzle/schema';
 import type { RequestUser } from '@/types';
-import { UsersRepository } from './users.repository';
-import { UserDto } from './dto/user.dto';
-import { MeResponseDto } from './dto/me-response.dto';
-import type { CreatorOnboardDto } from './dto/creator-onboard.dto';
-import type { CreatorOnboardResponseDto } from './dto/creator-onboard-response.dto';
-import type { UserPlatformStatusDto } from './dto/user-platform-status.dto';
+import { UsersRepository } from '../repositories/users.repository';
+import { UserDto } from '../dto/user.dto';
+import { MeResponseDto } from '../dto/me-response.dto';
+import type { CreatorOnboardDto } from '../dto/creator-onboard.dto';
+import type { CreatorOnboardResponseDto } from '../dto/creator-onboard-response.dto';
+import type { UserPlatformStatusDto } from '../dto/user-platform-status.dto';
 import { UsersCacheService } from './users-cache.service';
 
 @Injectable()

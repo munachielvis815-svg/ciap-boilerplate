@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Request } from 'express';
-import { AuthRepository } from '@modules/auth/auth.repository';
-import { AuthService } from '@modules/auth/auth.service';
-import { GOOGLE_YOUTUBE_CONNECT_SCOPES } from '@modules/auth/auth-google-oauth.service';
-import { UsersRepository } from '@modules/users/users.repository';
+import { AuthRepository } from '@modules/auth/repositories/auth.repository';
+import { AuthService } from '@modules/auth/services/auth.service';
+import { GOOGLE_YOUTUBE_CONNECT_SCOPES } from '@modules/auth/services/auth-google-oauth.service';
+import { UsersRepository } from '@modules/users/repositories/users.repository';
 import {
   ExternalApiException,
   InsufficientPermissionsException,
@@ -12,14 +12,14 @@ import {
   YoutubeChannelNotFoundException,
 } from '@common/exceptions';
 import type { RequestUser } from '@/types';
-import type { AuthResponseDto } from '@modules/auth/dto/auth-response.dto';
+import type { AuthTokenResponseDto } from '@modules/auth/dto/auth-response.dto';
 import type { GoogleAuthDto } from '@modules/auth/dto/google-auth.dto';
-import type { YoutubeMetricsQueryDto } from './dto/youtube-metrics-query.dto';
+import type { YoutubeMetricsQueryDto } from '../dto/youtube-metrics-query.dto';
 import {
   buildYoutubeMetricsPullJobPayload,
   YOUTUBE_PULL_JOB,
   YOUTUBE_QUEUE,
-} from './youtube-metrics.job';
+} from '../jobs/youtube-metrics.job';
 
 type YoutubeChannelResponse = {
   items?: Array<{
@@ -153,7 +153,7 @@ export class SocialsService {
   async loginWithGoogle(
     dto: GoogleAuthDto,
     request: Request,
-  ): Promise<AuthResponseDto> {
+  ): Promise<AuthTokenResponseDto> {
     return this.authService.loginWithGoogle(dto, request);
   }
 
@@ -161,7 +161,7 @@ export class SocialsService {
     code: string,
     request: Request,
     state?: string,
-  ): Promise<AuthResponseDto> {
+  ): Promise<AuthTokenResponseDto> {
     const role = this.resolveLoginRole(state);
     return this.authService.loginWithGoogleAuthorizationCode(
       code,
@@ -338,9 +338,35 @@ export class SocialsService {
       }
     }
 
+    const sanitizeChannel = (item: typeof channelItem) => ({
+      id: item.id,
+      title: item.snippet?.title ?? null,
+      description: item.snippet?.description ?? null,
+      thumbnails: item.snippet?.thumbnails ?? null,
+      statistics: {
+        viewCount: Number(item.statistics?.viewCount ?? 0),
+        subscriberCount: Number(item.statistics?.subscriberCount ?? 0),
+        videoCount: Number(item.statistics?.videoCount ?? 0),
+      },
+    });
+
+    const sanitizeVideo = (v: NonNullable<typeof videos.items>[number]) => ({
+      id: v.id,
+      title: v.snippet?.title ?? null,
+      description: v.snippet?.description ?? null,
+      thumbnails: v.snippet?.thumbnails ?? null,
+      publishedAt: v.snippet?.publishedAt ?? null,
+      statistics: {
+        viewCount: Number(v.statistics?.viewCount ?? 0),
+        likeCount: Number(v.statistics?.likeCount ?? 0),
+        commentCount: Number(v.statistics?.commentCount ?? 0),
+      },
+      durationSeconds: null,
+    });
+
     return {
-      channel: channelItem,
-      videos: videos.items || [],
+      channel: sanitizeChannel(channelItem),
+      videos: (videos.items || []).map(sanitizeVideo),
       comments,
       demographics,
       analytics,
@@ -753,12 +779,26 @@ export class SocialsService {
     url: string,
     accessToken: string,
   ): Promise<T> {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    const timeoutMs = Number(process.env.GOOGLE_API_TIMEOUT_MS || '10000');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    let response: globalThis.Response;
+    try {
+      response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if ((err as Error)?.name === 'AbortError') {
+        throw new ExternalApiException('Google APIs', { reason: 'timeout' });
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       const errorBody = await this.parseGoogleErrorBody(response);

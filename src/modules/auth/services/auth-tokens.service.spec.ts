@@ -2,6 +2,7 @@ import { AuthTokensService } from './auth-tokens.service';
 import type { SessionsService } from '@modules/sessions/sessions.service';
 import type { ConfigService } from '@nestjs/config';
 import type { User } from '@database/drizzle/schema';
+import type { UsersRepository } from '@modules/users/repositories/users.repository';
 import type { Request } from 'express';
 import {
   InvalidTokenException,
@@ -41,11 +42,19 @@ describe('AuthTokensService', () => {
     get: jest.fn((key: string) => configMap[key]),
   } as unknown as ConfigService;
 
+  const usersRepository = {
+    getProfileByUserId: jest.fn(),
+  } as unknown as UsersRepository;
+
   let service: AuthTokensService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AuthTokensService(sessionsService, configService);
+    service = new AuthTokensService(
+      sessionsService,
+      configService,
+      usersRepository,
+    );
   });
 
   it('issues access and refresh tokens', async () => {
