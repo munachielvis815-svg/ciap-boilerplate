@@ -18,11 +18,9 @@ interface Tenant {
 
 interface AuthState {
   user: User | null;
-  accessToken: string | null;
-  refreshToken: string | null;
   currentTenant: Tenant | null;
   isAuthenticated: boolean;
-  setAuth: (user: User, token: string, refreshToken: string) => void;
+  setAuth: (user: User) => void;
   updateToken: (token: string, refreshToken?: string) => void;
   switchTenant: (tenant: Tenant) => void;
   logout: () => void;
@@ -30,22 +28,18 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
-  accessToken: null,
-  refreshToken: null,
   currentTenant: null,
   isAuthenticated: false,
-  setAuth: (user, token, refreshToken) => {
-    setAuthCookies(token, refreshToken);
-    set({ user, accessToken: token, refreshToken, isAuthenticated: true, currentTenant: { id: user.tenantId, name: 'Personal' } });
-  },
-  updateToken: (token, refreshToken) => set((state) => ({ accessToken: token, refreshToken: refreshToken || state.refreshToken })),
+  // Store only user and tenant client-side. Do NOT persist raw tokens client-side — backend uses httpOnly cookies.
+  setAuth: (user) => set({ user, isAuthenticated: true, currentTenant: { id: user.tenantId, name: 'Personal' } }),
+  // Keep updateToken as a no-op for compatibility with callers that may still invoke it.
+  updateToken: () => undefined,
   switchTenant: (tenant) => set({ currentTenant: tenant }),
   logout: () => {
-    clearAuthCookies();
     if (typeof window !== 'undefined') {
       window.localStorage.clear();
       window.sessionStorage.clear();
     }
-    set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, currentTenant: null });
+    set({ user: null, isAuthenticated: false, currentTenant: null });
   },
 }));

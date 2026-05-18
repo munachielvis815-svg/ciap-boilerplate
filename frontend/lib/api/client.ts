@@ -1,76 +1,68 @@
 import axios from 'axios';
 import { useAuthStore } from '../auth/store';
 
+// Use Next rewrite proxy in dev so cookies are same-origin and httpOnly cookies are sent/received correctly.
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+  baseURL: '/api-proxy',
   withCredentials: true,
 });
 
-let isRefreshing = false;
-let failedQueue: any[] = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (token) prom.resolve(token);
-    else prom.reject(error);
-  });
-  failedQueue = [];
-};
-
+// Keep a lightweight interceptor for tenant header only. Do NOT add Authorization headers —
+// auth is based on httpOnly cookies set by the backend.
 api.interceptors.request.use((config) => {
-  const { accessToken, currentTenant } = useAuthStore.getState();
-  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
-  if (currentTenant) config.headers['X-Tenant-ID'] = currentTenant.id;
+  const { currentTenant } = useAuthStore.getState();
+  if (currentTenant) config.headers = { ...(config.headers || {}), 'X-Tenant-ID': currentTenant.id };
   return config;
 });
+
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (val: any) => void; reject: (err: any) => void }> = [];
+
+const processQueue = (error: any, value: any = null) => {
+  failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(value)));
+  failedQueue = [];
+};
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config || {};
     const skipRedirect = originalRequest.headers?.['X-Skip-Auth-Redirect'] === 'true';
 
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/')) {
-      if (skipRedirect) {
-        return Promise.reject(error);
-      }
+      if (skipRedirect) return Promise.reject(error);
 
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
-        }).catch((err) => Promise.reject(err));
+        }).then(() => api(originalRequest));
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
       try {
-        const { refreshToken } = useAuthStore.getState();
-        if (!refreshToken) throw new Error('No refresh token available');
-        
-        const refreshUrl = `${process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') || 'http://localhost:3000'}/auth/refresh`;
-        const { data } = await axios.post(refreshUrl, { refreshToken }, { withCredentials: true });
-        const newToken = data.accessToken;
-        const newRefreshToken = data.refreshToken;
-        useAuthStore.getState().updateToken(newToken, newRefreshToken);
+        // Ask backend to rotate refresh token (backend will read ciap_refresh cookie)
+        await axios.post('/api-proxy/auth/refresh', {}, { withCredentials: true });
 
-        processQueue(null, newToken);
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        // Obtain current user/session info
+        const verifyResp = await api.get('/auth/verify', { withCredentials: true });
+        const user = verifyResp.data;
+        useAuthStore.getState().setAuth(user);
+
+        processQueue(null, null);
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
         useAuthStore.getState().logout();
-        window.location.href = '/login';
+        if (typeof window !== 'undefined') window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

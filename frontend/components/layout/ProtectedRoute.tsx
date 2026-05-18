@@ -15,24 +15,20 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
       return;
     }
 
+
     const checkSession = async () => {
       try {
-        const { data } = await api.get('/users/me', { 
-          headers: { 'X-Skip-Auth-Redirect': 'true' } 
-        } as any);
-        
-        // The backend /users/me returns { role, profile, ... }
-        // We need to map it to the User object expected by setAuth
+        const { data } = await api.get('/users/me', { headers: { 'X-Skip-Auth-Redirect': 'true' } } as any);
+
         const userData = {
           id: data.profile.id,
           name: data.profile.name,
           email: data.profile.email,
           role: data.role,
-          tenantId: data.profile.tenantId
+          tenantId: data.profile.tenantId,
         };
-        
-        const currentTokens = useAuthStore.getState();
-        setAuth(userData as any, currentTokens.accessToken || '', currentTokens.refreshToken || '');
+
+        setAuth(userData as any);
         setLoading(false);
       } catch (err) {
         logout();
