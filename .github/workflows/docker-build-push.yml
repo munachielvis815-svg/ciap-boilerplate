@@ -1,0 +1,114 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm run test
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: redis://localhost:6379
+          BULLMQ_PREFIX: Queue
+          JWT_ACCESS_PUBLIC_KEY: |-
+            -----BEGIN PUBLIC KEY-----
+            MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfrxqhBTlD++CmuMRJ/B+1vo9eM90
+            Q0SWK62cEdGuP0n1SUMg6zFWtd3ADNfwVOdcrNkD278LODO+IXsWfn6AtQ==
+            -----END PUBLIC KEY-----
+          JWT_ACCESS_PRIVATE_KEY: |-
+            -----BEGIN PRIVATE KEY-----
+            MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQguzt8czkCOc9XT94V
+            LeWsvglPyPDA5KLTAORsmVGYWnahRANCAAR+vGqEFOUP74Ka4xEn8H7W+j14z3RD
+            RJYrrZwR0a4/SfVJQyDrMVa13cAM1/BU51ys2QPbvws4M74hexZ+foC1
+            -----END PRIVATE KEY-----
+          JWT_REFRESH_PUBLIC_KEY: |-
+            -----BEGIN PUBLIC KEY-----
+            MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQAtnpOP4QkD0WOEEBdnsWVaaIZhoDx
+            6kh0r7MvAKju5NF1DiGlm51D6zAXJGvkYk9V2S9GehcxlmSCv1d89VJb0JUBpIIw
+            BRlKnHpHGlgDU295YAd3uskUHEN2XGhPS4Fr+cm9dCmKTEnpbHy9DEhjIjx0NyRJ
+            ntvfInTVmxUEcKh/ojo=
+            -----END PUBLIC KEY-----
+          JWT_REFRESH_PRIVATE_KEY: |-
+            -----BEGIN PRIVATE KEY-----
+            MIHuAgEAMBAGByqGSM49AgEGBSuBBAAjBIHWMIHTAgEBBEIAq05BCXFIz47/3cHu
+            +pEBibbkaBqG2tZ+TjC3ymyZnUmqHVuDZ/5tWD89mOQXtuPE4i1jnM7/updLcDAe
+            ZThbwgGhgYkDgYYABAC2ek4/hCQPRY4QQF2exZVpohmGgPHqSHSvsy8AqO7k0XUO
+            IaWbnUPrMBcka+RiT1XZL0Z6FzGWZIK/V3z1UlvQlQGkgjAFGUqcekcaWANTb3lg
+            B3e6yRQcQ3ZcaE9LgWv5yb10KYpMSelsfL0MSGMiPHQ3JEme298idNWbFQRwqH+i
+            Og==
+            -----END PRIVATE KEY-----
+          ADMIN_SIGNUP_KEY: test-admin-key
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKERHUB_USERNAME }}/ciap-apis:latest
+            ${{ env.DOCKERHUB_USERNAME }}/ciap-apis:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

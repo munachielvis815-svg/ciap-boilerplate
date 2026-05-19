@@ -1,0 +1,83 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1775557455593,
+      "tag": "20260407102415_sharp_the_hand",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775653238379,
+      "tag": "20260408130038_wise_the_liberteens",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775659375345,
+      "tag": "20260408144255_marvelous_bloodaxe",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775659685209,
+      "tag": "20260408144805_orange_silk_fever",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775660343307,
+      "tag": "20260408145903_wandering_pestilence",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775981248514,
+      "tag": "20260412080728_aromatic_frog_thor",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776256979888,
+      "tag": "20260415124259_lazy_senator_kelly",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1776677021984,
+      "tag": "20260420092341_steady_wonder_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1777132257373,
+      "tag": "20260425155057_purple_tag",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1778145315518,
+      "tag": "20260507091515_hot_nightshade",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778148367318,
+      "tag": "20260507100607_old_meltdown",
+      "breakpoints": true
+    }
+  ]
+}
