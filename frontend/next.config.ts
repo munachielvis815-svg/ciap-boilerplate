@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
 const nextConfig: NextConfig = {
   images: {
     qualities: [30, 42, 75],
@@ -39,7 +41,7 @@ const nextConfig: NextConfig = {
         // Proxy API requests to backend
         {
           source: '/api-proxy/:path*',
-          destination: 'http://localhost:3000/:path*',
+          destination: `${backendUrl}/:path*`,
         },
       ],
     };

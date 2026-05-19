@@ -12,6 +12,7 @@ import { useMeProfile } from '@/lib/api/hooks';
 import { getAvatarSrc, getRoleLabel } from '@/lib/utils/avatars';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import api from '@/lib/api/client';
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -54,9 +55,15 @@ export default function MobileSidebar({ isOpen, onClose, activeTab, setActiveTab
   const avatarSrc = profile?.profile?.avatarUrl || getAvatarSrc(user?.id ?? 'guest', role);
   const displayName = profile?.profile?.displayName || profile?.profile?.name || user?.name || 'Guest';
 
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // If the session already expired, still clear local auth.
+    } finally {
+      logout();
+      router.replace('/');
+    }
   };
 
   const handleTabClick = (tab: string) => {

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import Avatar from '@/components/ui/Avatar';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import api from '@/lib/api/client';
 
 export default function Topbar() {
   const { user, logout } = useAuthStore();
@@ -57,7 +58,16 @@ export default function Topbar() {
            </div>
          </div>
          <button 
-           onClick={() => { logout(); window.location.href = '/login'; }} 
+           onClick={async () => {
+             try {
+               await api.post('/auth/logout');
+             } catch {
+               // If the session already expired, still clear local auth.
+             } finally {
+               logout();
+               window.location.href = '/';
+             }
+           }} 
            className="w-10 h-10 rounded-full border-2 border-black flex justify-center items-center bg-white hover:bg-red-50 hover:text-red-600 transition-all active:scale-95"
          >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>

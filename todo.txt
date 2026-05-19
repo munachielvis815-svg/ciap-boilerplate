@@ -1,0 +1,19 @@
+Endpoints needed
+
+Existing (should return complete data to eliminate fallbacks):
+
+hooks.ts:167 GET /creators/insights/audience for demographics, influence score, minutes watched.
+hooks.ts:247 GET /creators/insights/performance for time series + engagement.
+hooks.ts:206 GET /creators/insights/content for content list + metrics.
+hooks.ts:336 GET /sme/creators/discovery for SME discovery cards.
+hooks.ts:400 GET /sme/creators/scouted for SME scouted list.
+hooks.ts:116 GET /users/me for profile + platform status.
+New (to replace hardcoded UI blocks):
+
+GET /notifications (or /users/me/notifications) for the notifications feed.
+GET /creators/insights/content/:id/detail for retention, CTR, sentiment block in content detail.
+GET /sme/insights/market for market share + trend cards.
+GET /sme/campaigns for campaign manager table.
+GET /admin/traffic/regions for geo markers + top regions.
+GET /admin/milestones for platform milestones.
+Small summary: Most creator/SME core data already has endpoints; the remaining gaps are notifications, content-detail analytics, SME market/campaigns, and admin geo/milestones.

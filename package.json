@@ -1,0 +1,18 @@
+{
+  "name": "ciap-mvp",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "turbo run build",
+    "clean": "turbo run clean --filter=./backend",
+    "dev": "turbo run dev --filter=./frontend",
+    "dev:backend": "turbo run start:dev --filter=./backend",
+    "dev:frontend": "turbo run dev --filter=./frontend",
+    "lint": "turbo run lint",
+    "test": "turbo run test --filter=./backend",
+    "typecheck": "turbo run typecheck --filter=./backend"
+  },
+  "devDependencies": {
+    "turbo": "^2.9.14"
+  }
+}

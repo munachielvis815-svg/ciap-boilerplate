@@ -1,0 +1,16 @@
+node modules 
+node_modules/
+dist/
+build/
+
+# Env files
+**/.env
+**/.env.local
+!**/.env.example
+
+# Logs
+logs
+*.log
+
+build 
+.turbo

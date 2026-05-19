@@ -1,0 +1,94 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "NODE_ENV",
+    "NEXT_PUBLIC_*"
+  ],
+  "globalPassThroughEnv": [
+    "ADMIN_SIGNUP_KEY",
+    "API_*",
+    "APP_*",
+    "BCRYPT_*",
+    "BULLBOARD_*",
+    "BULLMQ_*",
+    "CACHE_*",
+    "CORS_*",
+    "DATABASE_URL",
+    "FRONTEND_OAUTH_*",
+    "GITHUB_*",
+    "GOOGLE_*",
+    "HOST",
+    "JWT_*",
+    "LOG_*",
+    "MAIL_*",
+    "MAX_FILE_SIZE",
+    "PORT",
+    "POSTGRES_*",
+    "RATE_LIMIT_*",
+    "REDIS_*",
+    "SENTRY_*",
+    "UPLOAD_DIR"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*"
+      ],
+      "outputs": [
+        ".next/**",
+        "dist/**",
+        "coverage/**",
+        "!.next/cache/**"
+      ]
+    },
+    "clean": {
+      "cache": false
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "inputs": [
+        "$TURBO_DEFAULT$"
+      ]
+    },
+    "start": {
+      "cache": false,
+      "persistent": true
+    },
+    "start:dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "start:prod": {
+      "dependsOn": [
+        "build"
+      ],
+      "cache": false,
+      "persistent": true
+    },
+    "test": {
+      "cache": false,
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": [
+        "^typecheck"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$"
+      ]
+    }
+  }
+}
