@@ -13,18 +13,19 @@ export function setAuthTokenCookies(
   authResponse: AuthTokenResponseDto,
 ): void {
   const secure = process.env.NODE_ENV === 'production';
+  const sameSite = secure ? 'none' : 'lax';
 
   response.cookie(ACCESS_COOKIE_NAME, authResponse.accessToken, {
     httpOnly: true,
     secure,
-    sameSite: 'lax',
+    sameSite,
     maxAge: authResponse.expiresIn * 1000,
   });
 
   response.cookie(REFRESH_COOKIE_NAME, authResponse.refreshToken, {
     httpOnly: true,
     secure,
-    sameSite: 'lax',
+    sameSite,
     maxAge: DEFAULT_REFRESH_MAX_AGE_MS,
   });
 }
