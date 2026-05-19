@@ -11,13 +11,16 @@ export default function examiddleware(request: NextRequest) {
   const isCallbackPage = pathname.startsWith('/callback');
   const isLandingPage = pathname === '/';
   
-  // Inject bearer token for backend auth on API proxy calls.
-  if (isApiProxy && token) {
-    const headers = new Headers(request.headers);
-    if (!headers.get('authorization')) {
-      headers.set('authorization', `Bearer ${token}`);
+  // Always allow API proxy calls through; only inject auth header when a token exists.
+  if (isApiProxy) {
+    if (token) {
+      const headers = new Headers(request.headers);
+      if (!headers.get('authorization')) {
+        headers.set('authorization', `Bearer ${token}`);
+      }
+      return NextResponse.next({ request: { headers } });
     }
-    return NextResponse.next({ request: { headers } });
+    return NextResponse.next();
   }
 
   // Allow landing/auth pages and API proxy requests without tokens
