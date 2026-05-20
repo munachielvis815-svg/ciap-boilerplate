@@ -1,11 +1,9 @@
 import axios, { AxiosHeaders } from 'axios';
 import { useAuthStore } from '../auth/store';
 
-// Call the backend directly so OAuth cookies are scoped to the backend domain.
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
+// Use the Next rewrite proxy so cookies are first-party on the frontend domain.
 const api = axios.create({
-  baseURL: apiBaseUrl,
+  baseURL: '/api-proxy',
   withCredentials: true,
 });
 
@@ -49,7 +47,7 @@ api.interceptors.response.use(
 
       try {
         // Ask backend to rotate refresh token (backend will read ciap_refresh cookie)
-        await axios.post(`${apiBaseUrl}/auth/refresh`, {}, { withCredentials: true });
+        await axios.post('/api-proxy/auth/refresh', {}, { withCredentials: true });
 
         // Obtain current user/session info
         const verifyResp = await api.get('/auth/verify', { withCredentials: true });
