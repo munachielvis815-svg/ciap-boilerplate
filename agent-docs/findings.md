@@ -22,6 +22,12 @@ Append-only notes for discoveries, decisions, and gotchas.
 
 ## Current Findings
 
+## CORS And OAuth Redirect Env Lists (2026-05-20)
+
+- Context: Added multi-frontend support for OAuth callbacks and CORS.
+- Finding: `CORS_ORIGIN` now accepts comma-separated origins, and `FRONTEND_OAUTH_REDIRECT_URI` accepts comma-separated URLs; OAuth callbacks select the redirect URL matching the request origin when possible, otherwise falling back to the first entry.
+- Impact: Multi-frontend setups should provide consistent origins in both env vars to avoid ambiguous callback routing.
+
 ## Auth Token Cookies Are Centralized (2026-05-16)
 
 - Context: Applied httpOnly access/refresh cookies beyond Google OAuth callbacks to local user/admin signup and login.

@@ -36,13 +36,15 @@ Updated for the current runtime config on 2026-04-08.
 - `LOG_FILE_LEVEL` (default inherits `LOG_LEVEL`)
 - `LOG_FILE_SIZE` (default `50m`)
 - `LOG_FILE_FREQUENCY` (default `daily`)
-- `CORS_ORIGIN` (default `http://localhost:3000`)
+- `CORS_ORIGIN` (default `http://localhost:3000`; supports comma-separated origins)
 
 ### Auth and security
 
 - `BCRYPT_ROUNDS` (default `10`)
 - `JWT_ACCESS_EXPIRES_IN` (default `15m`)
 - `JWT_REFRESH_EXPIRES_IN` (default `7d`)
+- `AUTH_COOKIE_SAMESITE` (`none`, `lax`, or `strict`; defaults to `none` in production and `lax` otherwise)
+- `FRONTEND_OAUTH_REDIRECT_URI` (optional; supports comma-separated URLs and selects the entry matching the request origin, falling back to the first value)
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_LOGIN_REDIRECT_URI` (default fallback: `http://localhost:3000/auth/socials/google/login/callback`)
 - `GOOGLE_YOUTUBE_REDIRECT_URI` (default fallback: `http://localhost:3000/ingestion/youtube/oauth2/callback`)
@@ -100,7 +102,7 @@ Updated for the current runtime config on 2026-04-08.
 - HTTP access verbosity is controlled by `LOG_HTTP_MODE` (recommended `errors` for strict 4xx/5xx logging).
 - Log format is enforced to `pretty` or `json` through `LOG_FORMAT`.
 - File logging is enabled with `LOG_TO_FILE=true` and rotated through `pino-roll`.
-- CORS origin is derived from `CORS_ORIGIN`.
+- CORS origin is derived from `CORS_ORIGIN` and supports comma-separated origins.
 - JWT signing and verification keys are pulled from env.
 - Google OAuth client and redirect URI come from env.
 - Admin onboarding flow validates `ADMIN_SIGNUP_KEY`.

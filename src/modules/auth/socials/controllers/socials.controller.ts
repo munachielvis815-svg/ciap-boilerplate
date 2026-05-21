@@ -27,6 +27,7 @@ import {
   setAuthTokenCookies,
   toPublicAuthResponse,
 } from '@modules/auth/utils/auth-cookie.util';
+import { resolveFrontendRedirect } from '@modules/auth/utils/oauth-redirect.util';
 import { YoutubeMetricsQueryDto } from '../dto/youtube-metrics-query.dto';
 import { GoogleOauthLoginQueryDto } from '../dto/google-oauth-login-query.dto';
 import { SocialsService } from '../services/socials.service';
@@ -108,7 +109,7 @@ export class SocialsController {
     const result = await this.handleGoogleLoginCallback(code, state, request);
 
     setAuthTokenCookies(res, result);
-    const frontendRedirect = process.env.FRONTEND_OAUTH_REDIRECT_URI;
+    const frontendRedirect = resolveFrontendRedirect(request);
     if (frontendRedirect) {
       return res.redirect(frontendRedirect);
     }
@@ -128,7 +129,7 @@ export class SocialsController {
     const result = await this.handleGoogleLoginCallback(code, state, request);
 
     setAuthTokenCookies(res, result);
-    const frontendRedirect = process.env.FRONTEND_OAUTH_REDIRECT_URI;
+    const frontendRedirect = resolveFrontendRedirect(request);
     if (frontendRedirect) {
       return res.redirect(frontendRedirect);
     }

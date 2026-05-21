@@ -13,18 +13,25 @@ export function setAuthTokenCookies(
   authResponse: AuthTokenResponseDto,
 ): void {
   const secure = process.env.NODE_ENV === 'production';
+  const sameSiteEnv = process.env.AUTH_COOKIE_SAMESITE?.toLowerCase();
+  const sameSite =
+    sameSiteEnv === 'none' || sameSiteEnv === 'lax' || sameSiteEnv === 'strict'
+      ? sameSiteEnv
+      : secure
+        ? 'none'
+        : 'lax';
 
   response.cookie(ACCESS_COOKIE_NAME, authResponse.accessToken, {
     httpOnly: true,
     secure,
-    sameSite: 'lax',
+    sameSite,
     maxAge: authResponse.expiresIn * 1000,
   });
 
   response.cookie(REFRESH_COOKIE_NAME, authResponse.refreshToken, {
     httpOnly: true,
     secure,
-    sameSite: 'lax',
+    sameSite,
     maxAge: DEFAULT_REFRESH_MAX_AGE_MS,
   });
 }

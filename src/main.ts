@@ -30,6 +30,17 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean {
   return TRUTHY_VALUES.has(value.trim().toLowerCase());
 }
 
+function parseEnvList(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
 function resolveLoggerBackend(value: string | undefined): LoggerBackend {
   const normalized = value?.trim().toLowerCase();
   if (normalized === 'nest') {
@@ -68,6 +79,11 @@ async function bootstrap() {
   const logBackend = resolveLoggerBackend(process.env.LOG_BACKEND);
   const httpLogEnabled = parseBoolean(process.env.LOG_HTTP_ENABLED, true);
   const httpLogMode = resolveHttpLogMode(process.env.LOG_HTTP_MODE);
+  const corsOriginList = parseEnvList(process.env.CORS_ORIGIN);
+  const corsOrigins =
+    corsOriginList.length > 0
+      ? corsOriginList
+      : ['http://localhost:3000'];
   const winstonLogger = new WinstonLoggerService('WinstonBootstrap', {
     level: logLevel,
     formatMode: logFormat,
@@ -174,7 +190,7 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],

@@ -30,6 +30,7 @@ import {
   setAuthTokenCookies,
   toPublicAuthResponse,
 } from '../utils/auth-cookie.util';
+import { resolveFrontendRedirect } from '../utils/oauth-redirect.util';
 import { AdminSignupDto } from '../dto/admin-signup.dto';
 import { LoginDto } from '../dto/login.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
@@ -251,7 +252,7 @@ export class AuthController {
     );
 
     setAuthTokenCookies(res, result);
-    const frontendRedirect = process.env.FRONTEND_OAUTH_REDIRECT_URI;
+    const frontendRedirect = resolveFrontendRedirect(request);
     if (frontendRedirect) {
       return res.redirect(frontendRedirect);
     }
@@ -291,7 +292,7 @@ export class AuthController {
     );
 
     setAuthTokenCookies(res, result);
-    const frontendRedirect = process.env.FRONTEND_OAUTH_REDIRECT_URI;
+    const frontendRedirect = resolveFrontendRedirect(request);
     if (frontendRedirect) {
       return res.redirect(frontendRedirect);
     }

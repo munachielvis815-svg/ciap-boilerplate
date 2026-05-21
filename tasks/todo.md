@@ -24,6 +24,23 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Support comma-separated CORS + OAuth redirect URIs
+
+- Date: 2026-05-20
+- Request: Parse comma-separated env values for CORS origins and frontend OAuth redirect URIs.
+- Plan:
+  - [ ] Update CORS origin parsing to accept comma-separated origins.
+  - [ ] Add redirect selection helper for comma-separated frontend OAuth redirect URIs.
+  - [ ] Update docs/findings and note verification steps.
+- Progress:
+  - Added comma-separated parsing for CORS origins and frontend OAuth redirects.
+  - OAuth callbacks now select a redirect URL matching the request origin when possible.
+- Verification:
+  - Tests: not run (not requested)
+  - Logs / errors: not run (not requested)
+- Result:
+  - Added comma-separated parsing for CORS origins and frontend OAuth redirect URIs with origin-based selection fallback.
+
 ## Task: Remove auth tokens from JSON responses
 
 - Date: 2026-05-16
