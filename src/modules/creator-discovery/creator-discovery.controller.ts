@@ -1,10 +1,13 @@
 import {
   Controller,
+  Delete,
   Get,
-  Query,
-  UseGuards,
   Param,
   ParseIntPipe,
+  Post,
+  Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -24,6 +27,9 @@ import { CreatorProfileQueryDto } from './dto/creator-profile-query.dto';
 import { SearchService } from '@modules/search/search.service';
 import { CreatorSearchQueryDto } from '@modules/search/dto/creator-search-query.dto';
 import { CreatorSearchResponseDto } from '@modules/search/dto/creator-search-response.dto';
+import { ScoutedCreatorsResponseDto } from './dto/scouted-creators-response.dto';
+import { ScoutCreatorResponseDto } from './dto/scout-creator-response.dto';
+import type { AuthenticatedRequest } from '@/types/express';
 
 @ApiTags('sme-creators')
 @Controller('sme/creators')
@@ -165,5 +171,46 @@ export class CreatorDiscoveryController {
       days,
       limit,
     });
+  }
+
+  @Get('scouted')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'List scouted creators for the authenticated SME' })
+  @ApiResponse({
+    status: 200,
+    type: ScoutedCreatorsResponseDto,
+  })
+  @Roles('admin', 'sme')
+  @RequireAbilities('sme:creator:discover:any')
+  async getScoutedCreators(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ScoutedCreatorsResponseDto> {
+    return this.discoveryService.getScoutedCreators(request.user);
+  }
+
+  @Post(':id/scout')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Add a creator to the SME scouted list' })
+  @ApiResponse({ status: 201, type: ScoutCreatorResponseDto })
+  @Roles('admin', 'sme')
+  @RequireAbilities('sme:creator:discover:any')
+  async scoutCreator(
+    @Param('id', ParseIntPipe) creatorId: number,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ScoutCreatorResponseDto> {
+    return this.discoveryService.scoutCreator(creatorId, request.user);
+  }
+
+  @Delete(':id/scout')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Remove a creator from the SME scouted list' })
+  @ApiResponse({ status: 200, type: ScoutCreatorResponseDto })
+  @Roles('admin', 'sme')
+  @RequireAbilities('sme:creator:discover:any')
+  async unscoutCreator(
+    @Param('id', ParseIntPipe) creatorId: number,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ScoutCreatorResponseDto> {
+    return this.discoveryService.unscoutCreator(creatorId, request.user);
   }
 }

@@ -1,6 +1,6 @@
 # API Documentation
 
-Updated for the current NestJS codebase on 2026-04-09.
+Updated for the current NestJS codebase on 2026-05-21.
 
 ## Base URLs
 
@@ -56,6 +56,7 @@ Authorization: Bearer <access_token>
 - `GET /auth/socials/oauth2/google/login` - build Google OAuth authorization URL for login (public)
 - `GET /auth/socials/google/login/callback` - Google OAuth login callback endpoint (public)
 - `POST /auth/socials/google/token/refresh` - refresh stored Google OAuth token for current user (protected)
+- `POST /auth/socials/google/youtube/disconnect` - disconnect the stored YouTube Google OAuth grant for the current user (protected)
 - `GET /auth/socials/google/youtube/metrics` - pull channel + latest 10 videos + analytics metrics + comments + demographics (protected, no persistence)
   - Response may include `analyticsStatus`/`analyticsWarning` and `demographicsStatus`/`demographicsWarning` when analytics access is unavailable.
   - Returns `404` when the authenticated account has no YouTube channel.
@@ -90,6 +91,15 @@ Deprecated (excluded from Swagger):
   - Accepts only `query` and optional `limit` (max 50); other legacy filters are ignored.
 - `GET /sme/creators/compare` - compare creators by IDs or search (protected, sme only)
 - `GET /sme/creators/:id/profile` - creator profile for SME dashboard (protected, sme only)
+- `GET /sme/creators/scouted` - list scouted creators for the authenticated SME (protected, sme only)
+- `POST /sme/creators/:id/scout` - add a creator to the authenticated SME's scouted list (protected, sme only)
+- `DELETE /sme/creators/:id/scout` - remove a creator from the authenticated SME's scouted list (protected, sme only)
+
+### SME campaigns
+
+- `GET /sme/campaigns` - list campaigns for the authenticated SME (protected, sme only)
+- `POST /sme/campaigns` - create an SME campaign (protected, sme only)
+- `POST /sme/campaigns/:campaignId/creators` - add a creator to an SME campaign (protected, sme only)
 
 ### Search
 
@@ -100,6 +110,7 @@ Deprecated (excluded from Swagger):
 ### Users
 
 - `GET /users/me` - current user dashboard data (protected)
+- `GET /users/sme/stats` - SME dashboard KPI stats (protected, `sme` and `admin`)
 - `POST /users/me/onboard` - onboard the authenticated creator profile and set creator types (protected, `creator` only)
 - `GET /users/:id` - get user by id (protected + RBAC + abilities)
 - `GET /users?limit=10&offset=0` - list tenant users (protected, `sme` only)
@@ -143,6 +154,8 @@ Tokens are set only as `ciap_access` and `ciap_refresh` httpOnly cookies.
 
 `POST /auth/login` does not accept admin accounts. Admin must use `/auth/admin/login`.
 Both `/auth/login` and `/auth/admin/login` return the tokenless auth response body and set httpOnly token cookies.
+
+For Google OAuth login, when an existing account is already linked to Google, the backend now ignores a mismatched requested onboarding role and signs the user in with the role already stored on their account.
 
 ### Refresh
 
@@ -209,6 +222,26 @@ Important:
 - Google sign-in (`/auth/socials/oauth2/google/login`) is only for app authentication.
 - YouTube ingestion requires the separate `/ingestion/youtube/oauth2` consent flow because the login flow does not grant the YouTube API scopes used by ingestion.
 - The YouTube connect flow requests `youtube.readonly`, `youtube.force-ssl`, and `yt-analytics.readonly` in addition to the basic Google identity scopes.
+
+### Disconnect YouTube
+
+```bash
+curl -X POST http://localhost:3000/auth/socials/google/youtube/disconnect \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Response shape:
+
+```json
+{
+  "success": true
+}
+```
+
+Notes:
+
+- This removes only the stored `youtube-connect` Google OAuth grant.
+- It does not unlink the Google login identity used for first-party app authentication.
 
 ### Pull YouTube metrics
 
@@ -304,6 +337,160 @@ Notes:
 
 - `creatorTypes` accepts multiple values.
 - `/users/me` now returns `profile.isOnboarded` and `profile.creatorTypes` from the creator profile record.
+
+### SME dashboard stats
+
+```bash
+curl http://localhost:3000/users/sme/stats \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Response shape:
+
+```json
+{
+  "totalReach": 1850000,
+  "avgInfluenceScore": 72.4,
+  "totalCreators": 120,
+  "discoveryCoverage": 84
+}
+```
+
+Notes:
+
+- `totalReach` is aggregated from creator profile `audienceSize`.
+- `avgInfluenceScore` is rounded to one decimal place.
+- `discoveryCoverage` is the percentage of creators with `user_profiles.is_onboarded = true`.
+
+### Scouted creators
+
+```bash
+curl http://localhost:3000/sme/creators/scouted \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Response shape:
+
+```json
+{
+  "creators": [
+    {
+      "userId": 12,
+      "displayName": "Creator Name",
+      "status": "scouted",
+      "audienceSize": 120000,
+      "influenceScore": 75.4,
+      "category": "gaming"
+    }
+  ]
+}
+```
+
+Related shortlist actions:
+
+```bash
+curl -X POST http://localhost:3000/sme/creators/12/scout \
+  -H "Authorization: Bearer <access_token>"
+
+curl -X DELETE http://localhost:3000/sme/creators/12/scout \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Both routes return:
+
+```json
+{
+  "success": true
+}
+```
+
+### SME campaigns
+
+List campaigns:
+
+```bash
+curl http://localhost:3000/sme/campaigns \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Response shape:
+
+```json
+[
+  {
+    "id": 3,
+    "name": "Summer Tech Review",
+    "description": "Creator campaign for Q3 product launch.",
+    "status": "draft",
+    "budgetAmount": 2500,
+    "budgetCurrency": "USD",
+    "startsAt": "2026-06-01T00:00:00.000Z",
+    "endsAt": null,
+    "creatorCount": 2,
+    "createdAt": "2026-05-21T10:00:00.000Z",
+    "updatedAt": "2026-05-21T10:00:00.000Z"
+  }
+]
+```
+
+Create a campaign:
+
+```bash
+curl -X POST http://localhost:3000/sme/campaigns \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{
+    "name": "Summer Tech Review",
+    "description": "Creator campaign for Q3 product launch.",
+    "budgetAmount": 2500,
+    "budgetCurrency": "USD",
+    "startsAt": "2026-06-01T00:00:00.000Z"
+  }'
+```
+
+Response shape:
+
+```json
+{
+  "id": 3,
+  "name": "Summer Tech Review",
+  "description": "Creator campaign for Q3 product launch.",
+  "status": "draft",
+  "budgetAmount": 2500,
+  "budgetCurrency": "USD",
+  "startsAt": "2026-06-01T00:00:00.000Z",
+  "endsAt": null,
+  "creatorCount": 0,
+  "createdAt": "2026-05-21T10:00:00.000Z",
+  "updatedAt": "2026-05-21T10:00:00.000Z"
+}
+```
+
+Add a creator to a campaign:
+
+```bash
+curl -X POST http://localhost:3000/sme/campaigns/3/creators \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{
+    "creatorId": 12,
+    "status": "shortlisted"
+  }'
+```
+
+Response shape:
+
+```json
+{
+  "campaignId": 3,
+  "creatorId": 12,
+  "displayName": "Creator Name",
+  "status": "shortlisted",
+  "audienceSize": 120000,
+  "influenceScore": 75.4,
+  "addedAt": "2026-05-21T10:15:00.000Z"
+}
+```
 
 ## RBAC and Ability Enforcement
 

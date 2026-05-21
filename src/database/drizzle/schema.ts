@@ -48,6 +48,21 @@ export const contentPlatformEnum = pgEnum('content_platform', [
   'instagram',
   'other',
 ]);
+export const smeScoutStatusEnum = pgEnum('sme_scout_status', [
+  'scouted',
+  'contacted',
+  'archived',
+]);
+export const smeCampaignStatusEnum = pgEnum('sme_campaign_status', [
+  'draft',
+  'active',
+  'completed',
+  'cancelled',
+]);
+export const smeCampaignCreatorStatusEnum = pgEnum(
+  'sme_campaign_creator_status',
+  ['shortlisted', 'invited', 'active', 'removed'],
+);
 
 /**
  * Tenants Table
@@ -603,6 +618,114 @@ export const contentConversions = pgTable(
 );
 
 /**
+ * SME Scouted Creators Table
+ * Stores creator shortlist entries per SME user.
+ */
+export const smeScoutedCreators = pgTable(
+  'sme_scouted_creators',
+  {
+    id: serial('id').primaryKey(),
+    smeUserId: integer('sme_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    creatorUserId: integer('creator_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: smeScoutStatusEnum('status').notNull().default('scouted'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => ({
+    smeScoutedCreatorsSmeIdx: index('sme_scouted_creators_sme_user_id_idx').on(
+      table.smeUserId,
+    ),
+    smeScoutedCreatorsCreatorIdx: index(
+      'sme_scouted_creators_creator_user_id_idx',
+    ).on(table.creatorUserId),
+    smeScoutedCreatorsPairUq: uniqueIndex(
+      'sme_scouted_creators_sme_creator_uq',
+    ).on(table.smeUserId, table.creatorUserId),
+  }),
+);
+
+/**
+ * SME Campaigns Table
+ * Stores campaign records owned by SME users.
+ */
+export const smeCampaigns = pgTable(
+  'sme_campaigns',
+  {
+    id: serial('id').primaryKey(),
+    smeUserId: integer('sme_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    status: smeCampaignStatusEnum('status').notNull().default('draft'),
+    budgetAmount: real('budget_amount'),
+    budgetCurrency: text('budget_currency'),
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => ({
+    smeCampaignsOwnerIdx: index('sme_campaigns_sme_user_id_idx').on(
+      table.smeUserId,
+    ),
+    smeCampaignsStatusIdx: index('sme_campaigns_status_idx').on(table.status),
+  }),
+);
+
+/**
+ * SME Campaign Creators Table
+ * Tracks creators assigned to SME campaigns.
+ */
+export const smeCampaignCreators = pgTable(
+  'sme_campaign_creators',
+  {
+    id: serial('id').primaryKey(),
+    campaignId: integer('campaign_id')
+      .notNull()
+      .references(() => smeCampaigns.id, { onDelete: 'cascade' }),
+    creatorUserId: integer('creator_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: smeCampaignCreatorStatusEnum('status')
+      .notNull()
+      .default('shortlisted'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => ({
+    smeCampaignCreatorsCampaignIdx: index(
+      'sme_campaign_creators_campaign_id_idx',
+    ).on(table.campaignId),
+    smeCampaignCreatorsCreatorIdx: index(
+      'sme_campaign_creators_creator_user_id_idx',
+    ).on(table.creatorUserId),
+    smeCampaignCreatorsPairUq: uniqueIndex(
+      'sme_campaign_creators_campaign_creator_uq',
+    ).on(table.campaignId, table.creatorUserId),
+  }),
+);
+
+/**
  * Relations
  */
 export const tenantsRelations = relations(tenants, ({ many }) => ({
@@ -624,6 +747,14 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   contentItems: many(contentItems),
   contentMetrics: many(contentMetrics),
   contentConversions: many(contentConversions),
+  smeScoutedCreators: many(smeScoutedCreators, {
+    relationName: 'smeScoutedCreatorsOwner',
+  }),
+  scoutedBySmes: many(smeScoutedCreators, {
+    relationName: 'smeScoutedCreatorsCreator',
+  }),
+  smeCampaigns: many(smeCampaigns),
+  campaignAssignments: many(smeCampaignCreators),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -756,6 +887,47 @@ export const contentConversionsRelations = relations(
   }),
 );
 
+export const smeScoutedCreatorsRelations = relations(
+  smeScoutedCreators,
+  ({ one }) => ({
+    smeUser: one(users, {
+      fields: [smeScoutedCreators.smeUserId],
+      references: [users.id],
+      relationName: 'smeScoutedCreatorsOwner',
+    }),
+    creatorUser: one(users, {
+      fields: [smeScoutedCreators.creatorUserId],
+      references: [users.id],
+      relationName: 'smeScoutedCreatorsCreator',
+    }),
+  }),
+);
+
+export const smeCampaignsRelations = relations(
+  smeCampaigns,
+  ({ one, many }) => ({
+    smeUser: one(users, {
+      fields: [smeCampaigns.smeUserId],
+      references: [users.id],
+    }),
+    creators: many(smeCampaignCreators),
+  }),
+);
+
+export const smeCampaignCreatorsRelations = relations(
+  smeCampaignCreators,
+  ({ one }) => ({
+    campaign: one(smeCampaigns, {
+      fields: [smeCampaignCreators.campaignId],
+      references: [smeCampaigns.id],
+    }),
+    creatorUser: one(users, {
+      fields: [smeCampaignCreators.creatorUserId],
+      references: [users.id],
+    }),
+  }),
+);
+
 /**
  * Type Exports
  */
@@ -793,3 +965,9 @@ export type NewContentMetric = typeof contentMetrics.$inferInsert;
 export type ContentConversion = typeof contentConversions.$inferSelect;
 export type NewContentConversion = typeof contentConversions.$inferInsert;
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
+export type SmeScoutedCreator = typeof smeScoutedCreators.$inferSelect;
+export type NewSmeScoutedCreator = typeof smeScoutedCreators.$inferInsert;
+export type SmeCampaign = typeof smeCampaigns.$inferSelect;
+export type NewSmeCampaign = typeof smeCampaigns.$inferInsert;
+export type SmeCampaignCreator = typeof smeCampaignCreators.$inferSelect;
+export type NewSmeCampaignCreator = typeof smeCampaignCreators.$inferInsert;

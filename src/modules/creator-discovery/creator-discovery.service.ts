@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { UnauthorizedUserActionException } from '@common/exceptions';
+import type { RequestUser } from '@/types';
 import { CreatorDiscoveryRepository } from './creator-discovery.repository';
 import { CreatorDiscoveryCacheService } from './creator-discovery-cache.service';
 
@@ -258,6 +260,40 @@ export class CreatorDiscoveryService {
     return response;
   }
 
+  async getScoutedCreators(actor: RequestUser): Promise<{
+    creators: Array<{
+      userId: number;
+      displayName: string | null;
+      status: string;
+      audienceSize: number;
+      influenceScore: number | null;
+      category: string | null;
+    }>;
+  }> {
+    this.assertSmeActor(actor);
+    const creators = await this.repository.getScoutedCreatorsForSme(actor.id);
+    return { creators };
+  }
+
+  async scoutCreator(
+    creatorId: number,
+    actor: RequestUser,
+  ): Promise<{ success: boolean }> {
+    this.assertSmeActor(actor);
+    await this.assertCreatorExists(creatorId);
+    await this.repository.scoutCreator(actor.id, creatorId);
+    return { success: true };
+  }
+
+  async unscoutCreator(
+    creatorId: number,
+    actor: RequestUser,
+  ): Promise<{ success: boolean }> {
+    this.assertSmeActor(actor);
+    await this.repository.unscoutCreator(actor.id, creatorId);
+    return { success: true };
+  }
+
   private aggregateAnalytics(
     analytics: Array<{
       views: number | null;
@@ -367,6 +403,19 @@ export class CreatorDiscoveryService {
   private normalizeOptionalText(value?: string): string | undefined {
     const normalized = value?.trim();
     return normalized ? normalized : undefined;
+  }
+
+  private async assertCreatorExists(creatorId: number): Promise<void> {
+    const creator = await this.repository.findCreatorById(creatorId);
+    if (!creator || creator.role !== 'creator') {
+      throw new NotFoundException(`Creator with ID ${creatorId} not found`);
+    }
+  }
+
+  private assertSmeActor(actor: RequestUser): void {
+    if (actor.role !== 'sme' && actor.role !== 'admin') {
+      throw new UnauthorizedUserActionException('manage SME creators');
+    }
   }
 }
 

@@ -143,6 +143,46 @@ The repo workflow is schema-first: edit `schema.ts`, then generate migration SQL
   - `content_item_id`
   - `conversion_type`
 
+### `sme_scouted_creators`
+
+- SME-specific creator shortlist table
+- Key fields:
+  - `sme_user_id` (FK to users)
+  - `creator_user_id` (FK to users)
+  - `status` enum: `scouted | contacted | archived`
+  - timestamps
+- Key indexes:
+  - `sme_user_id`
+  - `creator_user_id`
+  - unique `(sme_user_id, creator_user_id)`
+
+### `sme_campaigns`
+
+- Campaign records owned by SME users
+- Key fields:
+  - `sme_user_id` (FK to users)
+  - `name`, `description`
+  - `status` enum: `draft | active | completed | cancelled`
+  - `budget_amount`, `budget_currency`
+  - `starts_at`, `ends_at`
+  - timestamps
+- Key indexes:
+  - `sme_user_id`
+  - `status`
+
+### `sme_campaign_creators`
+
+- Creator-to-campaign assignment table
+- Key fields:
+  - `campaign_id` (FK to sme_campaigns)
+  - `creator_user_id` (FK to users)
+  - `status` enum: `shortlisted | invited | active | removed`
+  - timestamps
+- Key indexes:
+  - `campaign_id`
+  - `creator_user_id`
+  - unique `(campaign_id, creator_user_id)`
+
 ### `youtube_video_comments`
 
 - Top-level comments pulled per YouTube video during ingestion
@@ -228,4 +268,5 @@ pnpm run db:seed:prod
 
 - Refresh tokens are hashed before storage in `sessions`.
 - OAuth provider tokens are currently stored in `oauth_accounts` when available from provider exchange.
+- SME scouting and campaign ownership are keyed by the authenticated SME user ID rather than by tenant alone.
 - Existing migration SQL files are generated artifacts; do not hand-edit them unless absolutely necessary.

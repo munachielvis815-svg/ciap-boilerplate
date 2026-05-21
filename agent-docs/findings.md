@@ -22,6 +22,18 @@ Append-only notes for discoveries, decisions, and gotchas.
 
 ## Current Findings
 
+## YouTube Connected Status Must Use youtube-connect Grant (2026-05-21)
+
+- Context: Added YouTube disconnect and aligned integrations UI with the backend OAuth records.
+- Finding: Google login and YouTube connect are stored as separate OAuth purposes, so frontend platform status should be derived from `oauth_accounts.purpose = 'youtube-connect'`, not from any Google account row.
+- Impact: Disconnecting YouTube should delete only the `youtube-connect` grant and `/users/me` should flip `platformStatus.youtube.connected` to `false` without affecting Google sign-in.
+
+## SME Scouting And Campaign Persistence (2026-05-21)
+
+- Context: Added SME dashboard stats, scouted creator persistence, and initial campaign management endpoints for frontend integration.
+- Finding: SME shortlist entries are stored per authenticated SME user in `sme_scouted_creators`, and campaign ownership is also keyed by `sme_user_id` via `sme_campaigns` plus `sme_campaign_creators`.
+- Impact: Future SME-specific reads/writes should scope by the authenticated SME user ID unless the product explicitly changes ownership to tenant-wide campaigns.
+
 ## CORS And OAuth Redirect Env Lists (2026-05-20)
 
 - Context: Added multi-frontend support for OAuth callbacks and CORS.

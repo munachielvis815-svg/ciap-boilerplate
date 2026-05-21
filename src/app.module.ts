@@ -16,6 +16,7 @@ import { QueueModule } from '@modules/queue/queue.module';
 import { CreatorInsightsModule } from '@modules/creator-insights/creator-insights.module';
 import { CreatorDiscoveryModule } from '@modules/creator-discovery/creator-discovery.module';
 import { SearchModule } from '@modules/search/search.module';
+import { SmeCampaignsModule } from '@modules/sme-campaigns/sme-campaigns.module';
 
 type LogFormat = 'pretty' | 'json';
 type LoggerBackend = 'pino' | 'nest' | 'winston';
@@ -151,6 +152,7 @@ function buildLoggerParams(): Params {
     CreatorInsightsModule,
     CreatorDiscoveryModule,
     SearchModule,
+    SmeCampaignsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

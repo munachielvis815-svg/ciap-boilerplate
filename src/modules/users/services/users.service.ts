@@ -12,6 +12,7 @@ import { UserDto } from '../dto/user.dto';
 import { MeResponseDto } from '../dto/me-response.dto';
 import type { CreatorOnboardDto } from '../dto/creator-onboard.dto';
 import type { CreatorOnboardResponseDto } from '../dto/creator-onboard-response.dto';
+import type { SmeStatsResponseDto } from '../dto/sme-stats-response.dto';
 import type { UserPlatformStatusDto } from '../dto/user-platform-status.dto';
 import { UsersCacheService } from './users-cache.service';
 
@@ -71,6 +72,29 @@ export class UsersService {
     return users.map((user) => this.mapUserToDto(user));
   }
 
+  async getSmeStats(actor: RequestUser): Promise<SmeStatsResponseDto> {
+    if (actor.role !== 'sme' && actor.role !== 'admin') {
+      throw new UnauthorizedUserActionException('access SME stats');
+    }
+
+    const [totalCreators, summary] = await Promise.all([
+      this.usersRepository.countByRole('creator'),
+      this.usersRepository.getSmeStatsSummary(),
+    ]);
+
+    const discoveryCoverage =
+      totalCreators > 0
+        ? Math.round((summary.onboardedCreators / totalCreators) * 100)
+        : 0;
+
+    return {
+      totalReach: summary.totalReach,
+      avgInfluenceScore: Number(summary.avgInfluenceScore.toFixed(1)),
+      totalCreators,
+      discoveryCoverage,
+    };
+  }
+
   async onboardCreator(
     actor: RequestUser,
     dto: CreatorOnboardDto,
@@ -125,6 +149,7 @@ export class UsersService {
       this.usersRepository.findOauthAccountByUserAndProvider(
         actor.id,
         'google',
+        'youtube-connect',
       ),
     ]);
 
@@ -208,6 +233,7 @@ export class UsersService {
       await this.usersRepository.findOauthAccountByUserAndProvider(
         user.id,
         'google',
+        'youtube-connect',
       );
 
     return this.buildPlatformStatus(googleOauth);
