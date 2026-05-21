@@ -78,6 +78,13 @@
       "when": 1778148367318,
       "tag": "20260507100607_old_meltdown",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779387073072,
+      "tag": "20260521181113_bumpy_mandarin",
+      "breakpoints": true
     }
   ]
 }

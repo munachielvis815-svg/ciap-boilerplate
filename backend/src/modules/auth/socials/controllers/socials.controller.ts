@@ -180,6 +180,27 @@ export class SocialsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
   @Roles('admin', 'sme', 'creator')
+  @RequireAbilities('socials:oauth:refresh:any', 'socials:oauth:refresh:self')
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @Post('google/youtube/disconnect')
+  @ApiOperation({
+    summary: 'Disconnect stored YouTube Google OAuth grant for current user',
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        success: true,
+      },
+    },
+  })
+  async disconnectGoogleYoutube(@Req() request: AuthenticatedRequest) {
+    return this.socialsService.disconnectGoogleYoutube(request.user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
+  @Roles('admin', 'sme', 'creator')
   @RequireAbilities('socials:youtube:read:any', 'socials:youtube:read:self')
   @ApiBearerAuth('access-token')
   @Get('google/youtube/metrics')

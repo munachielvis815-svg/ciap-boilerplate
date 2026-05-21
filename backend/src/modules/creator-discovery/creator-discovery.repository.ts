@@ -4,6 +4,7 @@ import { DATABASE_PROVIDER } from '@database/database.module';
 import type { Database } from '@database/database.module';
 import {
   contentItems,
+  smeScoutedCreators,
   userProfiles,
   users,
   youtubeChannels,
@@ -144,5 +145,71 @@ export class CreatorDiscoveryRepository {
       .where(eq(youtubeVideos.channelId, channelId))
       .orderBy(desc(youtubeVideos.publishedAt))
       .limit(limit);
+  }
+
+  async findCreatorById(creatorUserId: number) {
+    const result = await this.db
+      .select({
+        userId: users.id,
+        role: users.role,
+      })
+      .from(users)
+      .where(eq(users.id, creatorUserId))
+      .limit(1);
+
+    return result[0] || null;
+  }
+
+  async getScoutedCreatorsForSme(smeUserId: number) {
+    return this.db
+      .select({
+        userId: users.id,
+        displayName: userProfiles.displayName,
+        status: smeScoutedCreators.status,
+        audienceSize: sql<number>`coalesce(${userProfiles.audienceSize}, 0)`,
+        influenceScore: userProfiles.influenceScore,
+        category: sql<
+          string | null
+        >`nullif(${userProfiles.creatorTypes}[1], '')`,
+      })
+      .from(smeScoutedCreators)
+      .innerJoin(users, eq(users.id, smeScoutedCreators.creatorUserId))
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+      .where(eq(smeScoutedCreators.smeUserId, smeUserId))
+      .orderBy(desc(smeScoutedCreators.updatedAt), desc(users.id));
+  }
+
+  async scoutCreator(smeUserId: number, creatorUserId: number): Promise<void> {
+    await this.db
+      .insert(smeScoutedCreators)
+      .values({
+        smeUserId,
+        creatorUserId,
+        status: 'scouted',
+      })
+      .onConflictDoUpdate({
+        target: [
+          smeScoutedCreators.smeUserId,
+          smeScoutedCreators.creatorUserId,
+        ],
+        set: {
+          status: 'scouted',
+          updatedAt: new Date(),
+        },
+      });
+  }
+
+  async unscoutCreator(
+    smeUserId: number,
+    creatorUserId: number,
+  ): Promise<void> {
+    await this.db
+      .delete(smeScoutedCreators)
+      .where(
+        and(
+          eq(smeScoutedCreators.smeUserId, smeUserId),
+          eq(smeScoutedCreators.creatorUserId, creatorUserId),
+        ),
+      );
   }
 }

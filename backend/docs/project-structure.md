@@ -58,6 +58,7 @@ src/
 |  |- creator-discovery/
 |  |- health/
 |  |- search/
+|  |- sme-campaigns/
 |  |- rbac/
 |  |- sessions/
 |  `- users/
@@ -76,6 +77,7 @@ src/
 - `ingestion/youtube`: YouTube ingestion endpoints for channel + analytics pulls
 - `creator-insights`: creator audience/content insights
 - `creator-discovery`: SME creator discovery and comparison
+- `sme-campaigns`: SME campaign creation and creator assignment
 - `search`: universal search endpoints
 - `users`: protected user retrieval/list endpoints
 - `health`: API, DB, readiness checks

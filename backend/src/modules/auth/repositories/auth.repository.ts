@@ -101,4 +101,25 @@ export class AuthRepository {
 
     return updated;
   }
+
+  async deleteOauthAccountByUserAndProvider(
+    userId: number,
+    provider: 'google' | 'github' | 'linkedin',
+    purpose?: OauthGrantPurpose,
+  ): Promise<void> {
+    await this.db
+      .delete(oauthAccounts)
+      .where(
+        purpose
+          ? and(
+              eq(oauthAccounts.userId, userId),
+              eq(oauthAccounts.provider, provider),
+              eq(oauthAccounts.purpose, purpose),
+            )
+          : and(
+              eq(oauthAccounts.userId, userId),
+              eq(oauthAccounts.provider, provider),
+            ),
+      );
+  }
 }

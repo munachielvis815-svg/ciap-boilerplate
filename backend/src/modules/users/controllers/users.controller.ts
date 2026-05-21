@@ -23,6 +23,7 @@ import { UserDto } from '../dto/user.dto';
 import { MeResponseDto } from '../dto/me-response.dto';
 import { CreatorOnboardDto } from '../dto/creator-onboard.dto';
 import { CreatorOnboardResponseDto } from '../dto/creator-onboard-response.dto';
+import { SmeStatsResponseDto } from '../dto/sme-stats-response.dto';
 import { UserPlatformStatusDto } from '../dto/user-platform-status.dto';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
 import { RequireAbilities, Roles } from '@decorators/index';
@@ -55,6 +56,18 @@ export class UsersController {
     @Body() dto: CreatorOnboardDto,
   ): Promise<CreatorOnboardResponseDto> {
     return this.usersService.onboardCreator(request.user, dto);
+  }
+
+  @Get('sme/stats')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get SME dashboard stats' })
+  @ApiResponse({ status: 200, type: SmeStatsResponseDto })
+  @Roles('admin', 'sme')
+  @RequireAbilities('sme:creator:discover:any')
+  async getSmeStats(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<SmeStatsResponseDto> {
+    return this.usersService.getSmeStats(request.user);
   }
 
   /**

@@ -22,6 +22,7 @@ describe('UsersService', () => {
     findOauthAccountByUserAndProvider: jest.fn(),
     upsertProfile: jest.fn(),
     countByRole: jest.fn(),
+    getSmeStatsSummary: jest.fn(),
   };
 
   const creatorInsightsService = {
@@ -254,5 +255,67 @@ describe('UsersService', () => {
     expect(result.profile.isOnboarded).toBe(true);
     expect(result.profile.creatorTypes).toEqual(['gaming', 'lifestyle']);
     expect(usersCache.setMe).toHaveBeenCalledWith(1, result);
+  });
+
+  it('uses the youtube-connect oauth purpose for platform status', async () => {
+    repository.findByIdOrNull.mockResolvedValue(baseUser);
+    repository.getProfileByUserId.mockResolvedValue(baseProfile);
+    repository.findOauthAccountByUserAndProvider.mockResolvedValue({
+      id: 5,
+      updatedAt: new Date('2026-05-21T10:00:00.000Z'),
+      accessToken: 'youtube-access-token',
+      refreshToken: 'youtube-refresh-token',
+    });
+    creatorInsightsService.getAudienceInsights.mockResolvedValue({
+      audienceSize: 0,
+    });
+    creatorInsightsService.getPerformanceInsights.mockResolvedValue({
+      topVideos: [],
+    });
+    usersCache.getMe.mockResolvedValue(null);
+
+    const actor: RequestUser = {
+      id: 1,
+      email: 'creator@example.com',
+      role: 'creator',
+      tenantId: 10,
+      sessionId: 'session-1',
+    };
+
+    await service.getMeDashboard(actor);
+
+    expect(repository.findOauthAccountByUserAndProvider).toHaveBeenCalledWith(
+      1,
+      'google',
+      'youtube-connect',
+    );
+  });
+
+  it('returns sme stats matching dashboard cards', async () => {
+    repository.countByRole.mockResolvedValue(12);
+    repository.getSmeStatsSummary.mockResolvedValue({
+      totalReach: 1850000,
+      avgInfluenceScore: 72.44,
+      onboardedCreators: 9,
+    });
+
+    const actor: RequestUser = {
+      id: 7,
+      email: 'sme@example.com',
+      role: 'sme',
+      tenantId: 10,
+      sessionId: 'session-2',
+    };
+
+    const result = await service.getSmeStats(actor);
+
+    expect(repository.countByRole).toHaveBeenCalledWith('creator');
+    expect(repository.getSmeStatsSummary).toHaveBeenCalled();
+    expect(result).toEqual({
+      totalReach: 1850000,
+      avgInfluenceScore: 72.4,
+      totalCreators: 12,
+      discoveryCoverage: 75,
+    });
   });
 });

@@ -82,12 +82,10 @@ describe('AuthGoogleOauthService', () => {
         refreshToken: 'youtube-refresh-token',
         expiresAt: new Date('2026-05-07T10:00:00.000Z'),
       });
-    jest
-      .spyOn(service as never, 'resolveGoogleIdentity')
-      .mockResolvedValue({
-        providerUserId: 'google-sub-123',
-        email: 'creator@example.com',
-      });
+    jest.spyOn(service as never, 'resolveGoogleIdentity').mockResolvedValue({
+      providerUserId: 'google-sub-123',
+      email: 'creator@example.com',
+    });
     jest
       .spyOn(service as never, 'getGoogleYoutubeRedirectUri')
       .mockReturnValue(
@@ -112,5 +110,42 @@ describe('AuthGoogleOauthService', () => {
         providerUserId: 'google-sub-123',
       }),
     );
+  });
+
+  it('disconnects the youtube-connect grant for the current user', async () => {
+    const usersRepository = {
+      findByIdOrNull: jest.fn().mockResolvedValue({
+        id: 23,
+        tenantId: 8,
+      }),
+    } as never;
+
+    const authRepository = {
+      deleteOauthAccountByUserAndProvider: jest
+        .fn()
+        .mockResolvedValue(undefined),
+    } as never;
+
+    const service = new AuthGoogleOauthService(
+      usersRepository,
+      authRepository,
+      {} as never,
+      {} as ConfigService,
+    );
+
+    const actor: RequestUser = {
+      id: 23,
+      email: 'creator@example.com',
+      role: 'creator',
+      tenantId: 8,
+      sessionId: 'oauth-connect',
+    };
+
+    const result = await service.disconnectGoogleYoutubeForUser(23, actor);
+
+    expect(
+      authRepository.deleteOauthAccountByUserAndProvider,
+    ).toHaveBeenCalledWith(23, 'google', 'youtube-connect');
+    expect(result).toEqual({ success: true });
   });
 });

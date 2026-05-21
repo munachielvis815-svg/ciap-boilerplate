@@ -18,6 +18,7 @@ export const ABILITY_VALUES = [
   'creator:insights:read:self',
   'sme:creator:discover:any',
   'sme:creator:compare:any',
+  'sme:campaign:manage:any',
 ] as const;
 
 export type AppAbility = (typeof ABILITY_VALUES)[number];
@@ -33,6 +34,7 @@ export const ROLE_ABILITIES: Record<AppRole, AppAbility[]> = {
     'creator:insights:read:any',
     'sme:creator:discover:any',
     'sme:creator:compare:any',
+    'sme:campaign:manage:any',
   ],
   sme: [
     'users:read:tenant',
@@ -43,6 +45,7 @@ export const ROLE_ABILITIES: Record<AppRole, AppAbility[]> = {
     'socials:oauth:refresh:self',
     'sme:creator:discover:any',
     'sme:creator:compare:any',
+    'sme:campaign:manage:any',
   ],
   creator: [
     'users:read:self',

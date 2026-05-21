@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { and, count, eq } from 'drizzle-orm';
+import { and, avg, count, eq, sql, sum } from 'drizzle-orm';
 import { DATABASE_PROVIDER } from '@database/database.module';
 import type { Database } from '@database/database.module';
 import {
@@ -10,6 +10,7 @@ import {
 } from '@database/drizzle/schema';
 import type {
   NewTenant,
+  OauthGrantPurpose,
   NewUser,
   Tenant,
   User,
@@ -165,12 +166,19 @@ export class UsersRepository {
   async findOauthAccountByUserAndProvider(
     userId: number,
     provider: 'google' | 'github' | 'linkedin',
+    purpose?: OauthGrantPurpose,
   ) {
     const result = await this.db.query.oauthAccounts.findFirst({
-      where: and(
-        eq(oauthAccounts.userId, userId),
-        eq(oauthAccounts.provider, provider),
-      ),
+      where: purpose
+        ? and(
+            eq(oauthAccounts.userId, userId),
+            eq(oauthAccounts.provider, provider),
+            eq(oauthAccounts.purpose, purpose),
+          )
+        : and(
+            eq(oauthAccounts.userId, userId),
+            eq(oauthAccounts.provider, provider),
+          ),
     });
 
     return result || null;
@@ -198,6 +206,28 @@ export class UsersRepository {
       .where(eq(users.role, role));
 
     return Number(result[0]?.value ?? 0);
+  }
+
+  async getSmeStatsSummary(): Promise<{
+    totalReach: number;
+    avgInfluenceScore: number;
+    onboardedCreators: number;
+  }> {
+    const [result] = await this.db
+      .select({
+        totalReach: sum(userProfiles.audienceSize),
+        avgInfluenceScore: avg(userProfiles.influenceScore),
+        onboardedCreators: sql<number>`count(*) filter (where ${userProfiles.isOnboarded} = true)`,
+      })
+      .from(users)
+      .innerJoin(userProfiles, eq(userProfiles.userId, users.id))
+      .where(eq(users.role, 'creator'));
+
+    return {
+      totalReach: Number(result?.totalReach ?? 0),
+      avgInfluenceScore: Number(result?.avgInfluenceScore ?? 0),
+      onboardedCreators: Number(result?.onboardedCreators ?? 0),
+    };
   }
 
   async updatePasswordHash(
