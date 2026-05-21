@@ -5,10 +5,21 @@ import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { MagnifyingGlass, Star, Users, TrendUp, Briefcase, Bell, GearSix } from '@phosphor-icons/react';
 import { useDashboard } from '@/app/(protected)/layout';
-import { useDiscoverCreators, useCreatorProfile, useMeProfile, useSmeStats, useScoutCreator, useUnscoutCreator, useScoutedCreators } from '@/lib/api/hooks';
+import {
+  useAddCreatorToCampaign,
+  useCreateSmeCampaign,
+  useCreatorProfile,
+  useDiscoverCreators,
+  useScoutedCreators,
+  useScoutCreator,
+  useSearchCreators,
+  useSmeCampaigns,
+  useSmeStats,
+  useUnscoutCreator,
+} from '@/lib/api/hooks';
 import { getAvatarSrc } from '@/lib/utils/avatars';
 import { Image, EnvelopeSimple, Plus, CheckCircle, Trash, UserList } from '@phosphor-icons/react';
-import api from '@/lib/api/client';
+import { toast } from 'sonner';
 import SettingsScreen from '../settings';
 
 const growthData = [
@@ -26,33 +37,65 @@ function DiscoveryScreen() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  const { data: profile } = useMeProfile();
   const [search, setSearch] = useState('');
-  const { data: discoveryData, isLoading } = useDiscoverCreators(20, 0, search ? { query: search } : {});
+  const { data: discoveryData, isLoading: isDiscoverLoading } = useDiscoverCreators(20, 0, undefined, !search);
+  const { data: searchData, isLoading: isSearchLoading } = useSearchCreators(search, 20, !!search);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | ''>('');
 
-  if (!mounted) return null;
-
-  const creators = discoveryData?.creators || [];
+  const creators = search ? (searchData?.creators || []) : (discoveryData?.creators || []);
+  const isLoading = search ? isSearchLoading : isDiscoverLoading;
   const selected = creators.find(c => c.userId === selectedId) || null;
   const { data: fullProfile } = useCreatorProfile(selectedId || '', !!selectedId);
 
   const { data: stats } = useSmeStats();
   const { data: scoutedList, refetch: refetchScouted } = useScoutedCreators();
+  const { data: campaigns } = useSmeCampaigns();
   const scoutMutation = useScoutCreator();
   const unscoutMutation = useUnscoutCreator();
+  const addCreatorToCampaignMutation = useAddCreatorToCampaign();
+
+  if (!mounted) return null;
 
   const toggleShortlist = async (id: string) => {
     const isScouted = scoutedList?.some((c: any) => String(c.userId) === id);
-    if (isScouted) {
-      await unscoutMutation.mutateAsync(id);
-    } else {
-      await scoutMutation.mutateAsync(id);
+
+    try {
+      if (isScouted) {
+        await unscoutMutation.mutateAsync(id);
+        toast.success('Creator removed from shortlist.');
+      } else {
+        await scoutMutation.mutateAsync(id);
+        toast.success('Creator added to shortlist.');
+      }
+      refetchScouted();
+    } catch {
+      toast.error('Unable to update shortlist right now.');
     }
-    refetchScouted();
   };
 
   const isShortlisted = (id: string) => scoutedList?.some((c: any) => String(c.userId) === id);
+  const hasCampaigns = Boolean(campaigns?.length);
+
+  const addSelectedCreatorToCampaign = async () => {
+    if (!selected || !selectedCampaignId) {
+      toast.error('Select a campaign first.');
+      return;
+    }
+
+    try {
+      await addCreatorToCampaignMutation.mutateAsync({
+        campaignId: Number(selectedCampaignId),
+        data: {
+          creatorId: selected.userId,
+          status: 'shortlisted',
+        },
+      });
+      toast.success('Creator added to campaign.');
+    } catch {
+      toast.error('Unable to add creator to campaign.');
+    }
+  };
 
   const dynamicKpis = [
     { label: 'Total Reach', value: stats?.totalReach > 1000000 ? `${(stats.totalReach / 1000000).toFixed(1)}M` : `${(stats?.totalReach / 1000).toFixed(0)}K`, trend: 'LIVE', up: true, bg: '#EFF4FF' },
@@ -252,9 +295,40 @@ function DiscoveryScreen() {
                 {isShortlisted(selected.userId) ? (
                   <><CheckCircle size={18} weight="fill" /> Shortlisted</>
                 ) : (
-                  <><Plus size={18} weight="bold" /> Add to Campaign</>
+                  <><Plus size={18} weight="bold" /> Add to Shortlist</>
                 )}
               </button>
+
+              {isShortlisted(selected.userId) && (
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedCampaignId}
+                      onChange={(e) => setSelectedCampaignId(e.target.value ? Number(e.target.value) : '')}
+                      className="flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D32]/20"
+                    >
+                      <option value="">Select campaign</option>
+                      {campaigns?.map((campaign) => (
+                        <option key={campaign.id} value={campaign.id}>
+                          {campaign.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={addSelectedCreatorToCampaign}
+                      disabled={!hasCampaigns || addCreatorToCampaignMutation.isPending}
+                      className="rounded-xl bg-[#0B1C30] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#132b44] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {addCreatorToCampaignMutation.isPending ? 'Adding...' : 'Add to Campaign'}
+                    </button>
+                  </div>
+                  {!hasCampaigns && (
+                    <p className="text-xs text-[#6B7280]">
+                      Create a campaign in the Campaigns tab before assigning creators.
+                    </p>
+                  )}
+                </div>
+              )}
             </motion.div>
           ) : (
             <div className="bg-[#EFF4FF] rounded-2xl p-5 text-center py-16">
@@ -274,10 +348,16 @@ function ScoutedCreators() {
   useEffect(() => { setMounted(true); }, []);
 
   const { data: scouted, isLoading, refetch } = useScoutedCreators();
+  const unscoutMutation = useUnscoutCreator();
 
   const handleUnscout = async (id: string) => {
-    await api.delete(`/sme/creators/${id}/scout`);
-    refetch();
+    try {
+      await unscoutMutation.mutateAsync(id);
+      toast.success('Creator removed from shortlist.');
+      refetch();
+    } catch {
+      toast.error('Unable to remove creator from shortlist.');
+    }
   };
 
   if (!mounted) return null;
@@ -408,11 +488,33 @@ function MarketInsights() {
 // ─── Campaign Manager ────────────────────────────────────────────────────────
 
 function CampaignManager() {
-  const campaigns = [
-    { title: 'Summer Tech Review', creator: 'TechMaster Pro', status: 'Active', progress: 65, reach: '1.2M' },
-    { title: 'Global Launch 2024', creator: 'Creative Pulse', status: 'Review', progress: 90, reach: '850K' },
-    { title: 'Omniview Feature Drop', creator: 'Dev Insights', status: 'Draft', progress: 15, reach: '340K' }
-  ];
+  const { data: campaigns, isLoading } = useSmeCampaigns();
+  const createCampaignMutation = useCreateSmeCampaign();
+  const [campaignName, setCampaignName] = useState('');
+  const [campaignDescription, setCampaignDescription] = useState('');
+  const [campaignBudget, setCampaignBudget] = useState('');
+
+  const handleCreateCampaign = async () => {
+    if (!campaignName.trim()) {
+      toast.error('Campaign name is required.');
+      return;
+    }
+
+    try {
+      await createCampaignMutation.mutateAsync({
+        name: campaignName.trim(),
+        description: campaignDescription.trim() || undefined,
+        budgetAmount: campaignBudget ? Number(campaignBudget) : undefined,
+        budgetCurrency: campaignBudget ? 'USD' : undefined,
+      });
+      setCampaignName('');
+      setCampaignDescription('');
+      setCampaignBudget('');
+      toast.success('Campaign created.');
+    } catch {
+      toast.error('Unable to create campaign.');
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -421,46 +523,85 @@ function CampaignManager() {
         <p className="text-[#3C4A3D] mt-1">Track performance and milestones of active creator collaborations.</p>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 rounded-3xl border border-[#E2E8F0] bg-white p-6 shadow-sm lg:grid-cols-[1.2fr_1.6fr_0.8fr_auto]">
+        <input
+          value={campaignName}
+          onChange={(e) => setCampaignName(e.target.value)}
+          placeholder="Campaign name"
+          className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D32]/20"
+        />
+        <input
+          value={campaignDescription}
+          onChange={(e) => setCampaignDescription(e.target.value)}
+          placeholder="Short description"
+          className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D32]/20"
+        />
+        <input
+          value={campaignBudget}
+          onChange={(e) => setCampaignBudget(e.target.value)}
+          placeholder="Budget"
+          inputMode="decimal"
+          className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D32]/20"
+        />
+        <button
+          onClick={handleCreateCampaign}
+          disabled={createCampaignMutation.isPending}
+          className="rounded-xl bg-[#006D32] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#005227] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {createCampaignMutation.isPending ? 'Creating...' : 'Create Campaign'}
+        </button>
+      </div>
+
       <div className="bg-white rounded-3xl border border-[#F1F5F9] shadow-sm overflow-hidden">
          <table className="w-full text-left">
             <thead>
                <tr className="bg-[#F8F9FF] border-b border-[#F1F5F9]">
                   <th className="p-6 text-[10px] font-bold text-[#3C4A3D] uppercase tracking-widest">CAMPAIGN TITLE</th>
-                  <th className="p-6 text-[10px] font-bold text-[#3C4A3D] uppercase tracking-widest">PARTNER</th>
-                  <th className="p-6 text-[10px] font-bold text-[#3C4A3D] uppercase tracking-widest">MILESTONE</th>
-                  <th className="p-6 text-[10px] font-bold text-[#3C4A3D] uppercase tracking-widest">REACH</th>
+                  <th className="p-6 text-[10px] font-bold text-[#3C4A3D] uppercase tracking-widest">DESCRIPTION</th>
+                  <th className="p-6 text-[10px] font-bold text-[#3C4A3D] uppercase tracking-widest">CREATORS</th>
+                  <th className="p-6 text-[10px] font-bold text-[#3C4A3D] uppercase tracking-widest">BUDGET</th>
                   <th className="p-6 text-[10px] font-bold text-[#3C4A3D] uppercase tracking-widest">STATUS</th>
-               </tr>
+                </tr>
             </thead>
             <tbody className="divide-y divide-[#F1F5F9]">
-               {campaigns.map((c, i) => (
-                  <tr key={i} className="hover:bg-[#FBFBFF] transition-colors">
+               {isLoading && (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-sm text-[#6B7280]">
+                      Loading campaigns...
+                    </td>
+                  </tr>
+               )}
+               {campaigns?.map((campaign) => (
+                  <tr key={campaign.id} className="hover:bg-[#FBFBFF] transition-colors">
                      <td className="p-6">
-                        <p className="font-bold text-[#0B1C30] text-sm">{c.title}</p>
-                        <p className="text-xs text-[#6B7280] mt-1">ID: #OMN-2024-{i}</p>
+                        <p className="font-bold text-[#0B1C30] text-sm">{campaign.name}</p>
+                        <p className="text-xs text-[#6B7280] mt-1">ID: #{campaign.id}</p>
                      </td>
-                     <td className="p-6 font-medium text-sm text-[#0B1C30]">{c.creator}</td>
-                     <td className="p-6 w-[200px]">
-                        <div className="flex justify-between text-[10px] font-bold mb-1">
-                           <span>Progress</span>
-                           <span>{c.progress}%</span>
-                        </div>
-                        <div className="h-1.5 bg-[#EFF4FF] rounded-full overflow-hidden">
-                           <div className="h-full bg-[#006D32] rounded-full" style={{ width: `${c.progress}%` }} />
-                        </div>
+                     <td className="p-6 font-medium text-sm text-[#0B1C30]">
+                        {campaign.description || 'No description'}
                      </td>
-                     <td className="p-6 font-bold text-sm text-[#0B1C30]">{c.reach}</td>
+                     <td className="p-6 font-bold text-sm text-[#0B1C30]">{campaign.creatorCount}</td>
+                     <td className="p-6 font-bold text-sm text-[#0B1C30]">
+                        {campaign.budgetAmount ? `${campaign.budgetCurrency || 'USD'} ${campaign.budgetAmount.toLocaleString()}` : '--'}
+                     </td>
                      <td className="p-6">
                         <span className={`
                           px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-                          ${c.status === 'Active' ? 'bg-[#F0FDF4] text-[#006D32]' : 
-                            c.status === 'Review' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600'}
+                          ${campaign.status === 'active' ? 'bg-[#F0FDF4] text-[#006D32]' : 
+                            campaign.status === 'completed' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600'}
                         `}>
-                           {c.status}
+                           {campaign.status}
                         </span>
                      </td>
                   </tr>
                ))}
+               {!isLoading && (!campaigns || campaigns.length === 0) && (
+                  <tr>
+                    <td colSpan={5} className="p-10 text-center text-sm text-[#6B7280]">
+                      No campaigns yet. Create one to start assigning shortlisted creators.
+                    </td>
+                  </tr>
+               )}
             </tbody>
          </table>
       </div>

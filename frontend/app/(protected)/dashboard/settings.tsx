@@ -15,7 +15,12 @@ import {
   Image as ImageIcon,
   Check
 } from '@phosphor-icons/react';
-import { useUserPlatformStatus, usePrepareYoutubeOauth, useMeProfile } from '@/lib/api/hooks';
+import {
+  useDisconnectYoutubeOauth,
+  useMeProfile,
+  usePrepareYoutubeOauth,
+  useUserPlatformStatus,
+} from '@/lib/api/hooks';
 import { useAuthStore } from '@/lib/auth/store';
 import { getAvatarSrc } from '@/lib/utils/avatars';
 import { toast } from 'sonner';
@@ -25,6 +30,7 @@ export default function SettingsScreen() {
   const { user } = useAuthStore();
   const { data: profile } = useMeProfile();
   const { data: platforms, isLoading: loadingStatus } = useUserPlatformStatus(profile?.profile?.id);
+  const disconnectYoutubeMutation = useDisconnectYoutubeOauth();
   
   const [activeTab, setActiveTab] = useState<'profile' | 'integrations'>('profile');
   const [isConnecting, setIsConnecting] = useState<string | null>(null);
@@ -40,6 +46,20 @@ export default function SettingsScreen() {
   function handleConnect(platform: string) {
     if (platform === 'youtube') {
       setIsConnecting('youtube');
+    }
+  }
+
+  async function handleDisconnect(platform: string) {
+    if (platform !== 'youtube') {
+      toast.info(`${platform} disconnect is not available yet.`);
+      return;
+    }
+
+    try {
+      await disconnectYoutubeMutation.mutateAsync();
+      toast.success('YouTube account disconnected.');
+    } catch {
+      toast.error('Failed to disconnect YouTube account.');
     }
   }
 
@@ -255,7 +275,11 @@ export default function SettingsScreen() {
 
                   <div className="flex items-center gap-3">
                     {p.connected ? (
-                      <button className="px-4 py-2 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition">
+                      <button
+                        onClick={() => handleDisconnect(p.id)}
+                        disabled={disconnectYoutubeMutation.isPending}
+                        className="px-4 py-2 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition disabled:opacity-60"
+                      >
                         Disconnect
                       </button>
                     ) : (

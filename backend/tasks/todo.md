@@ -24,6 +24,55 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Relax Google login role mismatch and add YouTube disconnect
+
+- Date: 2026-05-21
+- Request: For Google OAuth login, stop rejecting users when the selected role differs from the role already tied to their account; instead log them in with the stored account role. Add a YouTube disconnect endpoint, then sync the frontend integrations and SME campaigns screens to the backend endpoints.
+- Plan:
+  - [x] Inspect auth/socials login flow, YouTube connect flow, and current frontend integrations/campaign usage.
+  - [x] Update backend Google login behavior, add YouTube disconnect, and ensure platform status only reflects the `youtube-connect` grant.
+  - [x] Sync frontend hooks/settings/SME dashboard campaign flow to the updated backend endpoints.
+  - [x] Run targeted verification and update docs/task memory.
+- Progress:
+  - Confirmed the current role mismatch failure came from `AuthService.loginWithGoogle`, not from OAuth state parsing.
+  - Removed the explicit `role-mismatch` rejection for existing Google-linked users, so login now reuses the stored account role automatically.
+  - Added `POST /auth/socials/google/youtube/disconnect` and wired it to delete only the `youtube-connect` OAuth account grant.
+  - Tightened `/users/me` and `/users/:id/platform-status` resolution so YouTube connected state is sourced from the `youtube-connect` grant instead of any Google login row.
+  - Added frontend hooks for YouTube disconnect and SME campaigns, replaced the static campaign screen with live campaign create/list behavior, and wired settings to call the new disconnect endpoint.
+- Verification:
+  - Tests: `cmd /c pnpm exec jest --runInBand --runTestsByPath src/modules/auth/services/auth.service.spec.ts src/modules/auth/services/auth-google-oauth.service.spec.ts src/modules/users/services/users.service.spec.ts src/modules/sme-campaigns/services/sme-campaigns.service.spec.ts` (pass)
+  - Logs / errors: `cmd /c pnpm run typecheck` in `backend/` (pass)
+  - Logs / errors: `cmd /c pnpm run typecheck` in `frontend/` (pass)
+  - Logs / errors: targeted backend `eslint` + `prettier --check` on touched files (pass)
+  - Logs / errors: frontend `pnpm exec eslint` / `pnpm exec prettier` were not available in this environment (`'eslint' is not recognized`, `prettier not found`), so frontend verification here is limited to typecheck.
+- Result:
+  - Completed. Google OAuth login now honors the stored account role for existing users, YouTube disconnect is available, and the frontend integrations/campaign UI is aligned to the current backend endpoints.
+
+## Task: Add SME stats, scouted creators, and campaign endpoints
+
+- Date: 2026-05-21
+- Request: Add backend support for `GET /users/sme/stats`, `GET /sme/creators/scouted`, campaign creation for SMEs, and adding creators to campaigns, with frontend-compatible response shapes and API/docs updates.
+- Plan:
+  - [x] Inspect existing users and creator-discovery patterns plus frontend response expectations.
+  - [x] Add schema/repository support for SME scouting and campaigns, with migrations if possible.
+  - [x] Implement controllers, services, and DTOs for SME stats, scouted creators, scout toggles, campaign creation, and campaign creator assignment.
+  - [x] Update docs/tests/task memory and run targeted verification.
+- Progress:
+  - Confirmed the live frontend SME dashboard expects `totalReach`, `avgInfluenceScore`, `totalCreators`, and `discoveryCoverage` from `/users/sme/stats`.
+  - Confirmed the frontend scouted list expects `/sme/creators/scouted` to return `{ creators: [...] }` with `userId`, `displayName`, `status`, `audienceSize`, and `influenceScore`.
+  - Confirmed the backend currently has no scout or campaign persistence tables/endpoints, so this requires schema and module changes.
+  - Added new Drizzle schema tables/enums for `sme_scouted_creators`, `sme_campaigns`, and `sme_campaign_creators`.
+  - Implemented `GET /users/sme/stats`, `GET /sme/creators/scouted`, plus shortlist toggle routes used by the frontend: `POST /sme/creators/:id/scout` and `DELETE /sme/creators/:id/scout`.
+  - Added new `sme-campaigns` module with `POST /sme/campaigns` and `POST /sme/campaigns/:campaignId/creators`.
+  - Generated Drizzle migration `src/database/drizzle/migrations/20260521181113_bumpy_mandarin.sql` and updated repo-facing + agent-facing docs.
+- Verification:
+  - Tests: `cmd /c pnpm exec jest --runInBand --runTestsByPath src/modules/users/services/users.service.spec.ts src/modules/creator-discovery/creator-discovery.service.spec.ts src/modules/sme-campaigns/services/sme-campaigns.service.spec.ts` (pass)
+  - Logs / errors: `cmd /c pnpm run typecheck` (pass)
+  - Logs / errors: `cmd /c pnpm exec eslint --no-warn-ignored ...` on touched backend source files (pass)
+  - Logs / errors: `cmd /c pnpm exec prettier --check ...` on touched docs/source/spec files (pass)
+- Result:
+  - Completed. SME dashboard stats, scouted creators, shortlist actions, and initial SME campaign endpoints are implemented with documented DTO shapes and a generated schema migration.
+
 ## Task: Support comma-separated CORS + OAuth redirect URIs
 
 - Date: 2026-05-20

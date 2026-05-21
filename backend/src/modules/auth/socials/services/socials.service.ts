@@ -234,6 +234,12 @@ export class SocialsService {
     };
   }
 
+  async disconnectGoogleYoutube(
+    actor: RequestUser,
+  ): Promise<{ success: true }> {
+    return this.authService.disconnectGoogleYoutubeForUser(actor.id, actor);
+  }
+
   async getYoutubeMetrics(actor: RequestUser, query: YoutubeMetricsQueryDto) {
     const days = query.days ?? 30;
     const maxVideos = Math.min(query.maxVideos ?? 10, 10);

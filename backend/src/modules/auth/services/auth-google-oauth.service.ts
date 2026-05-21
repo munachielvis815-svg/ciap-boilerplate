@@ -294,6 +294,34 @@ export class AuthGoogleOauthService {
     }
   }
 
+  async disconnectGoogleYoutubeForUser(
+    targetUserId: number,
+    actor: RequestUser,
+  ): Promise<{ success: true }> {
+    if (actor.role !== 'admin' && actor.id !== targetUserId) {
+      throw new InvalidCredentialsException({
+        reason: 'cross-user-google-disconnect-forbidden',
+      });
+    }
+
+    if (actor.role !== 'admin' && actor.id === targetUserId) {
+      const actorRecord = await this.usersRepository.findByIdOrNull(actor.id);
+      if (!actorRecord || actorRecord.tenantId !== actor.tenantId) {
+        throw new InvalidCredentialsException({
+          reason: 'tenant-context-mismatch',
+        });
+      }
+    }
+
+    await this.authRepository.deleteOauthAccountByUserAndProvider(
+      targetUserId,
+      'google',
+      'youtube-connect',
+    );
+
+    return { success: true };
+  }
+
   async exchangeGoogleAuthorizationCode(
     code: string,
     redirectUri: string,

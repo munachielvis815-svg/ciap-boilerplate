@@ -431,13 +431,6 @@ export class AuthService {
       throw new InvalidCredentialsException({ provider: 'google' });
     }
 
-    if (!createdNewUser && dto.role && user.role !== dto.role) {
-      throw new InvalidCredentialsException({
-        reason: 'role-mismatch',
-        provider: 'google',
-      });
-    }
-
     await Promise.all([
       this.usersRepository.markEmailVerified(user.id),
       this.usersRepository.updateLastLogin(user.id),
@@ -671,6 +664,16 @@ export class AuthService {
     actor: RequestUser,
   ): Promise<{ accessToken: string; tokenExpiresAt: Date | null }> {
     return this.googleOauthService.refreshGoogleOauthTokensForUser(
+      targetUserId,
+      actor,
+    );
+  }
+
+  async disconnectGoogleYoutubeForUser(
+    targetUserId: number,
+    actor: RequestUser,
+  ): Promise<{ success: true }> {
+    return this.googleOauthService.disconnectGoogleYoutubeForUser(
       targetUserId,
       actor,
     );

@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from './client';
 
 export interface HealthResponse {
@@ -167,6 +167,10 @@ export interface OauthPrepareResponse {
   provider: string;
   redirectUri: string;
   authorizationUrl: string;
+}
+
+export interface MutationSuccessResponse {
+  success: boolean;
 }
 
 // ------------------------------------
@@ -436,6 +440,25 @@ export const usePrepareYoutubeOauth = (enabled: boolean = false) => {
   });
 };
 
+export const useDisconnectYoutubeOauth = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const response = await api.post<MutationSuccessResponse>(
+        '/auth/socials/google/youtube/disconnect',
+      );
+      return response.data;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['users', 'me'] }),
+        queryClient.invalidateQueries({ queryKey: ['users'] }),
+      ]);
+    },
+  });
+};
+
 // ------------------------------------
 // Performance & Discovery Hooks
 // ------------------------------------
@@ -523,6 +546,20 @@ export const useDiscoverCreators = (limit: number = 20, offset: number = 0, filt
   });
 };
 
+export const useSearchCreators = (query: string, limit: number = 20, enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ['creatorSearch', query, limit],
+    queryFn: async () => {
+      const response = await api.get<CreatorDiscoveryResponse>('/search/creators', {
+        params: { query, limit }
+      });
+      return response.data;
+    },
+    enabled: Boolean(enabled && query),
+    retry: 1,
+  });
+};
+
 export interface CreatorCompareItem {
   userId: string;
   displayName: string;
@@ -586,6 +623,53 @@ export interface CreatorProfile {
   }>;
 }
 
+export interface ScoutedCreator {
+  userId: string;
+  displayName: string | null;
+  status: string;
+  audienceSize: number;
+  influenceScore: number | null;
+  category: string | null;
+}
+
+export interface SmeCampaign {
+  id: number;
+  name: string;
+  description: string | null;
+  status: 'draft' | 'active' | 'completed' | 'cancelled';
+  budgetAmount: number | null;
+  budgetCurrency: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  creatorCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSmeCampaignInput {
+  name: string;
+  description?: string;
+  budgetAmount?: number;
+  budgetCurrency?: string;
+  startsAt?: string;
+  endsAt?: string;
+}
+
+export interface AddCreatorToCampaignInput {
+  creatorId: string;
+  status?: 'shortlisted' | 'invited' | 'active' | 'removed';
+}
+
+export interface CampaignCreatorAssignment {
+  campaignId: number;
+  creatorId: number;
+  displayName: string | null;
+  status: string;
+  audienceSize: number;
+  influenceScore: number | null;
+  addedAt: string;
+}
+
 export const useCreatorProfile = (userId: string, enabled: boolean = true) => {
   return useQuery({
     queryKey: ['creatorProfile', userId],
@@ -599,20 +683,40 @@ export const useCreatorProfile = (userId: string, enabled: boolean = true) => {
 };
 
 export const useScoutCreator = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (creatorId: string) => {
-      const response = await api.post(`/sme/creators/${creatorId}/scout`);
+      const response = await api.post<MutationSuccessResponse>(
+        `/sme/creators/${creatorId}/scout`,
+      );
       return response.data;
-    }
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['scoutedCreators'] }),
+        queryClient.invalidateQueries({ queryKey: ['smeCampaigns'] }),
+      ]);
+    },
   });
 };
 
 export const useUnscoutCreator = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (creatorId: string) => {
-      const response = await api.delete(`/sme/creators/${creatorId}/scout`);
+      const response = await api.delete<MutationSuccessResponse>(
+        `/sme/creators/${creatorId}/scout`,
+      );
       return response.data;
-    }
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['scoutedCreators'] }),
+        queryClient.invalidateQueries({ queryKey: ['smeCampaigns'] }),
+      ]);
+    },
   });
 };
 
@@ -620,11 +724,62 @@ export const useScoutedCreators = (enabled: boolean = true) => {
   return useQuery({
     queryKey: ['scoutedCreators'],
     queryFn: async () => {
-      const response = await api.get<{ creators: any[] }>('/sme/creators/scouted');
+      const response = await api.get<{ creators: ScoutedCreator[] }>(
+        '/sme/creators/scouted',
+      );
       return response.data.creators;
     },
     enabled,
     retry: 1,
+  });
+};
+
+export const useSmeCampaigns = (enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ['smeCampaigns'],
+    queryFn: async () => {
+      const response = await api.get<SmeCampaign[]>('/sme/campaigns');
+      return response.data;
+    },
+    enabled,
+    retry: 1,
+  });
+};
+
+export const useCreateSmeCampaign = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateSmeCampaignInput) => {
+      const response = await api.post<SmeCampaign>('/sme/campaigns', data);
+      return response.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['smeCampaigns'] });
+    },
+  });
+};
+
+export const useAddCreatorToCampaign = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      data,
+    }: {
+      campaignId: number;
+      data: AddCreatorToCampaignInput;
+    }) => {
+      const response = await api.post<CampaignCreatorAssignment>(
+        `/sme/campaigns/${campaignId}/creators`,
+        data,
+      );
+      return response.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['smeCampaigns'] });
+    },
   });
 };
 
