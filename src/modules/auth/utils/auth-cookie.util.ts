@@ -67,3 +67,26 @@ export function getRefreshTokenFromRequest(request: Request): string | null {
     return rawValue;
   }
 }
+
+export function clearAuthTokenCookies(response: Response): void {
+  const secure = process.env.NODE_ENV === 'production';
+  const sameSiteEnv = process.env.AUTH_COOKIE_SAMESITE?.toLowerCase();
+  const sameSite =
+    sameSiteEnv === 'none' || sameSiteEnv === 'lax' || sameSiteEnv === 'strict'
+      ? sameSiteEnv
+      : secure
+        ? 'none'
+        : 'lax';
+
+  response.clearCookie(ACCESS_COOKIE_NAME, {
+    httpOnly: true,
+    secure,
+    sameSite,
+  });
+
+  response.clearCookie(REFRESH_COOKIE_NAME, {
+    httpOnly: true,
+    secure,
+    sameSite,
+  });
+}
