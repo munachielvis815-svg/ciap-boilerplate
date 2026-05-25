@@ -29,6 +29,7 @@ import {
   getRefreshTokenFromRequest,
   setAuthTokenCookies,
   toPublicAuthResponse,
+  clearAuthTokenCookies,
 } from '../utils/auth-cookie.util';
 import { resolveFrontendRedirect } from '../utils/oauth-redirect.util';
 import { AdminSignupDto } from '../dto/admin-signup.dto';
@@ -210,12 +211,18 @@ export class AuthController {
   })
   async logout(
     @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
   ): Promise<{ success: boolean }> {
-    return this.authService.logout(
+    const result = await this.authService.logout(
       request.user.id,
       request.user.sessionId,
       request,
     );
+
+    // Clear httpOnly auth cookies so browser no longer sends stale tokens.
+    clearAuthTokenCookies(response);
+
+    return result;
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
