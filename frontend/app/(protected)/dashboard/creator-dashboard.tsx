@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Eye, Lightning, Users, ShoppingCart, ArrowsClockwise, PlayCircle, InstagramLogo, TiktokLogo, CaretRight } from '@phosphor-icons/react';
 import { useAudienceInsights, usePerformanceInsights, useMeProfile, useYoutubeMetrics } from '@/lib/api/hooks';
+import { getYoutubeErrorToastMessage } from '@/lib/api/errors';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { toast } from 'sonner';
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -51,6 +53,7 @@ export default function CreatorDashboard() {
       await Promise.all([refetchAudience(), refetchPerf()]);
     } catch (error) {
       console.error('Failed to sync data:', error);
+      toast.error(getYoutubeErrorToastMessage(error));
     }
   };
 

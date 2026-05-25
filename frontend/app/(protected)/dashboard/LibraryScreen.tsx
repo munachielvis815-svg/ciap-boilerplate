@@ -14,6 +14,7 @@ import {
   Globe
 } from '@phosphor-icons/react';
 import { useContentItems, useCreateContentItem, useYoutubeMetrics } from '@/lib/api/hooks';
+import { getYoutubeErrorToastMessage } from '@/lib/api/errors';
 import { toast } from 'sonner';
 
 export default function LibraryScreen() {
@@ -29,7 +30,7 @@ export default function LibraryScreen() {
       await refetch();
       toast.success('Library synchronized');
     } catch (err) {
-      toast.error('Failed to sync library');
+      toast.error(getYoutubeErrorToastMessage(err));
     }
   };
   const [isModalOpen, setIsModalOpen] = useState(false);

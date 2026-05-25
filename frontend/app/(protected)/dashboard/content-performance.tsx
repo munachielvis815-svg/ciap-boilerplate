@@ -19,6 +19,8 @@ import {
   ArrowsClockwise
 } from '@phosphor-icons/react';
 import { usePerformanceInsights, useContentInsights, useYoutubeMetrics } from '@/lib/api/hooks';
+import { getYoutubeErrorToastMessage } from '@/lib/api/errors';
+import { toast } from 'sonner';
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -51,6 +53,7 @@ export default function ContentPerformance() {
       await Promise.all([refetchPerf(), refetchContent()]);
     } catch (error) {
       console.error('Failed to sync data:', error);
+      toast.error(getYoutubeErrorToastMessage(error));
     }
   };
   const items = content?.items || [];
@@ -160,6 +163,12 @@ export default function ContentPerformance() {
                     <td colSpan={6} className="h-[64px] bg-white/50" />
                   </tr>
                 ))
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-[12px] text-[#6B7280]">
+                    No videos found yet. Connect YouTube and sync to load performance data.
+                  </td>
+                </tr>
               ) : items.map((item, i) => {
                 const isSelected = selectedId === item.youtubeVideoId;
                 const likes = item.likeCount || 12400;

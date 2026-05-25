@@ -74,7 +74,7 @@ Deprecated (excluded from Swagger):
   - Response may include `analyticsStatus`/`analyticsWarning` and `demographicsStatus`/`demographicsWarning` when analytics access is unavailable.
   - Returns `200` with `ingestionStatus=warning` when the authenticated account has no YouTube channel.
 - `GET /ingestion/youtube/oauth2` - prepare Google OAuth flow for YouTube connect (protected)
-- `GET /ingestion/youtube/oauth2/callback` - Google OAuth callback for YouTube connect + immediate sync (public)
+- `GET /ingestion/youtube/oauth2/callback` - Google OAuth callback for YouTube connect + immediate sync, then redirect to frontend (public)
 - `POST /ingestion/youtube/permissions/approve` - approve YouTube permissions (protected)
 - `POST /ingestion/youtube/approve` - approve YouTube channel for analytics tracking (protected)
 
@@ -216,6 +216,8 @@ http://localhost:3000/ingestion/youtube/oauth2/callback?code=...&state=...&iss=.
 ```
 
 The callback immediately runs the YouTube ingestion sync and queues influence scoring.
+
+If `FRONTEND_OAUTH_REDIRECT_URI` is configured, the callback redirects the browser to that URL after the sync completes. When no redirect URL is configured, the callback returns `204 No Content`.
 
 Important:
 

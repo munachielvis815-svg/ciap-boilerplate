@@ -25,6 +25,8 @@ import { useAuthStore } from '@/lib/auth/store';
 import { getAvatarSrc } from '@/lib/utils/avatars';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function SettingsScreen() {
   const { user } = useAuthStore();
@@ -32,6 +34,10 @@ export default function SettingsScreen() {
   const { data: platforms, isLoading: loadingStatus } = useUserPlatformStatus(profile?.profile?.id);
   const disconnectYoutubeMutation = useDisconnectYoutubeOauth();
   
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [activeTab, setActiveTab] = useState<'profile' | 'integrations'>('profile');
   const [isConnecting, setIsConnecting] = useState<string | null>(null);
   
@@ -39,6 +45,20 @@ export default function SettingsScreen() {
   const [name, setName] = useState(profile?.profile?.displayName || user?.name || '');
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      const errorMessage = errorParam === 'youtube_connect_failed' ? 'YouTube connection failed.' : decodeURIComponent(errorParam);
+      toast.error(errorMessage);
+      setActiveTab('integrations');
+      
+      const newSearchParams = new URLSearchParams(searchParams.toString());
+      newSearchParams.delete('error');
+      const newUrl = `${pathname}${newSearchParams.toString() ? `?${newSearchParams.toString()}` : ''}`;
+      router.replace(newUrl, { scroll: false });
+    }
+  }, [searchParams, pathname, router]);
 
   // Hook for YouTube OAuth
   const { data: youtubeOauth, isFetching: loadingOauth } = usePrepareYoutubeOauth(isConnecting === 'youtube');

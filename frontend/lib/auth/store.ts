@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { clearAuthCookies, setAuthCookies } from './cookies';
+import { clearAuthCookies } from './cookies';
 import api from '../api/client';
 
 type Role = 'admin' | 'user' | 'sme' | 'creator';

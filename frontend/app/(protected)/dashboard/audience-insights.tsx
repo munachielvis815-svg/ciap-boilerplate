@@ -7,6 +7,8 @@ import {
 } from 'recharts';
 import { Eye, ThumbsUp, ShareNetwork, ChatCircle, ArrowSquareOut, ArrowsClockwise } from '@phosphor-icons/react';
 import { useAudienceInsights, usePerformanceInsights, useYoutubeMetrics } from '@/lib/api/hooks';
+import { getYoutubeEmptyState, getYoutubeErrorToastMessage } from '@/lib/api/errors';
+import { toast } from 'sonner';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -245,6 +247,7 @@ export default function AudienceInsights() {
       await Promise.all([refetchAudience(), refetchPerf()]);
     } catch (error) {
       console.error('Failed to sync data:', error);
+      toast.error(getYoutubeErrorToastMessage(error));
     }
   };
 
@@ -277,13 +280,14 @@ export default function AudienceInsights() {
     : '12.4';
 
   if (audienceError) {
+    const emptyState = getYoutubeEmptyState(audienceError);
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mb-4">
           <Eye size={24} className="text-red-400" />
         </div>
-        <h2 className="text-xl font-bold text-[#0B1C30]">No audience data yet</h2>
-        <p className="text-[#6B7280] mt-2 max-w-sm">Connect your YouTube or Instagram account to see live audience analytics here.</p>
+        <h2 className="text-xl font-bold text-[#0B1C30]">{emptyState.title}</h2>
+        <p className="text-[#6B7280] mt-2 max-w-sm">{emptyState.description}</p>
       </div>
     );
   }

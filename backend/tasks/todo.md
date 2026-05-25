@@ -24,6 +24,26 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+## Task: Redirect YouTube OAuth callback to frontend
+
+- Date: 2026-05-22
+- Request: Update the YouTube OAuth callback to behave like OAuth login callbacks by redirecting to the frontend instead of returning JSON.
+- Plan:
+  - [x] Inspect the YouTube OAuth callback flow and existing redirect helper.
+  - [x] Update the callback to run sync then redirect (or return no content if no redirect URL).
+  - [x] Update the callback to handle failures by redirecting with an error parameter.
+  - [x] Update API docs and record verification status.
+- Progress:
+  - Confirmed the YouTube OAuth callback returned JSON and did not use the frontend redirect helper.
+  - Added redirect behavior to the callback after sync, with a no-content fallback when no redirect is configured.
+  - Added error catching so that failures during sync also redirect to the frontend with an `error` query parameter instead of showing a JSON error.
+  - Updated API docs to reflect the redirect behavior.
+- Verification:
+  - Tests: not run (not requested)
+  - Logs / errors: not run (not requested)
+- Result:
+  - Completed. The YouTube OAuth callback now redirects to the configured frontend OAuth redirect URL after sync (and appends an `error` query parameter on failure) instead of returning JSON.
+
 ## Task: Relax Google login role mismatch and add YouTube disconnect
 
 - Date: 2026-05-21

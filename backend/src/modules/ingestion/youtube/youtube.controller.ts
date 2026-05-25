@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -17,8 +18,10 @@ import {
 } from '@nestjs/swagger';
 import { Public, RequireAbilities, Roles } from '@decorators/index';
 import { AbilitiesGuard, JwtAuthGuard, RolesGuard } from '@guards/index';
+import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '@/types/express';
 import { YoutubeMetricsQueryDto } from '@modules/auth/socials/dto/youtube-metrics-query.dto';
+import { resolveFrontendRedirect } from '@modules/auth/utils/oauth-redirect.util';
 import { YoutubeIngestionService } from './services/youtube.service';
 import { ApproveYoutubeChannelDto } from './dto/approve-youtube-channel.dto';
 import { MissingFieldException } from '@common/exceptions';
@@ -147,43 +150,16 @@ export class YoutubeIngestionController {
   @ApiOperation({
     summary:
       'Google OAuth2 callback for YouTube connect and immediate sync(Internal)',
+    description:
+      'Runs the ingestion sync, then redirects to the configured frontend OAuth redirect URI when available.',
   })
   @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'YouTube connected and sync completed',
-    schema: {
-      example: {
-        channel: {
-          youtubeChannelId: 'UC123456789',
-          channelTitle: 'My Channel',
-          subscriberCount: 10243,
-          totalViewCount: 234556,
-          videoCount: 58,
-        },
-        videosCount: 10,
-        commentsCount: 70,
-        demographicsCount: 3,
-        comments: [],
-        demographics: {
-          ageGroups: [],
-          genders: [],
-          countries: [],
-          startDate: '2026-03-10',
-          endDate: '2026-04-08',
-        },
-        analyticsCount: 30,
-        ingestionStatus: 'success',
-        ingestionWarning: null,
-        analyticsStatus: 'success',
-        analyticsWarning: null,
-        cacheStatus: 'warning',
-        jobId: 'job-123',
-        jobStatus: 'queued',
-        syncedAt: '2026-04-15T12:00:00.000Z',
-        contentItemsCount: 10,
-        metricsCount: 300,
-      },
-    },
+    status: HttpStatus.FOUND,
+    description: 'Redirects to the frontend OAuth completion URL',
+  })
+  @ApiResponse({
+    status: HttpStatus.NO_CONTENT,
+    description: 'YouTube connected and sync completed without a redirect URL',
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -191,6 +167,8 @@ export class YoutubeIngestionController {
   })
   async connectYoutubeOauthCallback(
     @Query() query: YoutubeOauthCallbackQueryDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
     if (!query.code?.trim()) {
       throw new MissingFieldException('code');
@@ -204,11 +182,37 @@ export class YoutubeIngestionController {
       maxVideos: query.maxVideos,
     };
 
-    return this.ingestionService.connectYoutubeOauth(
-      query.code,
-      query.state,
-      metricsQuery,
-    );
+    try {
+      await this.ingestionService.connectYoutubeOauth(
+        query.code,
+        query.state,
+        metricsQuery,
+      );
+
+      const frontendRedirect = resolveFrontendRedirect(request);
+      if (frontendRedirect) {
+        return res.redirect(frontendRedirect);
+      }
+
+      return res.status(HttpStatus.NO_CONTENT).send();
+    } catch (error) {
+      const frontendRedirect = resolveFrontendRedirect(request);
+      if (frontendRedirect) {
+        try {
+          const url = new URL(frontendRedirect);
+          url.searchParams.set(
+            'error',
+            error instanceof Error ? error.message : 'youtube_connect_failed',
+          );
+          return res.redirect(url.toString());
+        } catch {
+          return res.redirect(
+            `${frontendRedirect}?error=youtube_connect_failed`,
+          );
+        }
+      }
+      throw error;
+    }
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, AbilitiesGuard)
