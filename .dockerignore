@@ -28,7 +28,11 @@ uploads
 docs
 agent-docs
 tasks
-workers
+
+# Do NOT ignore the workers workspace: root dockerfile copies workers/package.json
+# and builds workers. Only ignore its build outputs (if present).
+workers/dist
+workers/node_modules
 
 #individual files
 README.md
