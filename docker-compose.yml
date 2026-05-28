@@ -1,0 +1,243 @@
+name: ciap-nestjs-boilerplate
+
+services:
+  # -----------------------------
+  # NestJS API service
+  # Run with: docker compose --profile apis up
+  # Requires: Redis, PostgreSQL, and full environment setup
+  # Not needed for Redis + BullBoard-only local development
+  # -----------------------------
+  apis:
+    image: ciap-apis
+    build:
+      context: .
+      dockerfile: dockerfile
+      target: backend-runtime
+    hostname: apis
+    container_name: ciap-apis
+    restart: on-failure
+    profiles: ["apis"]
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - HOST=0.0.0.0
+      - PORT=${APP_PORT:-3000}
+      - LOG_ENABLED=${LOG_ENABLED:-true}
+      - LOG_BACKEND=${LOG_BACKEND:-pino}
+      - LOG_HTTP_ENABLED=${LOG_HTTP_ENABLED:-true}
+      - LOG_HTTP_MODE=${LOG_HTTP_MODE:-errors}
+      - LOG_LEVEL=${LOG_LEVEL:-debug}
+      - LOG_FORMAT=${LOG_FORMAT:-pretty}
+      - LOG_TO_FILE=${LOG_TO_FILE:-false}
+      - LOG_FILE_PATH=${LOG_FILE_PATH:-./logs/ciap.log}
+      - LOG_FILE_LEVEL=${LOG_FILE_LEVEL:-info}
+      - LOG_FILE_SIZE=${LOG_FILE_SIZE:-50m}
+      - LOG_FILE_FREQUENCY=${LOG_FILE_FREQUENCY:-daily}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ciap}:${POSTGRES_PASSWORD:-ciap_dev_password}@postgres:5432/${POSTGRES_DB:-ciap}?sslmode=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_dev_password}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:${REDIS_PORT:-6379}
+      - BULLMQ_PREFIX=${BULLMQ_PREFIX:-Queue}
+      - JWT_ACCESS_PRIVATE_KEY=${JWT_ACCESS_PRIVATE_KEY:-}
+      - JWT_ACCESS_PUBLIC_KEY=${JWT_ACCESS_PUBLIC_KEY:-}
+      - JWT_REFRESH_PRIVATE_KEY=${JWT_REFRESH_PRIVATE_KEY:-}
+      - JWT_REFRESH_PUBLIC_KEY=${JWT_REFRESH_PUBLIC_KEY:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_LOGIN_REDIRECT_URI=${GOOGLE_LOGIN_REDIRECT_URI:-http://localhost:3000/auth/socials/google/login/callback}
+      - GOOGLE_YOUTUBE_REDIRECT_URI=${GOOGLE_YOUTUBE_REDIRECT_URI:-http://localhost:3000/ingestion/youtube/oauth2/callback}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:3000/auth/google/callback}
+      - ADMIN_SIGNUP_KEY=${ADMIN_SIGNUP_KEY:-}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - ./src:/app/src
+      - ./.env:/app/.env:ro
+      - ciap_logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 768M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    networks:
+      - app-network
+
+  workers:
+    image: ciap-workers
+    build:
+      context: .
+      dockerfile: dockerfile
+      target: worker-runtime
+    hostname: workers
+    container_name: ciap-workers
+    restart: on-failure
+    profiles: ["workers"]
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - WORKER_HOST=0.0.0.0
+      - WORKER_PORT=${WORKER_PORT:-3001}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FORMAT=${LOG_FORMAT:-pretty}
+      - LOG_COLOR=${LOG_COLOR:-true}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ciap}:${POSTGRES_PASSWORD:-ciap_dev_password}@postgres:5432/${POSTGRES_DB:-ciap}?sslmode=disable
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:${REDIS_PORT:-6379}
+      - BULLMQ_PREFIX=${BULLMQ_PREFIX:-Queue}
+      - BULLMQ_MAX_RETRIES=${BULLMQ_MAX_RETRIES:-3}
+      - BULLMQ_BACKOFF_DELAY_MS=${BULLMQ_BACKOFF_DELAY_MS:-3000}
+      - YOUTUBE_SYNC_BATCH_SCHEDULE_MS=${YOUTUBE_SYNC_BATCH_SCHEDULE_MS:-300000}
+      - YOUTUBE_SYNC_STALE_AFTER_MINUTES=${YOUTUBE_SYNC_STALE_AFTER_MINUTES:-60}
+      - YOUTUBE_SYNC_BATCH_SIZE=${YOUTUBE_SYNC_BATCH_SIZE:-25}
+      - WORKER_BATCH_CONCURRENCY=${WORKER_BATCH_CONCURRENCY:-1}
+      - WORKER_SYNC_CONCURRENCY=${WORKER_SYNC_CONCURRENCY:-5}
+      - WORKER_ML_CONCURRENCY=${WORKER_ML_CONCURRENCY:-1}
+      - ML_INFERENCING_SCHEDULE_MS=${ML_INFERENCING_SCHEDULE_MS:-900000}
+      - ML_BASE_URL=${ML_BASE_URL:-http://ml:8080}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_API_TIMEOUT_MS=${GOOGLE_API_TIMEOUT_MS:-10000}
+    ports:
+      - "${WORKER_PORT:-3001}:3001"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3001/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - app-network
+
+  # -----------------------------
+  # Redis queue backend
+  # Run with: docker compose up redis
+  # (Uses default profile, no --profile flag needed)
+  # -----------------------------
+  redis:
+    image: redis:latest
+    hostname: redis
+    container_name: ciap-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-redis_dev_password}"]
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_dev_password}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.2"
+          memory: 64M
+    networks:
+      - app-network
+
+  # -----------------------------
+  # Bull Board dashboard
+  # Access at http://localhost:3010 (user: admin / pass: admin123)
+  # Run with: docker compose up redis-bullboard
+  # (Uses default profile, no --profile flag needed)
+  # Depends on Redis being running
+  # -----------------------------
+  redis-bullboard:
+    image: venatum/bull-board:latest
+    hostname: redis-bullboard
+    container_name: ciap-redis-bullboard
+    restart: unless-stopped
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_dev_password}
+      - REDIS_DB=${BULLBOARD_REDIS_DB:-0}
+      - BULL_PREFIX=${BULLMQ_PREFIX:-Queue}
+      - USER_LOGIN=${BULLBOARD_USER_LOGIN:-admin}
+      - USER_PASSWORD=${BULLBOARD_USER_PASSWORD:-admin123}
+    ports:
+      - "${BULLBOARD_PORT:-3010}:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 128M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    networks:
+      - app-network
+
+
+volumes:
+
+  # Persistent Redis data storage
+  redis_data:
+    name: ciap-redis-data
+
+  # Persistent application logs
+  ciap_logs:
+    name: ciap-logs-data
+
+networks:
+  app-network:
+    driver: bridge
+    internal: false

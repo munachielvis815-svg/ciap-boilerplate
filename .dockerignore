@@ -1,0 +1,45 @@
+# Dependencies and package manager cache
+node_modules
+.pnpm-store
+
+# Build artifacts and logs
+dist
+coverage
+*.log
+npm-debug.log*
+pnpm-debug.log*
+logs
+uploads
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# VCS and editor files
+.git
+.github
+.vscode
+.idea
+.husky
+.commitlintrc
+
+# Docs and task tracking not needed in image build context
+docs
+agent-docs
+tasks
+
+# Do NOT ignore the workers workspace: root dockerfile copies workers/package.json
+# and builds workers. Only ignore its build outputs (if present).
+workers/dist
+workers/node_modules
+
+#individual files
+README.md
+REDIS_BULLMQ_SETUP.md
+SECURITY.md
+AGENT.md
+
+# OS files
+.DS_Store
+Thumbs.db

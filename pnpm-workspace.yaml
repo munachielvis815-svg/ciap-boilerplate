@@ -1,0 +1,7 @@
+packages:
+  - '.'
+  - 'workers'
+
+allowBuilds:
+  '@nestjs/core': false
+  '@swc/core': false
