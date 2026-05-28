@@ -24,6 +24,256 @@ Use this file to keep substantial tasks planned, tracked, and closed out.
 
 ## Active / Recent Tasks
 
+<<<<<<< HEAD
+=======
+## Task: Add worker Docker image to GitHub Actions CI
+
+- Date: 2026-05-28
+- Request: Ensure GitHub Actions builds both backend and worker Docker images separately, with no cross-building.
+- Plan:
+  - [x] Split single `docker/build-push-action` step into two with explicit `target` for each image.
+  - [x] Fix missing `register-paths.cjs` in worker-runtime Dockerfile stage.
+  - [x] Verify docker-compose.yml already uses correct targets.
+- Verification:
+  - Manual: Reviewed Dockerfile multi-stage graph — `backend-runtime` only pulls from `backend-build`, `worker-runtime` only pulls from `worker-build`. No cross-contamination.
+- Result:
+  - Workflow now builds `ciap-apis` (target: `backend-runtime`) and `ciap-workers` (target: `worker-runtime`) as separate images. Fixed a missing runtime file (`register-paths.cjs`) in the worker Docker stage.
+
+## Task: Fix SWC configurations and verify builds
+
+- Date: 2026-05-27
+- Request: Fix SWC configurations to start dev and compile both backend and workers successfully, and provide docker build/push commands.
+- Plan:
+  - [x] Correct backend SWC compilation in `nest-cli.json` to avoid watch loop hangs.
+  - [x] Correct worker SWC build script to compile shared dependencies to `dist/shared`.
+  - [x] Clean stale `.js` files in `workers/shared`.
+  - [x] Verify backend and worker builds run successfully.
+  - [x] Provide Docker build and push commands.
+- Progress:
+  - SWC compilation and watcher issues resolved.
+  - Cleaned up stale files.
+  - Successfully verified `pnpm run build` and `pnpm run build:workers` compilation.
+- Verification:
+  - Tests: `pnpm run build`, `pnpm run build:workers` (both compiled successfully)
+- Result:
+  - Both back-end and worker builds compile successfully. Docker commands provided.
+
+## Task: Complete migration of shared folder to repo root
+
+- Date: 2026-05-27
+- Request: Complete the halfway migration of the shared folder from `src/shared` to `shared` at the repo root and update relevant docs.
+- Plan:
+  - [x] Delete the redundant `src/shared` folder.
+  - [x] Fix remaining typecheck errors in `workers/src/repositories/worker-job.repository.ts`.
+  - [x] Update docs (`.gitignore`, `findings.md`, `project-structure.md`) to point to `shared` at the repo root.
+- Progress:
+  - Cleaned up `.gitignore` and agent/project docs to stop referencing `src/shared`.
+  - Fixed a TypeScript error in worker-job.repository.ts that was breaking `typecheck`.
+- Verification:
+  - Tests: `pnpm run typecheck`
+  - Logs / errors:
+- Result:
+  - The shared runtime is now fully migrated to `shared/` at the root, and all docs reflect this structure.
+
+## Task: Fix idle shutdown spam and unify shared runtime
+
+- Date: 2026-05-27
+- Request: Stop repeated idle shutdown logs, remove duplicate shared artifacts under workers, and document shared runtime usage.
+- Plan:
+  - [x] Guard idle shutdown to log once and stop checks.
+  - [x] Remove compiled shared artifacts under `workers/src/shared` and ignore them.
+  - [x] Update docs to clarify shared runtime location and log color env.
+- Progress:
+  - Added a shutdown guard for idle checks and cleared the interval before stopping.
+  - Removed worker-side shared artifacts and ignored future JS outputs.
+  - Updated project structure docs and environment docs.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Idle shutdown now logs once; shared runtime is unified under `src/shared` with docs updated.
+
+## Task: Colorized logs, worker docs, and Docker images
+
+- Date: 2026-05-27
+- Request: Colorize logs for readability, update README with worker info, and ensure Docker builds separate API/worker images.
+- Plan:
+  - [x] Add ANSI color output for pretty logs.
+  - [x] Document worker runtime and logging controls in README.
+  - [x] Tag API/worker images in docker-compose and note build targets.
+- Progress:
+  - Added ANSI colors to pretty structured logs.
+  - Added Workers + Logging + Docker Images sections to README.
+  - Tagged Docker images for API/worker and enabled worker log color defaults.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Logs are colorized in pretty mode, README documents worker usage, and docker-compose builds distinct API/worker images.
+
+## Task: Repair Google login oauth rows and soften invalid_grant in workers
+
+- Date: 2026-05-27
+- Request: Ensure Google login always creates a login-scoped oauth_accounts row; prevent youtube-connect invalid_grant from blocking current view sync when the access token is still valid.
+- Plan:
+  - [x] Upsert login-scoped oauth_accounts rows after Google login resolution.
+  - [x] Allow worker sync to continue with a still-valid access token when refresh returns invalid_grant.
+  - [x] Note any follow-up verification or reconnect guidance.
+- Progress:
+  - Added login upsert to heal missing oauth_accounts rows.
+  - Added invalid_grant fallback to reuse an unexpired access token and clear the refresh token.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Google login now repairs missing login oauth rows. Worker sync reuses a still-valid access token when refresh fails with invalid_grant and clears the refresh token to signal reconnect.
+
+## Task: Switch env time units to minutes
+
+- Date: 2026-05-26
+- Request: Replace ms-based env values with minutes for human readability across app and workers.
+- Plan:
+  - [x] Add minutes-based env parsing with legacy ms fallbacks.
+  - [x] Update worker, queue, cache, DB, and Google timeout readers.
+  - [x] Update .env/.env.example and environment docs.
+- Progress:
+  - Added minutes parsing for worker schedules, idle timeout, backoff, and Google API timeout.
+  - Added minutes parsing for BullMQ backoff, cache op timeouts, and DB pool timeouts.
+  - Updated env files and docs to minutes-based names.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Time-related env vars now use minutes with backward-compatible ms fallback parsing.
+
+## Task: Add worker idle shutdown and scheduler toggle
+
+- Date: 2026-05-26
+- Request: Exit workers when queues are empty while keeping retries and main-app scheduling.
+- Plan:
+  - [x] Add worker env flags for scheduler enablement and idle exit.
+  - [x] Implement idle queue monitoring and exit when idle timeout passes.
+  - [x] Update docs for new worker env vars.
+- Progress:
+  - Added `WORKER_SCHEDULER_ENABLED`, `WORKER_EXIT_ON_IDLE`, and `WORKER_IDLE_TIMEOUT_MS`.
+  - Added idle monitor that exits after queues remain empty for the configured timeout.
+  - Documented env variables in environment docs.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Workers can now exit when idle while leaving scheduling to the main app when desired.
+
+## Task: Add worker idempotency and fix onReady timeout
+
+- Date: 2026-05-26
+- Request: Ensure workers do not re-run completed jobs and fix Fastify onReady timeout during startup.
+- Plan:
+  - [x] Make worker runtime start non-blocking so onReady does not time out.
+  - [x] Add enqueue guards to skip users with active jobs.
+  - [x] Skip YouTube sync execution when channel is already fresh.
+- Progress:
+  - Made runtime start async in onReady with failure logging.
+  - Added job-level idempotency checks during batch enqueue.
+  - Added per-user freshness short-circuit in sync service.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Worker startup no longer blocks onReady; duplicate syncs are skipped at enqueue and execution time.
+
+## Task: Improve worker log readability and OAuth error detail
+
+- Date: 2026-05-26
+- Request: Make worker logs human-readable (multi-line) and clarify the OAuth invalid_grant errors.
+- Plan:
+  - [x] Update structured logger formatting to support pretty output.
+  - [x] Enrich error serialization for HTTP client responses with safe redaction.
+  - [ ] Verify worker logs with LOG_FORMAT=pretty.
+  - [x] Mark invalid_grant errors as unrecoverable to stop retries.
+- Progress:
+  - Added pretty log formatting and sanitized HTTP error response fields for structured logs.
+  - Added unrecoverable handling for OAuth invalid_grant refresh failures.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Worker sync jobs now stop retrying when Google refresh returns invalid_grant; logs include unrecoverable flag.
+
+## Task: Improve worker logging and database startup
+
+- Date: 2026-05-26
+- Request: Add structured logging to worker runtime and fix the worker startup insert failure.
+- Plan:
+  - [x] Inspect worker runtime bootstrapping and database initialization paths.
+  - [x] Add structured logging around worker startup, queue initialization, and job lifecycle.
+  - [x] Harden database startup checks and improve error detail for failed inserts.
+- Progress:
+  - Added structured worker logs for startup, queue enqueue, job lifecycle, and shutdown.
+  - Added DB readiness checks and richer error serialization for underlying causes.
+- Verification:
+  - Tests:
+  - Logs / errors:
+- Result:
+  - Added structured worker logging for startup, queue enqueue, job lifecycle, and shutdown; added database readiness checks and richer error serialization.
+
+## Task: Switch worker build/dev flow to SWC
+
+- Date: 2026-05-26
+- Request: Use SWC for the worker compile and dev flow, aligned with the main repo, for a faster developer experience.
+- Plan:
+  - [ ] Inspect the current worker build/start scripts and confirm the compiled output layout.
+  - [ ] Replace worker `tsc`/`ts-node` build and dev scripts with SWC-based scripts.
+  - [ ] Add runtime alias registration for compiled worker output so `@shared/*` imports keep working after transpilation.
+  - [ ] Run targeted verification for worker typecheck/build.
+- Progress:
+  - Confirmed the worker had `tsc` for build and `ts-node` for `start:dev`, while the main repo already standardizes on SWC.
+  - Switched worker build output to SWC using the root `.swcrc`, with worker files compiled to `workers/dist` and shared files compiled to `workers/dist/src/shared`.
+  - Replaced the dependency-based watch runner approach with a local `workers/scripts/dev-runner.cjs` so `start:dev` can run three native processes: SWC watch for worker files, SWC watch for shared files, and `node --watch` for the compiled app.
+  - Added `workers/register-paths.cjs` to resolve compiled `@shared/*` imports at runtime for the built worker JS.
+  - Fixed Windows `spawn EINVAL` in the worker dev runner by launching `pnpm` through `cmd.exe` and spawning Node directly from `process.execPath`.
+  - Updated worker bootstrap to load the shared repo-root `.env` before local worker env overrides.
+  - Moved BullMQ runtime queue/job constants into `workers/src/queues/queue.constants.ts` to avoid the broken compiled shared-constants file that caused `Queue name must be provided`.
+  - Added worker-specific exception classes plus generic Fastify/process error handling for startup and request failures.
+- Verification:
+  - Tests: not run
+  - Logs / errors: `cmd /c pnpm --dir workers run typecheck` (pass)
+  - Logs / errors: `cmd /c pnpm run build:workers` (pass)
+  - Logs / errors: `node -r ./workers/register-paths.cjs -e "require('./workers/dist/src/app.js'); console.log('worker-app-import-ok')"` (pass)
+  - Logs / errors: `cmd /c pnpm --dir workers start:dev` now gets past the previous `spawn EINVAL` and `Queue name must be provided` failures; remaining startup failure is dependency readiness (`REDIS_URL`/DB/migrations) in this environment.
+- Result:
+  - Completed. The worker now uses SWC for builds and a compiled-JS SWC watch loop for development, aligned with the main repo’s transpilation approach, with runtime alias handling for shared imports.
+
+## Task: Build shared worker runtime for YouTube sync jobs
+
+- Date: 2026-05-26
+- Request: Extend repo instructions for `workers/`, introduce shared backend-worker code, and build a Fastify + BullMQ worker system that scans unsynced YouTube users, enqueues sync jobs, processes sync lifecycles with persistent job records, and reserves an ML queue placeholder.
+- Plan:
+  - [ ] Inspect backend ingestion, queue, database, and worker scaffold patterns.
+  - [ ] Introduce a shared runtime for Drizzle schema/migrations, DB access, queue contracts, env parsing, and reusable YouTube sync/normalization helpers.
+  - [ ] Refactor backend ingestion to consume shared code while keeping immediate `/ingestion/youtube/metrics` sync behavior.
+  - [ ] Build worker scheduler, batch scanner, BullMQ consumers, job lifecycle persistence, and placeholder ML worker in `workers/`.
+  - [ ] Update package/workspace/docker/env/docs/instruction files and run targeted verification.
+- Progress:
+  - Confirmed the backend already has a fetch -> normalize -> persist -> enqueue path in `src/modules/ingestion/youtube/services/youtube.service.ts`.
+  - Confirmed `workers/` is only a folder scaffold right now, with empty `main.ts`, `tsconfig.json`, and `dockerfile`.
+  - Confirmed schema/migrations currently live under `src/database/drizzle`, so the shared refactor needs alias/config updates plus migration path preservation.
+  - Added `src/shared/` for the shared Drizzle schema/migrations, DB client helper, Redis queue parsing, queue/job contracts, logging helper, and shared YouTube normalization.
+  - Refactored backend DB/bootstrap and YouTube normalization to consume the shared layer while keeping the Nest ingestion endpoint and module flow intact.
+  - Implemented the Fastify worker runtime in `workers/` with env parsing, BullMQ queue setup, scheduler intervals, batch scanning, per-user YouTube sync jobs, persistent `worker_jobs` lifecycle tracking, and an ML placeholder queue/handler.
+  - Updated workspace/package/docker/env/docs/instruction files and generated the new Drizzle migration in `src/shared/database/drizzle/migrations/20260526170300_famous_radioactive_man.sql`.
+- Verification:
+  - Tests: not run
+  - Logs / errors: `cmd /c pnpm run typecheck` (pass)
+  - Logs / errors: `cmd /c pnpm --dir workers run typecheck` (pass)
+  - Logs / errors: `cmd /c pnpm install --lockfile-only` (pass)
+  - Logs / errors: `cmd /c pnpm run build:backend` (pass)
+  - Logs / errors: `cmd /c pnpm run build:workers` (pass)
+  - Logs / errors: `cmd /c pnpm run db:generate` (pass)
+- Result:
+  - Completed. The repo now has a shared backend-worker runtime layer, a Fastify + BullMQ worker system for scheduled YouTube sync jobs, a persistent `worker_jobs` table for lifecycle tracking, shared env/package/docker wiring, and updated repo instructions that treat `workers/` as part of the backend architecture.
+
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 ## Task: Redirect YouTube OAuth callback to frontend
 
 - Date: 2026-05-22

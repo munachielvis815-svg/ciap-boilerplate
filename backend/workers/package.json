@@ -1,0 +1,31 @@
+{
+  "name": "@ciap/workers",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fastify + BullMQ worker runtime for CIAP backend jobs",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "swc main.ts src -d dist --config-file ../.swcrc && swc ../shared -d dist/shared --config-file ../.swcrc",
+    "start": "node -r ./register-paths.cjs dist/main.js",
+    "start:dev": "pnpm run build && node ./scripts/dev-runner.cjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "bullmq": "^5.74.1",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.8.5",
+    "google-auth-library": "^10.6.2",
+    "pg": "^8.20.0",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "@swc/cli": "^0.8.1",
+    "@swc/core": "^1.15.26",
+    "@swc/jest": "^0.2.39",
+    "@types/node": "^24.12.2",
+    "typescript": "^5.9.3"
+  }
+}

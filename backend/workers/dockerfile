@@ -1,0 +1,37 @@
+FROM node:lts-alpine AS build
+
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY workers/package.json ./workers/package.json
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+RUN pnpm run build:workers
+
+FROM node:lts-alpine AS runtime
+
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY workers/package.json ./workers/package.json
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+
+COPY --from=build /app/workers/dist ./workers/dist
+COPY --from=build /app/workers/package.json ./workers/package.json
+
+ENV NODE_ENV=production
+
+RUN addgroup -g 1001 -S nodejs \
+	&& adduser -S nodejs -u 1001 \
+	&& chown -R nodejs:nodejs /app
+
+USER nodejs
+
+EXPOSE 3001
+
+CMD ["pnpm", "--dir", "workers", "run", "start"]

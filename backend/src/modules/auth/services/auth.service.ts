@@ -417,6 +417,7 @@ export class AuthService {
           influenceScoreUpdatedAt: null,
         });
       }
+<<<<<<< HEAD
 
       await this.authRepository.createOauthAccount({
         userId: user.id,
@@ -425,12 +426,25 @@ export class AuthService {
         providerUserId: googleSubject,
         email,
       });
+=======
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
     }
 
     if (!user) {
       throw new InvalidCredentialsException({ provider: 'google' });
     }
 
+<<<<<<< HEAD
+=======
+    await this.authRepository.upsertOauthAccountByUserProviderPurpose({
+      userId: user.id,
+      provider: 'google',
+      purpose: 'login',
+      providerUserId: googleSubject,
+      email,
+    });
+
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
     await Promise.all([
       this.usersRepository.markEmailVerified(user.id),
       this.usersRepository.updateLastLogin(user.id),

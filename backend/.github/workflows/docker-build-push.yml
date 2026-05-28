@@ -101,14 +101,38 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
+<<<<<<< HEAD
       - name: Build and push
+=======
+      - name: Build and push backend
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
         uses: docker/build-push-action@v6
         with:
           context: .
           file: dockerfile
+<<<<<<< HEAD
+=======
+          target: backend-runtime
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
           push: true
           tags: |
             ${{ env.DOCKERHUB_USERNAME }}/ciap-apis:latest
             ${{ env.DOCKERHUB_USERNAME }}/ciap-apis:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+<<<<<<< HEAD
+=======
+
+      - name: Build and push worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: dockerfile
+          target: worker-runtime
+          push: true
+          tags: |
+            ${{ env.DOCKERHUB_USERNAME }}/ciap-workers:latest
+            ${{ env.DOCKERHUB_USERNAME }}/ciap-workers:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56

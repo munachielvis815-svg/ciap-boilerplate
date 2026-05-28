@@ -1,5 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
+<<<<<<< HEAD
 import { and, eq } from 'drizzle-orm';
+=======
+import { and, eq, sql } from 'drizzle-orm';
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 import { DATABASE_PROVIDER } from '@database/database.module';
 import type { Database } from '@database/database.module';
 import { auditLogs, oauthAccounts } from '@database/drizzle/schema';
@@ -102,6 +106,32 @@ export class AuthRepository {
     return updated;
   }
 
+<<<<<<< HEAD
+=======
+  async upsertOauthAccountByUserProviderPurpose(
+    data: NewOauthAccount,
+  ): Promise<OauthAccount> {
+    const [upserted] = await this.db
+      .insert(oauthAccounts)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [
+          oauthAccounts.userId,
+          oauthAccounts.provider,
+          oauthAccounts.purpose,
+        ],
+        set: {
+          providerUserId: sql`excluded.provider_user_id`,
+          email: sql`excluded.email`,
+          updatedAt: sql`now()`,
+        },
+      })
+      .returning();
+
+    return upserted;
+  }
+
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
   async deleteOauthAccountByUserAndProvider(
     userId: number,
     provider: 'google' | 'github' | 'linkedin',

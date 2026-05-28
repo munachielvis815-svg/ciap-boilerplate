@@ -32,6 +32,10 @@ Use this file as the default operating guide. Keep changes small, safe, typed, a
 ## Stack Snapshot
 
 - Framework: NestJS 11
+<<<<<<< HEAD
+=======
+- Worker runtime: Fastify + BullMQ
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 - Language: TypeScript with strict mode
 - ORM: Drizzle ORM with `pg`
 - Database: PostgreSQL via `DATABASE_URL`
@@ -57,8 +61,15 @@ Use this file as the default operating guide. Keep changes small, safe, typed, a
 - Keep solutions aligned with security, maintainability, scalability, and readability.
 - If a decision is primarily for performance or to match an existing repo pattern, call it out in the task summary (add a short code comment only when the choice is non-obvious).
 - Provide concrete examples immediately when they clarify a recommendation.
+<<<<<<< HEAD
 - This repo uses NestJS + Drizzle + PostgreSQL; do not import Prisma/Mongo conventions or folder layouts from other codebases.
 - Keep module layout aligned with `src/modules/<feature>/` (avoid introducing deep `controllers/`, `services/`, etc. folders unless the module already uses them).
+=======
+- This repo uses NestJS + Fastify workers + Drizzle + PostgreSQL; do not import Prisma/Mongo conventions or folder layouts from other codebases.
+- Keep module layout aligned with `src/modules/<feature>/` (avoid introducing deep `controllers/`, `services/`, etc. folders unless the module already uses them).
+- Worker code under `workers/` follows the same standards: strict typing, repository-owned queries, clean job lifecycles, and readable handlers.
+- Shared backend-worker runtime code belongs in `shared/`. Keep Nest-only runtime wiring in `src/` and worker-only process wiring in `workers/`.
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 
 ## Research And Repo Search
 
@@ -97,7 +108,13 @@ Keep the task log compact. It should help execution, not become a second spec.
 
 - `src/modules/*`: feature modules
 - `src/common/*`: shared exceptions, filters, bases, and cross-cutting utilities
+<<<<<<< HEAD
 - `src/database/*`: Drizzle schema, migrations, database module, seeds
+=======
+- `src/database/*`: backend Nest database module and seeds
+- `shared/*`: shared backend-worker runtime code
+- `workers/*`: Fastify worker runtime, queues, schedulers, and job handlers
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 - `src/types/*`: shared typings
 - `src/swagger.ts`: Swagger setup
 - `src/main.ts`: app bootstrap, CORS, global validation pipe
@@ -217,8 +234,15 @@ Use `pnpm` scripts from `package.json`:
 
 - `pnpm run start:dev`
 - `pnpm run build`
+<<<<<<< HEAD
 - `pnpm run lint`
 - `pnpm run typecheck`
+=======
+- `pnpm run build:workers`
+- `pnpm run lint`
+- `pnpm run typecheck`
+- `pnpm run typecheck:workers`
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 - `pnpm run test`
 - `pnpm run test:e2e`
 - `pnpm run db:generate`

@@ -22,6 +22,16 @@ Reusable lessons, mistakes, debugging notes, and tooling cautions.
 
 ## Current Lessons
 
+<<<<<<< HEAD
+=======
+## NestJS Builder sourceRoot Watch Path Cautions (2026-05-27)
+
+- Situation: Changing `sourceRoot` to `"."` in `nest-cli.json` to include root-level folders causes the Nest CLI watch loop to recursively scan the entire project root, including `.pnpm-store` and `node_modules`, which hangs compilation.
+- Lesson: Keep `sourceRoot` set to `src`, and use `builder.options.filenames` to explicitly declare top-level folders like `["src", "shared"]` that need compilation.
+- Avoid: Broadening `sourceRoot` in `nest-cli.json` to `.` when subfolders like `.pnpm-store` or large dependencies exist in the root.
+- Apply: Use `filenames` config under builder options to compiler-override entry files instead of changing `sourceRoot` to `.`.
+
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 ## Bootstrap Docs Should Stay In Sync (2026-04-08)
 
 - Situation: Agent-facing guidance was split between `AGENTS.md`, `.github/copilot-instructions.md`, and several `agent-docs/*` files.

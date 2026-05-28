@@ -35,10 +35,21 @@ export class YoutubeRepository {
   async upsertChannel(channel: NewYoutubeChannel): Promise<YoutubeChannel> {
     const result = await this.db
       .insert(youtubeChannels)
+<<<<<<< HEAD
       .values(channel)
       .onConflictDoUpdate({
         target: youtubeChannels.youtubeChannelId,
         set: {
+=======
+      .values({
+        ...channel,
+        lastSyncedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: youtubeChannels.youtubeChannelId,
+        set: {
+          userId: channel.userId,
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
           channelTitle: channel.channelTitle,
           channelDescription: channel.channelDescription,
           thumbnailUrl: channel.thumbnailUrl,
@@ -46,6 +57,10 @@ export class YoutubeRepository {
           subscriberCount: channel.subscriberCount,
           videoCount: channel.videoCount,
           uploadPlaylistId: channel.uploadPlaylistId,
+<<<<<<< HEAD
+=======
+          lastSyncedAt: new Date(),
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
         },
       })
       .returning();
@@ -62,10 +77,23 @@ export class YoutubeRepository {
 
     return this.db
       .insert(youtubeVideos)
+<<<<<<< HEAD
       .values(videos)
       .onConflictDoUpdate({
         target: youtubeVideos.youtubeVideoId,
         set: {
+=======
+      .values(
+        videos.map((video) => ({
+          ...video,
+          lastSyncedAt: new Date(),
+        })),
+      )
+      .onConflictDoUpdate({
+        target: youtubeVideos.youtubeVideoId,
+        set: {
+          channelId: sql`excluded.channel_id`,
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
           videoTitle: sql`excluded.video_title`,
           videoDescription: sql`excluded.video_description`,
           publishedAt: sql`excluded.published_at`,
@@ -73,6 +101,10 @@ export class YoutubeRepository {
           viewCount: sql`excluded.view_count`,
           likeCount: sql`excluded.like_count`,
           commentCount: sql`excluded.comment_count`,
+<<<<<<< HEAD
+=======
+          lastSyncedAt: sql`now()`,
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
           updatedAt: sql`now()`,
         },
       })

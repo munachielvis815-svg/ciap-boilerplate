@@ -6,6 +6,10 @@
     "^@modules/(.*)$": "<rootDir>/src/modules/$1",
     "^@common/(.*)$": "<rootDir>/src/common/$1",
     "^@database/(.*)$": "<rootDir>/src/database/$1",
+<<<<<<< HEAD
+=======
+    "^@shared/(.*)$": "<rootDir>/shared/$1",
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
     "^@types/(.*)$": "<rootDir>/src/types/$1",
     "^@bases/(.*)$": "<rootDir>/src/common/bases/$1",
     "^@decorators/(.*)$": "<rootDir>/src/common/decorators/$1",
@@ -20,12 +24,20 @@
     "^@interfaces/(.*)$": "<rootDir>/src/common/interfaces/$1",
     "^@constants/(.*)$": "<rootDir>/src/common/constants/$1",
     "^@factories/(.*)$": "<rootDir>/src/common/factories/$1",
+<<<<<<< HEAD
     "^@migrations/(.*)$": "<rootDir>/src/database/drizzle/migrations/$1",
+=======
+    "^@migrations/(.*)$": "<rootDir>/shared/database/drizzle/migrations/$1",
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
     "^@generated/(.*)$": "<rootDir>/src/generated/$1",
     "^@test/(.*)$": "<rootDir>/test/$1"
   },
   "testMatch": [
     "<rootDir>/src/**/*.spec.ts",
+<<<<<<< HEAD
+=======
+    "<rootDir>/test/**/*.spec.ts",
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
     "<rootDir>/test/**/*.e2e-spec.ts"
   ],
   "testEnvironment": "node",

@@ -5,6 +5,10 @@ Quick map of the repository and where new code should go.
 ## Top Level
 
 - `src/`: application code
+<<<<<<< HEAD
+=======
+- `workers/`: Fastify worker runtime
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 - `test/`: e2e tests
 - `tasks/`: task planning and execution logs
 - `agent-docs/`: agent-facing guidance
@@ -18,6 +22,10 @@ Quick map of the repository and where new code should go.
 - `src/modules/auth/socials`: social provider auth flows (Google), token refresh, and social metrics pull helpers, organized by layer folders
 - `src/modules/ingestion`: ingestion entry module for external platform pulls
 - `src/modules/ingestion/youtube`: YouTube ingestion routes and service
+<<<<<<< HEAD
+=======
+- `shared`: shared backend-worker runtime code (database schema, queue contracts, logging helpers, shared ingestion primitives)
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 - `src/modules/creator-insights`: creator audience/content insight endpoints
 - `src/modules/creator-discovery`: SME creator discovery + comparison endpoints
 - `src/modules/sme-campaigns`: SME campaign creation + campaign creator assignment endpoints
@@ -32,7 +40,12 @@ Quick map of the repository and where new code should go.
 - `src/common/exceptions`: domain-specific exception classes
 - `src/common/filters`: global exception filters
 - `src/common/guards`: JWT auth, role guards, and ability guards
+<<<<<<< HEAD
 - `src/database/drizzle`: schema and generated migrations
+=======
+- `src/database`: backend Nest database module and seeds
+- `shared/database/drizzle`: shared schema and generated migrations
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 - `src/database/seeds`: seed module and scripts
 - `src/types`: shared TypeScript types
 
@@ -73,9 +86,19 @@ Global validation and CORS are configured in `src/main.ts`.
 
 - Shared exceptions belong in `src/common/exceptions`.
 - Shared filters belong in `src/common/filters`.
+<<<<<<< HEAD
 - Feature controllers, services, repositories, utilities, and jobs belong in matching module-local folders.
 - Schema changes belong in `src/database/drizzle/schema.ts`.
 - Migrations stay under `src/database/drizzle/migrations/`.
+=======
+- Backend-worker shared runtime belongs in `shared`.
+- Feature controllers, services, repositories, utilities, and jobs belong in matching module-local folders.
+- Worker queues, schedulers, repositories, and handlers belong in `workers/src/`.
+- Workers import shared runtime via `@shared/*`; compiled output lands in `workers/dist/shared`.
+- Do not create source files under `workers/shared`.
+- Schema changes belong in `shared/database/drizzle/schema.ts`.
+- Migrations stay under `shared/database/drizzle/migrations/`.
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 - One-off or historical notes belong in `agent-docs/findings.md`.
 - Reusable mistakes, lessons, and cautions belong in `agent-docs/lessons.md`.
 - Task plans, progress notes, and task results belong in `tasks/todo.md`.

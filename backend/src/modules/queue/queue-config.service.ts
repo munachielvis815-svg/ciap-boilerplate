@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ConnectionOptions, QueueOptions } from 'bullmq';
+<<<<<<< HEAD
+=======
+import { parseRedisUrl } from '@shared/queue/redis-connection';
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 
 /**
  * BullMQ queue configuration provider.
@@ -19,8 +23,20 @@ export class QueueConfigService {
     this.redisUrl = this.configService.get<string>('REDIS_URL') || '';
     this.prefix = this.configService.get<string>('BULLMQ_PREFIX') || 'Queue';
     this.maxRetries = this.configService.get<number>('BULLMQ_MAX_RETRIES') ?? 3;
+<<<<<<< HEAD
     this.backoffDelayMs =
       this.configService.get<number>('BULLMQ_BACKOFF_DELAY_MS') ?? 3000;
+=======
+    const backoffMinutes =
+      this.configService.get<number>('BULLMQ_BACKOFF_DELAY_MINUTES') ?? null;
+    const legacyBackoffMs =
+      this.configService.get<number>('BULLMQ_BACKOFF_DELAY_MS') ?? null;
+    this.backoffDelayMs = Number.isFinite(backoffMinutes)
+      ? Number(backoffMinutes) * 60_000
+      : Number.isFinite(legacyBackoffMs)
+        ? Number(legacyBackoffMs)
+        : 3000;
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
     this.queueBackpressureLimit =
       this.configService.get<number>('BULLMQ_QUEUE_BACKPRESSURE_LIMIT') ?? 100;
 
@@ -58,7 +74,11 @@ export class QueueConfigService {
       attempts: this.maxRetries + 1, // 4 total attempts (1 initial + 3 retries)
       backoff: {
         type: 'exponential',
+<<<<<<< HEAD
         delay: this.backoffDelayMs, // 3000ms = 3s
+=======
+        delay: this.backoffDelayMs,
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
       },
     };
   }
@@ -84,6 +104,7 @@ export class QueueConfigService {
    * Supports redis:// and rediss:// URLs, ACL usernames, and /db indexes.
    */
   private parseRedisUrl(): ConnectionOptions {
+<<<<<<< HEAD
     try {
       const url = new URL(this.redisUrl);
       if (url.protocol !== 'redis:' && url.protocol !== 'rediss:') {
@@ -126,5 +147,8 @@ export class QueueConfigService {
     }
 
     return db;
+=======
+    return parseRedisUrl(this.redisUrl);
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
   }
 }

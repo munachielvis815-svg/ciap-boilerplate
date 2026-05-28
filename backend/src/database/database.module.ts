@@ -1,15 +1,28 @@
 import { Module, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+<<<<<<< HEAD
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import type { PoolClient } from 'pg';
 import * as schema from './drizzle/schema';
+=======
+import type { PoolClient } from 'pg';
+import {
+  createDatabase,
+  createDatabasePool,
+  type SharedDatabase,
+} from '@shared/database/client';
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 
 const logger = new Logger('DatabaseModule');
 
 export const DATABASE_PROVIDER = 'DATABASE_CONNECTION';
 
+<<<<<<< HEAD
 export type Database = NodePgDatabase<typeof schema>;
+=======
+export type Database = SharedDatabase;
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 
 @Module({
   imports: [ConfigModule],
@@ -27,6 +40,7 @@ export type Database = NodePgDatabase<typeof schema>;
 
         logger.debug(`Connecting to database...`);
 
+<<<<<<< HEAD
         const pool = new Pool({
           connectionString,
           max: Number(process.env.DB_POOL_MAX || 20),
@@ -37,6 +51,9 @@ export type Database = NodePgDatabase<typeof schema>;
             process.env.DB_POOL_CONNECTION_TIMEOUT_MS || 5_000,
           ),
         });
+=======
+        const pool = createDatabasePool(connectionString);
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 
         // Test connection
         let client: PoolClient | null = null;
@@ -54,8 +71,12 @@ export type Database = NodePgDatabase<typeof schema>;
           }
         }
 
+<<<<<<< HEAD
         const db = drizzle(pool, { schema });
         return db;
+=======
+        return createDatabase(pool);
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
       },
       inject: [ConfigService],
     },

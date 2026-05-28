@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Injectable, Logger } from '@nestjs/common';
 import type {
   YoutubeChannel,
@@ -266,3 +267,10 @@ export class YoutubeNormalizationService {
     );
   }
 }
+=======
+import { Injectable } from '@nestjs/common';
+import { SharedYoutubeNormalizationService } from '@shared/youtube/youtube-normalization';
+
+@Injectable()
+export class YoutubeNormalizationService extends SharedYoutubeNormalizationService {}
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56

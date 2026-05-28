@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import {
   pgTable,
   text,
@@ -971,3 +972,6 @@ export type SmeCampaign = typeof smeCampaigns.$inferSelect;
 export type NewSmeCampaign = typeof smeCampaigns.$inferInsert;
 export type SmeCampaignCreator = typeof smeCampaignCreators.$inferSelect;
 export type NewSmeCampaignCreator = typeof smeCampaignCreators.$inferInsert;
+=======
+export * from '@shared/database/drizzle/schema';
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56

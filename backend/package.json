@@ -10,16 +10,31 @@
     "prebuild": "rimraf dist",
     "prepare": "husky",
     "clean": "rimraf dist && rimraf node_modules && pnpm store prune",
+<<<<<<< HEAD
     "build": "nest build application --config nest-cli.json",
     "build:dev": "nest build application --config nest-cli.json --watch",
     "typecheck": "tsc --noEmit",
+=======
+    "build:backend": "nest build --config nest-cli.json",
+    "build:workers": "pnpm --dir workers run build",
+    "build": "nest build --config nest-cli.json",
+    "build:dev": "nest build --config nest-cli.json --watch",
+    "start:worker": "pnpm --dir workers run start",
+    "start:worker:dev": "pnpm --dir workers run start:dev",
+    "typecheck": "tsc --noEmit",
+    "typecheck:workers": "pnpm --dir workers run typecheck",
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
     "typecheck:watch": "tsc --noEmit --watch",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "deadcode": "ts-prune --project tsconfig.json",
     "start": "nest start application --config nest-cli.json",
     "start:dev": "nest start --watch --config nest-cli.json",
     "start:debug": "nest start --debug --watch",
+<<<<<<< HEAD
     "start:prod": "node dist/main",
+=======
+    "start:prod": "node dist/src/main",
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
     "lint": "eslint .",
     "lint-fix": "eslint --fix",
     "lint:staged": "lint-staged",
@@ -34,7 +49,11 @@
     "db:studio": "drizzle-kit studio",
     "db:format": "drizzle-kit format",
     "db:seed": "ts-node -P tsconfig.seed.json -r tsconfig-paths/register src/database/seeds/seed.ts",
+<<<<<<< HEAD
     "db:seed:prod": "node dist/database/seeds/seed",
+=======
+    "db:seed:prod": "node dist/src/database/seeds/seed",
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
     "package:check": "npx npm-check-updates -i",
     "package:upgrade": "npx npm-check-updates -u "
   },
@@ -155,6 +174,10 @@
       "^@modules/(.*)$": "<rootDir>/modules/$1",
       "^@common/(.*)$": "<rootDir>/common/$1",
       "^@database/(.*)$": "<rootDir>/database/$1",
+<<<<<<< HEAD
+=======
+      "^@shared/(.*)$": "<rootDir>/../shared/$1",
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
       "^@types/(.*)$": "<rootDir>/types/$1",
       "^@bases/(.*)$": "<rootDir>/common/bases/$1",
       "^@decorators/(.*)$": "<rootDir>/common/decorators/$1",
@@ -169,7 +192,11 @@
       "^@interfaces/(.*)$": "<rootDir>/common/interfaces/$1",
       "^@constants/(.*)$": "<rootDir>/common/constants/$1",
       "^@factories/(.*)$": "<rootDir>/common/factories/$1",
+<<<<<<< HEAD
       "^@migrations/(.*)$": "<rootDir>/database/drizzle/migrations/$1",
+=======
+      "^@migrations/(.*)$": "<rootDir>/../shared/database/drizzle/migrations/$1",
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
       "^@generated/(.*)$": "<rootDir>/generated/$1",
       "^@test/(.*)$": "<rootDir>/../test/$1"
     },

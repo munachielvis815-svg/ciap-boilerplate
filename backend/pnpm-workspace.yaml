@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+=======
+packages:
+  - '.'
+  - 'workers'
+
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 allowBuilds:
   '@nestjs/core': false
   '@swc/core': false

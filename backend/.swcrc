@@ -13,5 +13,14 @@
   "module": {
     "type": "commonjs"
   },
+<<<<<<< HEAD
   "sourceMaps": true
+=======
+  "sourceMaps": true,
+  "exclude": [
+    "node_modules",
+    "dist",
+    "workers"
+  ]
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 }

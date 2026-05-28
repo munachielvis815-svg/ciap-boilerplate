@@ -22,6 +22,33 @@ Append-only notes for discoveries, decisions, and gotchas.
 
 ## Current Findings
 
+<<<<<<< HEAD
+=======
+## Backend and Worker SWC Compile Fixed (2026-05-27)
+
+- Context: The backend and worker compilation with SWC were broken after moving the `shared` directory to the root.
+- Finding: `nest-cli.json` was updated to keep `sourceRoot: "src"` and set `builder.options.filenames` to `["src", "shared"]`. This compiles both folders to `dist/src` and `dist/shared` respectively. The workers compilation was updated to output compiled shared files to `dist/shared/` rather than `dist/` or `shared/` at the source root, avoiding polluting the source directory.
+- Impact: Standard pnpm commands `pnpm run build` and `pnpm run build:workers` successfully compile the entire backend and worker code respectively.
+
+## Database Client Enables SSL From Connection String (2026-05-26)
+
+- Context: Worker startup insert failures with `sslmode` warnings indicated database SSL settings were not being applied consistently.
+- Finding: `createDatabasePool` now inspects `DATABASE_URL` query params (`ssl`, `sslmode`) and enables `pg` SSL accordingly.
+- Impact: Remote Postgres URLs that require SSL no longer rely on manual `pg` SSL config; update connection strings with `sslmode=require` when needed.
+
+## Shared Runtime Now Lives In shared And workers/ Uses It (2026-05-26)
+
+- Context: Added the Fastify + BullMQ worker runtime for scheduled YouTube sync work.
+- Finding: The shared database schema/migrations, queue contracts, logger helpers, and reusable sync primitives now live under `shared/`, while Nest-only DB bootstrap stays in `src/database` and worker-only process wiring lives in `workers/`.
+- Impact: Future backend-worker crossovers should be implemented in `shared/` first instead of duplicating schema contracts or queue names in both runtimes.
+
+## Worker SWC Runtime Needs Explicit Alias Hook For Compiled @shared Imports (2026-05-26)
+
+- Context: Switched `workers/` from `tsc`/`ts-node` to SWC for faster build and dev loops.
+- Finding: The compiled worker JS still emits `@shared/*` imports, so the runtime uses `workers/register-paths.cjs` to map those imports to `workers/dist/shared/*` after SWC transpilation.
+- Impact: Future worker build changes should preserve or deliberately replace that alias-resolution hook, otherwise compiled worker startup will fail even when typecheck/build pass.
+
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 ## YouTube Connected Status Must Use youtube-connect Grant (2026-05-21)
 
 - Context: Added YouTube disconnect and aligned integrations UI with the backend OAuth records.

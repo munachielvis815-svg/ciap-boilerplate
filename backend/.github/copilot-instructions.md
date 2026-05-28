@@ -17,12 +17,22 @@ Use these instructions when coding in this repository. They complement `AGENTS.m
 - Prefer secure, maintainable, scalable, and readable solutions.
 - If you pick an approach primarily for performance or to match an existing repo pattern, state it explicitly (short comment or task summary).
 - Provide concrete examples immediately when they clarify a suggestion.
+<<<<<<< HEAD
 - This repo uses NestJS + Drizzle + PostgreSQL; do not apply Prisma/Mongo conventions or folder layouts from other codebases.
+=======
+- This repo uses NestJS + Fastify workers + Drizzle + PostgreSQL; do not apply Prisma/Mongo conventions or folder layouts from other codebases.
+- Worker code in `workers/` is part of the same backend repo and should follow the same type-safety, repository, and readability standards.
+- Shared backend-worker runtime code belongs in `shared/`; keep Nest-only wiring in `src/` and worker-only queue/process wiring in `workers/`.
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 - Keep module layout aligned with `src/modules/<feature>/` unless a feature already uses deeper subfolders.
 
 ## Project Context
 
 - Framework: NestJS 11
+<<<<<<< HEAD
+=======
+- Worker runtime: Fastify + BullMQ
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 - Language: TypeScript strict mode
 - ORM: Drizzle ORM with PostgreSQL
 - Package manager: `pnpm`

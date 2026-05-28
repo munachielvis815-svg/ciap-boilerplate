@@ -32,6 +32,10 @@ Short reference for env files and runtime configuration.
 
 - Keep secrets out of committed docs and examples.
 - Treat `.env.example` as the public template.
+<<<<<<< HEAD
+=======
+- Backend and worker share the same `.env` file by default unless a task explicitly introduces a separate runtime-specific file.
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 - Use platform-managed secrets in deployed environments when possible.
 - Set env vars before starting the app.
 

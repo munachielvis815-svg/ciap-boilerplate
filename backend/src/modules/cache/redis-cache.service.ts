@@ -113,7 +113,18 @@ export class RedisCacheService {
   }
 
   private async withTimeout<T>(p: Promise<T>): Promise<T> {
+<<<<<<< HEAD
     const timeoutMs = Number(process.env.CACHE_OP_TIMEOUT_MS || '2000');
+=======
+    const timeoutMinutes = Number(process.env.CACHE_OP_TIMEOUT_MINUTES || '0');
+    const legacyTimeoutMs = Number(process.env.CACHE_OP_TIMEOUT_MS || '0');
+    const timeoutMs =
+      Number.isFinite(timeoutMinutes) && timeoutMinutes > 0
+        ? timeoutMinutes * 60_000
+        : Number.isFinite(legacyTimeoutMs) && legacyTimeoutMs > 0
+          ? legacyTimeoutMs
+          : 2000;
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
     let timer: NodeJS.Timeout;
     const timeoutPromise = new Promise<never>((_, rej) => {
       timer = setTimeout(

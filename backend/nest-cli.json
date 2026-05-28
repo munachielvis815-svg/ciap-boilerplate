@@ -2,13 +2,23 @@
   "$schema": "https://json.schemastore.org/nest-cli",
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
+<<<<<<< HEAD
+=======
+  "entryFile": "src/main",
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
   "compilerOptions": {
     "deleteOutDir": true,
     "builder": {
       "type": "swc",
       "options": {
         "swcrcPath": ".swcrc",
+<<<<<<< HEAD
         "outDir": "dist"
+=======
+        "outDir": "dist",
+        "filenames": ["src", "shared"],
+        "stripLeadingPaths": false
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
       }
     }
   }

@@ -1,7 +1,15 @@
 # compiled output
 /dist
 /node_modules
+<<<<<<< HEAD
 /build
+=======
+/workers/dist
+/workers/node_modules
+/build
+/workers/dist/shared/**/*.js
+/workers/dist/shared/**/*.js.map
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
 
 # Logs
 logs

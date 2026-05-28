@@ -1,6 +1,10 @@
 {
   "include": [
     "src/**/*",
+<<<<<<< HEAD
+=======
+    "shared/**/*",
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
     "workers/**/*",
     "drizzle.config.ts",
     "eslint.config.mjs"
@@ -40,6 +44,10 @@
       "@modules/*": ["src/modules/*"],
       "@common/*": ["src/common/*"],
       "@database/*": ["src/database/*"],
+<<<<<<< HEAD
+=======
+      "@shared/*": ["shared/*"],
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
       "@config/*": ["src/config/*"],
       "@types/*": ["src/types/*"],
       "@decorators/*": ["src/common/decorators/*"],
@@ -55,7 +63,11 @@
       "@constants/*": ["src/common/constants/*"],
       "@factories/*": ["src/common/factories/*"],
       "@bases/*": ["src/common/bases/*"],
+<<<<<<< HEAD
       "@migrations/*": ["src/database/drizzle/migrations/*"],
+=======
+      "@migrations/*": ["shared/database/drizzle/migrations/*"],
+>>>>>>> d8d4baa8b75c457da2acd9dbd014d9c3cc37ef56
       "@generated/*": ["src/generated/*"],
       "@test/*": ["test/*"]
     }
