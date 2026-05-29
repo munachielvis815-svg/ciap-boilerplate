@@ -48,9 +48,9 @@ export class UsersController {
 
   @Post('me/onboard')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Onboard creator profile and types' })
+  @ApiOperation({ summary: 'Onboard current user profile and types' })
   @ApiResponse({ status: 200, type: CreatorOnboardResponseDto })
-  @Roles('creator')
+  @Roles('creator', 'sme')
   async onboardCreator(
     @Req() request: AuthenticatedRequest,
     @Body() dto: CreatorOnboardDto,

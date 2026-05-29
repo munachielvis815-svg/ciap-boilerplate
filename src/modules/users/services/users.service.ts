@@ -99,8 +99,8 @@ export class UsersService {
     actor: RequestUser,
     dto: CreatorOnboardDto,
   ): Promise<CreatorOnboardResponseDto> {
-    if (actor.role !== 'creator') {
-      throw new UnauthorizedUserActionException('onboard a creator profile');
+    if (actor.role !== 'creator' && actor.role !== 'sme') {
+      throw new UnauthorizedUserActionException('onboard this profile');
     }
 
     const [user, existingProfile] = await Promise.all([
