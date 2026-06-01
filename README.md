@@ -353,8 +353,7 @@ Contributions are welcome. Please keep changes:
 
 ## License
 
-Current package license is `UNLICENSED` in `package.json`.  
-If you plan to open-source this repo, define a formal license file and update metadata.
+Current package license is `MIT` in `package.json`.
 
 <!-- REFERENCES -->
 
