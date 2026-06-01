@@ -4,7 +4,7 @@
   "description": "Creative Influence and Analytics Platform for SMEs and creators ",
   "author": "group2",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "prebuild": "rimraf dist",
